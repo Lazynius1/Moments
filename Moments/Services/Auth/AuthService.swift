@@ -247,6 +247,7 @@ class AuthService: ObservableObject {
 
         cleanupHolder.authHandle = Auth.auth().addStateDidChangeListener { [weak self] auth, user in
             guard let self = self else { return }
+            guard user?.uid == auth.currentUser?.uid else { return }
             Task { @MainActor in
                 self.invalidateChatScopedStateIfNeeded(userId: user?.uid)
             }
@@ -340,6 +341,7 @@ class AuthService: ObservableObject {
             // Si es la primera vez que se dispara el listener y no hay usuario, establecer el estado inicial.
             if self.authState == .loading && user == nil {
                 DispatchQueue.main.async {
+                    guard Auth.auth().currentUser == nil, !self.isInRegistrationProcess else { return }
                     self.authState = .unauthenticated
                 }
                 return
@@ -509,6 +511,8 @@ class AuthService: ObservableObject {
                 }
             } else {
                 DispatchQueue.main.async {
+                    // Un callback sin usuario puede quedar encolado antes del alta.
+                    guard Auth.auth().currentUser == nil, !self.isInRegistrationProcess else { return }
                     // ✅ CORREGIDO: No limpiar si está suspended
                     if case .suspended = self.authState {
                         return
@@ -557,6 +561,7 @@ class AuthService: ObservableObject {
     private func bootstrapIncompleteOnboardingIfNeeded() {
         guard Auth.auth().currentUser == nil else { return }
         guard let draft = OnboardingDraftStore.load(), !OnboardingDraftStore.isExpired(draft) else { return }
+        guard draft.context == .email else { return }
         beginOnboardingResumeWithoutAuthenticatedUser(draft: draft)
     }
 
@@ -909,8 +914,10 @@ class AuthService: ObservableObject {
         guard let user = user else {
             return
         }
+        let registrationUserId = user.uid
 
         DispatchQueue.main.async {
+            guard Auth.auth().currentUser?.uid == registrationUserId else { return }
             self.authState = .verifyingAccount
             self.isVerifyingAccount = true
             self.currentFirebaseUser = user
@@ -919,10 +926,13 @@ class AuthService: ObservableObject {
         // ✅ Dar tiempo para que Firestore esté completamente listo
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
 
+            guard Auth.auth().currentUser?.uid == user.uid else { return }
+
             // NO limpiar el estado aquí. Mantener .completing para bloquear el listener default.
 
             self.checkAccountStatus(userId: user.uid) { isActive, userData, isSuspended in
                 DispatchQueue.main.async {
+                    guard Auth.auth().currentUser?.uid == user.uid else { return }
                     self.isVerifyingAccount = false
 
                     if isSuspended {
@@ -948,6 +958,7 @@ class AuthService: ObservableObject {
                         // Esperamos a que TabBarView desmonte LoginView completamente.
                         // Si lo ponemos a false ahora, el fullScreenCover se cierra antes de que TabBarView cambie.
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            guard Auth.auth().currentUser?.uid == registrationUserId else { return }
                             self.isRegistering = false
                             self.authQueue.async {
                                 self._registrationState = .idle
@@ -959,6 +970,7 @@ class AuthService: ObservableObject {
 
                         // ✅ NUEVO: Liberar el Transition Lock después de un tiempo seguro
                         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                            guard Auth.auth().currentUser?.uid == registrationUserId else { return }
                             self.authQueue.async {
                                 self._transitionLock = false
                             }
@@ -968,6 +980,7 @@ class AuthService: ObservableObject {
                         // Si falla, reintentar una vez más
                         self.retryUserFetchForNewUser(userId: user.uid) { success, user, suspended in
                             DispatchQueue.main.async {
+                                guard Auth.auth().currentUser?.uid == registrationUserId else { return }
                                 if success, let user = user {
                                     UserDefaults.standard.selectedFeedType = .forYou
                                     OnboardingDraftStore.clear()
@@ -980,6 +993,7 @@ class AuthService: ObservableObject {
 
                                     // Limpiar flags en retry success CON DELAY
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                        guard Auth.auth().currentUser?.uid == registrationUserId else { return }
                                         self.isRegistering = false
                                         self.authQueue.async {
                                             self._registrationState = .idle
@@ -989,6 +1003,7 @@ class AuthService: ObservableObject {
 
                                     // ✅ NUEVO: Liberar Lock en retry
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                                        guard Auth.auth().currentUser?.uid == registrationUserId else { return }
                                         self.authQueue.async {
                                             self._transitionLock = false
                                         }
@@ -1669,10 +1684,12 @@ class AuthService: ObservableObject {
         }
 
         // ✅ MODIFICAR: Completar registro con estado thread-safe
-        func completeRegistration() {
+        @discardableResult
+        func completeRegistration() -> Bool {
+            guard let user = Auth.auth().currentUser else { return false }
 
             // ✅ THREAD-SAFE: Cambiar a estado de finalización y ACTIVAR LOCK
-            authQueue.async {
+            authQueue.sync {
                 self._registrationState = .completing
                 self._isAuthProcessingEnabled = true
                 self._transitionLock = true
@@ -1680,13 +1697,9 @@ class AuthService: ObservableObject {
 
             DispatchQueue.main.async {
 
-                // ✅ Forzar re-evaluación si hay usuario
-                if let user = self.currentFirebaseUser {
-                    self.handleRegistrationCompletion(user: user)
-                } else {
-                    self.clearRegistrationState()
-                }
+                self.handleRegistrationCompletion(user: user)
             }
+            return true
         }
 
     // ✅ NUEVA FUNCIÓN: Completar registro para logins sociales (Apple)
@@ -1774,7 +1787,7 @@ class AuthService: ObservableObject {
 
         OnboardingDraftStore.markStarted(context: .email)
         OnboardingDraftStore.update(
-            step: 3,
+            step: 5,
             username: username,
             email: email,
             selectedInterests: interests,
@@ -1792,16 +1805,17 @@ class AuthService: ObservableObject {
                     }
                     return
                 }
-                if document?.exists ?? false {
+                let existingUser = Auth.auth().currentUser
+                let isResumingExistingAuth = existingUser?.email?.lowercased() == email.lowercased()
+                let ownsUsername = isResumingExistingAuth && existingUser != nil
+                    && (document?.data()?["userId"] as? String) == existingUser?.uid
+                if document?.exists == true && !ownsUsername {
                     DispatchQueue.main.async {
                         self.clearRegistrationState()
                         completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.usernameUnavailable", comment: "Username unavailable")])))
                     }
                     return
                 }
-
-                let existingUser = Auth.auth().currentUser
-                let isResumingExistingAuth = existingUser?.email?.lowercased() == email.lowercased()
 
                 let finalizeRegistration: (User, String) -> Void = { user, userId in
                     OnboardingDraftStore.updateUID(userId)

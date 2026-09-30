@@ -962,7 +962,7 @@
 "onboarding.title.step3" = "Así te verán en Moments";
 "onboarding.subtitle.step3" = "Revisa todo antes de entrar";
 "onboarding.cancelRegistration" = "Cancelar registro";
-"onboarding.resume.banner" = "Continúa donde lo dejaste. Tus datos se han guardado.";
+"onboarding.resume.banner" = "Termina de crear tu perfil";
 "register.close" = "Cerrar registro";
 "register.error.usernameTooShort" = "Mínimo 3 caracteres";
 
@@ -4934,3 +4934,8 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "toast.action.bestFriendsLeft.suffix" = "";
 "toast.action.commentDeleted.prefix.suffix" = "";
 "toast.action.leftGroup.suffix" = "";
+
+// Immersive map chrome
+"maps.chrome.nearby" = "Cerca de ti";
+"maps.chrome.chooseCity" = "Elige una ciudad";
+"maps.chrome.recenter" = "Mi ubicación";

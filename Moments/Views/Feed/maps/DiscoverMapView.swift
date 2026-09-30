@@ -6,6 +6,17 @@ import FirebaseFirestore
 
 struct DiscoverMapView: View {
     @Binding var isPresented: Bool
+    var initialLocationName: String? = nil
+    var initialCoordinate: CLLocationCoordinate2D? = nil
+    var originMoment: Moment? = nil
+    @State private var hasBootstrapped = false
+    // Post entry searches the viewer's following graph; See more opts into
+    // discovery. Browsing a zone/place does not itself change that scope.
+    @State private var isSocialMap = false
+    @State private var isBrowsingPlaces = false
+    @State private var zoneRegion: MKCoordinateRegion?
+    @State private var originPinCoordinate: CLLocationCoordinate2D?
+    @State private var originDetailToken = UUID()
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
 
@@ -14,7 +25,6 @@ struct DiscoverMapView: View {
     @State private var mapPosition = MapCameraPosition.region(MapRegionStore.initialRegion())
     @State private var region = MapRegionStore.initialRegion()
 
-    @State private var contentFilter: MapDiscoverContentFilter = .all
     @State private var moments: [Moment] = []
     @State private var stories: [MapStoryPreview] = []
     @State private var friendPins: [MapFriendActivityPin] = []
@@ -23,7 +33,8 @@ struct DiscoverMapView: View {
     @State private var errorMessage: String?
     @State private var hasRecoverableError = false
     @State private var showingBottomSheet = false
-    @State private var mapSheetDetent: PresentationDetent = .medium
+    @State private var mapSheetDetent: PresentationDetent = MapLocationSystemSheetModifier.collapsedDetent
+    @State private var mapPanelHeight: CGFloat = 80
     @Namespace private var zoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
     @State private var zoomMapMomentsPool: [Moment] = []
@@ -34,16 +45,32 @@ struct DiscoverMapView: View {
     @State private var selectedMomentIndex = 0
     @State private var storyViewerPresentation: MapStoryViewerPresentation?
     @State private var isOpeningStory = false
-    @State private var regionSearchTask: Task<Void, Never>?
     @State private var hasPerformedInitialSearch = false
     @State private var timeFilter: MapDiscoverTimeFilter = .all
     @State private var zoneName: String?
     @State private var discoverWeather: WeatherData?
-    @State private var weatherEffectsEnabled = true
+    @State private var weatherEffectsEnabled = false
     @State private var searchText = ""
     @State private var isSearchActive = false
     @FocusState private var searchFieldFocused: Bool
     @State private var isViewActive = true
+    @State private var lastSearchedRegionKey = ""
+    @State private var regionSearchToken = UUID()
+    @State private var zonePaginationState: ZonePaginationState?
+    private struct ZonePaginationState {
+        let region: MKCoordinateRegion?
+        let momentsCursor: String?
+        let storiesCursor: String?
+    }
+    @State private var paginationToken = UUID()
+    @State private var paginationRegion: MKCoordinateRegion?
+    @State private var paginationLocationName: String?
+    @State private var paginationFollowingOnly = false
+    @State private var momentsCursor: String?
+    @State private var storiesCursor: String?
+    @State private var isLoadingNextPage = false
+    @State private var lastSearchDate = Date.distantPast
+    @State private var needsLocationSelection = false
 
     private struct MapStoryViewerPresentation: Identifiable {
         let id = UUID()
@@ -55,8 +82,8 @@ struct DiscoverMapView: View {
         MapPlaceClusterEngine.build(
             moments: filteredMoments,
             stories: filteredStories,
-            friendPins: friendPins,
-            filter: contentFilter,
+            friendPins: [],
+            filter: .all,
             region: region
         )
     }
@@ -78,13 +105,7 @@ struct DiscoverMapView: View {
     }
 
     private var filteredMoments: [Moment] {
-        var result: [Moment]
-        switch contentFilter {
-        case .all, .places:
-            result = moments
-        case .friends:
-            result = moments.filter { followingIds.contains($0.authorId) }
-        }
+        var result = moments
         if let cutoff = timeFilter.cutoffDate {
             result = result.filter { $0.timestamp >= cutoff }
         }
@@ -92,15 +113,7 @@ struct DiscoverMapView: View {
     }
 
     private var filteredStories: [MapStoryPreview] {
-        var result: [MapStoryPreview]
-        switch contentFilter {
-        case .all:
-            result = stories
-        case .friends:
-            result = stories.filter { followingIds.contains($0.authorId) }
-        case .places:
-            return []
-        }
+        var result = stories
         if let cutoff = timeFilter.cutoffDate {
             result = result.filter { $0.timestamp >= cutoff }
         }
@@ -115,7 +128,32 @@ struct DiscoverMapView: View {
         NavigationStack {
             ZStack {
             Map(position: $mapPosition) {
-                ForEach(mapPlaceLayout.placeClusters) { cluster in
+                if !isSocialMap, let originMoment, let coordinate = originPinCoordinate {
+                    Annotation(initialLocationName ?? originMoment.location ?? "", coordinate: coordinate) {
+                        VStack(spacing: 6) {
+                            Button {
+                                openMomentDetail(at: 0, in: [originMoment], title: initialLocationName ?? originMoment.location ?? "")
+                            } label: {
+                                MapMomentPin(moment: originMoment, colorScheme: colorScheme, count: 1)
+                                    .scaleEffect(originPinScale)
+                            }
+                            .buttonStyle(.plain)
+                            Button(action: openOriginPlace) {
+                                VStack(spacing: 3) {
+                                    Text(initialLocationName ?? originMoment.location ?? "").lineLimit(1)
+                                    Text(NSLocalizedString("global.seeMore", comment: "")).fontWeight(.semibold)
+                                }
+                                .font(.caption)
+                                .padding(8)
+                                .background(adaptiveColors.surfaceBackground, in: RoundedRectangle(cornerRadius: 10))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                ForEach(mapPlaceLayout.placeClusters.filter { cluster in
+                    isSocialMap || originMoment == nil || !cluster.moments.contains { $0.mapAvailabilityKey == originMoment?.mapAvailabilityKey }
+                }) { cluster in
                     Annotation(clusterAccessibilityLabel(for: cluster), coordinate: cluster.coordinate) {
                         Button {
                             openPlaceCluster(cluster)
@@ -143,11 +181,17 @@ struct DiscoverMapView: View {
                 }
             }
             .mapStyle(.standard(elevation: .realistic))
-            .ignoresSafeArea()
+            .ignoresSafeArea(edges: .top)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                // Reserve the panel footprint so MapKit positions its own logo/legal controls above it.
+                Color.clear
+                    .frame(height: showingBottomSheet ? mapPanelHeight + 12 : 0)
+                    .allowsHitTesting(false)
+            }
             .onMapCameraChange(frequency: .onEnd) { context in
                 region = context.region
                 MapRegionStore.save(region: context.region)
-                scheduleRegionSearch()
+                // Camera movement only reveals the explicit area-search action.
             }
 
             if showsWeatherEffects, let discoverWeather {
@@ -163,31 +207,30 @@ struct DiscoverMapView: View {
                     .ignoresSafeArea()
             }
 
-            VStack(spacing: 12) {
-                header
-                if isSearchActive {
-                    searchBar
-                }
-                filterChips
-                if isLoading {
-                    ProgressView()
-                        .padding(10)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Capsule())
-                }
-                if let errorMessage {
-                    if hasRecoverableError && (moments.isEmpty && stories.isEmpty) {
-                        discoverErrorCard(message: errorMessage)
-                    } else {
-                        discoverErrorBanner(message: errorMessage)
-                    }
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
+            MapImmersiveChrome(
+                title: needsLocationSelection ? NSLocalizedString("maps.chrome.chooseCity", comment: "") : (zoneName ?? NSLocalizedString("maps.chrome.nearby", comment: "")),
+                subtitle: headerSubtitle,
+                isLoading: isLoading,
+                searchText: $searchText,
+                onClose: closeDiscoverMap,
+                onSearch: performPlaceSearch,
+                onRecenter: recenterOnUser,
+                onOpenContent: {},
+                showsSearchArea: !isLoading && hasPerformedInitialSearch && (!isBrowsingPlaces || MapViewportQuery.key(for: region) != lastSearchedRegionKey),
+                onSearchArea: browseCurrentArea,
+                showsDock: false,
+                panelHeight: mapPanelHeight
+            )
             .zIndex(20)
-            .allowsHitTesting(true)
+            if let errorMessage {
+                VStack {
+                    discoverErrorBanner(message: errorMessage)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 68)
+                    Spacer()
+                }
+                .zIndex(21)
+            }
             }
             .navigationDestination(item: $zoomDestination) { destination in
                 MomentZoomDetailDestination(
@@ -202,6 +245,16 @@ struct DiscoverMapView: View {
         .momentZoomNavigationSurface(colorScheme: colorScheme)
         .momentsFloatingTabBarHidden()
         .sheet(isPresented: $showingBottomSheet) {
+            MapImmersivePanel(
+                title: needsLocationSelection ? NSLocalizedString("maps.chrome.chooseCity", comment: "") : (selectedPlaceCluster?.displayName ?? (!isBrowsingPlaces ? initialLocationName : nil) ?? zoneName ?? NSLocalizedString("maps.chrome.nearby", comment: "")),
+                subtitle: selectedPlaceSubtitle,
+                isLoading: isLoading,
+                detent: $mapSheetDetent,
+                onBack: selectedPlaceCluster != nil ? returnToZone : nil,
+                storyCover: sheetCluster.primaryStory,
+                locationMoment: sheetCluster.primaryMoment,
+                onStoriesTap: { openPlaceStories(sheetCluster) }
+            ) {
             MapPlaceBottomSheet(
                 cluster: sheetCluster,
                 momentAvailability: [:],
@@ -216,34 +269,43 @@ struct DiscoverMapView: View {
                     openPlaceStories(cluster)
                 },
                 weather: discoverWeather,
-                userLocation: locationManager.currentLocation?.coordinate,
-                placeIndex: mapPlaceLayout.placeClusters,
+                userLocation: locationManager.usableCurrentLocation?.coordinate,
+                placeIndex: isBrowsingPlaces && selectedPlaceCluster == nil ? mapPlaceLayout.placeClusters : [],
                 onPlaceTap: { place in
                     selectPlaceFromIndex(place)
                 },
-                timeFilter: $timeFilter,
-                onTimeFilterChange: {
-                    selectedPlaceCluster = nil
-                    updateBottomSheetForCurrentFilter()
-                }
+                socialMode: !isBrowsingPlaces && selectedPlaceCluster == nil,
+                showsStoryStrip: false,
+                showsHeader: false,
+                hasMoreContent: momentsCursor != nil || storiesCursor != nil,
+                paginationKey: "\(momentsCursor ?? "")|\(storiesCursor ?? "")",
+                isLoadingMore: isLoadingNextPage,
+                onLoadMore: loadNextContentPage
             )
+            }
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height
+            } action: { height in
+                mapPanelHeight = height
+            }
             .mapLocationSystemSheet(detent: $mapSheetDetent)
         }
         .onChange(of: showingBottomSheet) { _, isShowing in
-            if isShowing {
-                mapSheetDetent = .medium
-                return
-            }
-            presentDeferredMapContent()
-        }
-        .onChange(of: sheetCluster.totalCount) { _, count in
-            if count == 0 && !isLoading {
-                showingBottomSheet = false
-            }
+            if !isShowing { presentDeferredMapContent() }
         }
         .onAppear {
             isViewActive = true
-            loadFollowingIds()
+            guard !hasBootstrapped else { restoreBottomSheetIfNeeded(); return }
+            hasBootstrapped = true
+            showingBottomSheet = true
+            isSocialMap = originMoment == nil
+            if isSocialMap { isBrowsingPlaces = true }
+            if let initialLocationName {
+                if locationManager.authorizationStatus == .authorizedWhenInUse || locationManager.authorizationStatus == .authorizedAlways {
+                    locationManager.requestLocationPermission()
+                }
+                bootstrapOriginPlace(name: initialLocationName)
+            } else {
             switch locationManager.authorizationStatus {
             case .authorizedWhenInUse, .authorizedAlways:
                 locationManager.requestLocationPermission()
@@ -257,12 +319,11 @@ struct DiscoverMapView: View {
             default:
                 applyFallbackRegion(andSearch: true)
             }
+            }
         }
         .locationPermissionGate(locationGate)
         .onDisappear {
             isViewActive = false
-            regionSearchTask?.cancel()
-            regionSearchTask = nil
         }
         .onChange(of: zoomDestination) { _, newValue in
             if newValue == nil {
@@ -284,130 +345,6 @@ struct DiscoverMapView: View {
         }
     }
 
-    private var header: some View {
-        VStack(alignment: .trailing, spacing: 8) {
-            HStack(alignment: .top, spacing: 12) {
-                HStack(spacing: 12) {
-                    Button {
-                        closeDiscoverMap()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(adaptiveColors.primary)
-                            .frame(width: 32, height: 32)
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(zoneName ?? NSLocalizedString("maps.discover.title", comment: "Discover map title"))
-                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                            .foregroundStyle(adaptiveColors.primary)
-                            .lineLimit(1)
-
-                        Text(headerSubtitle)
-                            .font(.system(size: legacyPoppinsSize(11)))
-                            .foregroundStyle(adaptiveColors.tertiary)
-                            .lineLimit(1)
-                    }
-                }
-                .padding(.leading, 8)
-                .padding(.trailing, 16)
-                .padding(.vertical, 8)
-                .background(Color.clear.momentsChromeGlass(in: Capsule()))
-                .overlay(
-                    Capsule()
-                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
-                )
-                .shadow(color: adaptiveColors.shadowColor.opacity(0.15), radius: 10, x: 0, y: 5)
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 4) {
-                    HStack(spacing: 10) {
-                        Button {
-                            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
-                                isSearchActive.toggle()
-                            }
-                            if isSearchActive {
-                                searchFieldFocused = true
-                            } else {
-                                searchText = ""
-                            }
-                        } label: {
-                            Image(systemName: isSearchActive ? "xmark.circle.fill" : "magnifyingglass")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(adaptiveColors.primary)
-                                .frame(width: 28, height: 28)
-                        }
-                        .buttonStyle(.momentsPressIcon)
-
-                        Button {
-                            recenterOnUser()
-                        } label: {
-                            Image(systemName: "location.fill")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(adaptiveColors.accent)
-                                .frame(width: 28, height: 28)
-                        }
-                        .buttonStyle(.momentsPressIcon)
-
-                        if let discoverWeather {
-                            Button {
-                                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
-                                    weatherEffectsEnabled.toggle()
-                                }
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: weatherEffectsEnabled ? discoverWeather.condition.systemImageName : "cloud.slash.fill")
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundStyle(weatherEffectsEnabled ? adaptiveColors.accent : adaptiveColors.primary.opacity(0.7))
-
-                                    VStack(alignment: .leading, spacing: -2) {
-                                        Text(discoverWeather.temperatureFormatted)
-                                            .font(.system(size: legacyPoppinsSize(13), weight: .bold))
-                                            .foregroundStyle(adaptiveColors.primary)
-
-                                        Text(discoverWeather.condition.displayName)
-                                            .font(.system(size: legacyPoppinsSize(9), weight: .medium))
-                                            .foregroundStyle(adaptiveColors.secondary)
-                                            .lineLimit(1)
-                                    }
-                                }
-                            }
-                            .buttonStyle(.momentsPressSubtle)
-                        }
-                    }
-                    .padding(.leading, 12)
-                    .padding(.trailing, 8)
-                    .padding(.vertical, 8)
-                    .background(Color.clear.momentsChromeGlass(in: Capsule()))
-                    .overlay(
-                        Capsule()
-                            .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
-                    )
-                    .shadow(color: adaptiveColors.shadowColor.opacity(0.15), radius: 10, x: 0, y: 5)
-
-                    if discoverWeather != nil && weatherEffectsEnabled {
-                        HStack(spacing: 4) {
-                            Text(NSLocalizedString("weather.attribution.text", comment: "Weather attribution text"))
-                                .font(.system(size: legacyPoppinsSize(7)))
-                                .foregroundStyle(.secondary.opacity(0.8))
-
-                            Link(
-                                NSLocalizedString("weather.attribution.link", comment: "Weather attribution link"),
-                                destination: URL(string: "https://weatherkit.apple.com/legal-attribution.html")!
-                            )
-                            .font(.system(size: legacyPoppinsSize(7), weight: .medium))
-                            .foregroundStyle(.blue.opacity(0.6))
-                        }
-                        .padding(.trailing, 8)
-                    }
-                }
-            }
-        }
-    }
-
     private var headerSubtitle: String {
         let placeCount = mapPlaceLayout.placeClusters.count
         if placeCount > 0 {
@@ -419,54 +356,8 @@ struct DiscoverMapView: View {
         return NSLocalizedString("maps.discover.subtitle", comment: "Discover map subtitle")
     }
 
-    private var searchBar: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(adaptiveColors.secondary)
-
-            TextField(
-                NSLocalizedString("maps.search.placeholder", comment: "Map search placeholder"),
-                text: $searchText
-            )
-            .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-            .focused($searchFieldFocused)
-            .submitLabel(.search)
-            .autocorrectionDisabled()
-            .onSubmit {
-                performPlaceSearch()
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
-    }
-
-    private var filterChips: some View {
-        HStack(spacing: 8) {
-            ForEach(MapDiscoverContentFilter.allCases) { filter in
-                Button {
-                    applyContentFilter(filter)
-                } label: {
-                    Text(NSLocalizedString(filter.titleKey, comment: "Map filter"))
-                        .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
-                        .foregroundStyle(contentFilter == filter ? .white : adaptiveColors.primary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(
-                            Capsule()
-                                .fill(contentFilter == filter ? adaptiveColors.accent : Color.clear)
-                                .momentsChromeGlass(in: Capsule(), interactive: contentFilter != filter)
-                        )
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
     private func closeDiscoverMap() {
-        regionSearchTask?.cancel()
-        regionSearchTask = nil
+        isViewActive = false
         searchFieldFocused = false
         showingBottomSheet = false
         zoomDestination = nil
@@ -484,8 +375,78 @@ struct DiscoverMapView: View {
         )
     }
 
+    private var selectedPlaceSubtitle: String {
+        let stats = String(format: NSLocalizedString("maps.placeSheet.stats", comment: ""), sheetCluster.momentCount, sheetCluster.storyCount)
+        guard let coordinate = selectedPlaceCluster?.coordinate ?? (!isSocialMap ? originPinCoordinate : nil),
+              let distance = MapDistanceFormatter.string(from: locationManager.usableCurrentLocation?.coordinate, to: coordinate) else { return stats }
+        return "\(distance) · \(stats)"
+    }
+
+    private func bootstrapOriginPlace(name: String) {
+        if let originMoment {
+            moments = [originMoment]
+            hasPerformedInitialSearch = true
+        }
+        if let coordinate = initialCoordinate ?? originMoment?.locationCoordinate?.toCLLocationCoordinate2D {
+            originPinCoordinate = coordinate
+            focus(on: coordinate, autoSearch: originMoment == nil)
+        } else {
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = name
+            MKLocalSearch(request: request).start { response, _ in
+                DispatchQueue.main.async {
+                    guard isViewActive else { return }
+                    guard let coordinate = response?.mapItems.first?.placemark.coordinate else {
+                        applyFallbackRegion(andSearch: originMoment == nil)
+                        return
+                    }
+                    originPinCoordinate = coordinate
+                    focus(on: coordinate, autoSearch: originMoment == nil)
+                }
+            }
+        }
+    }
+
+    private func browseCurrentArea() {
+        originDetailToken = UUID()
+        selectedPlaceCluster = nil
+        isBrowsingPlaces = true
+        zoneRegion = region
+        mapSheetDetent = MapLocationSystemSheetModifier.middleDetent
+        showingBottomSheet = true
+        performRegionSearch(force: true)
+    }
+
+    private func returnToZone() {
+        originDetailToken = UUID()
+        selectedPlaceCluster = nil
+        isBrowsingPlaces = true
+        paginationToken = UUID()
+        paginationLocationName = nil
+        paginationFollowingOnly = !isSocialMap
+        paginationRegion = zonePaginationState?.region
+        momentsCursor = zonePaginationState?.momentsCursor
+        storiesCursor = zonePaginationState?.storiesCursor
+        isLoadingNextPage = false
+        isBrowsingPlaces = zonePaginationState != nil || originMoment == nil
+        if let zoneRegion {
+            region = zoneRegion
+            mapPosition = .region(zoneRegion)
+        }
+        mapSheetDetent = MapLocationSystemSheetModifier.middleDetent
+    }
+
+    private var originPinScale: CGFloat {
+        CGFloat(min(1.18, max(0.72, pow(0.06 / max(region.span.latitudeDelta, 0.00001), 0.12))))
+    }
+
+    private func openOriginPlace() {
+        isSocialMap = true
+        browseCurrentArea()
+    }
+
     private func bootstrapMapCenter() {
-        if let coordinate = locationManager.currentLocation?.coordinate {
+        if let coordinate = locationManager.usableCurrentLocation?.coordinate {
             focus(on: coordinate, autoSearch: true)
             return
         }
@@ -506,6 +467,7 @@ struct DiscoverMapView: View {
         MapRegionStore.resolveFallbackRegion { fallbackRegion in
             DispatchQueue.main.async {
                 guard isViewActive else { return }
+                needsLocationSelection = true
                 region = fallbackRegion
                 mapPosition = .region(fallbackRegion)
                 if andSearch {
@@ -516,7 +478,11 @@ struct DiscoverMapView: View {
     }
 
     private func recenterOnUser() {
-        if let coordinate = locationManager.currentLocation?.coordinate {
+        guard locationManager.authorizationStatus == .authorizedAlways || locationManager.authorizationStatus == .authorizedWhenInUse else {
+            locationGate.requestAccess { bootstrapMapCenter() }
+            return
+        }
+        if let coordinate = locationManager.usableCurrentLocation?.coordinate {
             focus(on: coordinate, autoSearch: true)
             return
         }
@@ -534,23 +500,12 @@ struct DiscoverMapView: View {
             center: coordinate,
             span: MKCoordinateSpan(latitudeDelta: 0.06, longitudeDelta: 0.06)
         )
+        needsLocationSelection = false
         region = nextRegion
         mapPosition = .region(nextRegion)
         MapRegionStore.save(region: nextRegion)
         if autoSearch {
             performRegionSearch()
-        }
-    }
-
-    private func scheduleRegionSearch() {
-        regionSearchTask?.cancel()
-        regionSearchTask = Task {
-            try? await Task.sleep(nanoseconds: 900_000_000)
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                guard isViewActive else { return }
-                performRegionSearch()
-            }
         }
     }
 
@@ -577,7 +532,12 @@ struct DiscoverMapView: View {
     }
 
     private func selectPlaceFromIndex(_ place: MapPlaceCluster) {
+        originDetailToken = UUID()
+        isBrowsingPlaces = true
+        if zoneRegion == nil { zoneRegion = region }
         selectedPlaceCluster = place
+        startPlacePagination(name: place.displayName)
+        mapSheetDetent = MapLocationSystemSheetModifier.middleDetent
         let nextRegion = MKCoordinateRegion(
             center: place.coordinate,
             span: MKCoordinateSpan(latitudeDelta: 0.015, longitudeDelta: 0.015)
@@ -588,8 +548,9 @@ struct DiscoverMapView: View {
     }
 
     private func refreshZoneContext() {
+        let token = regionSearchToken
         MapZoneContextService.shared.zoneName(for: region.center) { name in
-            guard isViewActive else { return }
+            guard isViewActive, regionSearchToken == token else { return }
             zoneName = name
         }
 
@@ -597,48 +558,159 @@ struct DiscoverMapView: View {
         Task {
             let weather = await WeatherService.shared.getWeatherSafely(for: center)
             await MainActor.run {
-                guard isViewActive else { return }
+                guard isViewActive, regionSearchToken == token else { return }
                 discoverWeather = weather
             }
         }
     }
 
-    private func performRegionSearch() {
+    private func performRegionSearch(force: Bool = false) {
+        guard originMoment == nil || isBrowsingPlaces else { return }
+        let key = MapViewportQuery.key(for: region)
+        guard force || key != lastSearchedRegionKey || (!isLoading && Date().timeIntervalSince(lastSearchDate) > 30) else { return }
+        let token = UUID()
+        let queriedRegion = region
+        let selectionToken = originDetailToken
+        regionSearchToken = token
+        lastSearchedRegionKey = key
+        lastSearchDate = Date()
+        paginationToken = token
+        paginationRegion = queriedRegion
+        zonePaginationState = nil
+        paginationLocationName = nil
+        paginationFollowingOnly = !isSocialMap
+        momentsCursor = nil
+        storiesCursor = nil
+        isLoadingNextPage = false
         isLoading = true
         errorMessage = nil
         hasRecoverableError = false
         refreshZoneContext()
 
-        LocationSearchService.shared.searchDiscoverContentInRegion(region: region) { payload in
-            guard isViewActive else { return }
-            moments = payload.moments
-            stories = payload.stories
-            friendPins = LocationSearchService.shared.buildFriendActivityPins(
-                moments: payload.moments,
-                stories: payload.stories,
-                followingIds: followingIds
-            )
+        LocationSearchService.shared.searchContentPage(region: paginationRegion, followingOnly: paginationFollowingOnly) { payload in
+            guard isViewActive, regionSearchToken == token else { return }
+            if payload.isCompleteFailure { lastSearchedRegionKey = "" }
+            if paginationToken == token {
+                momentsCursor = payload.momentsCursor
+                storiesCursor = payload.storiesCursor
+            } else if zonePaginationState != nil {
+                zonePaginationState = ZonePaginationState(region: queriedRegion,
+                    momentsCursor: payload.momentsCursor, storiesCursor: payload.storiesCursor)
+            }
+            if !payload.isCompleteFailure {
+                moments = payload.moments
+                stories = payload.stories
+                friendPins = LocationSearchService.shared.buildFriendActivityPins(
+                    moments: payload.moments,
+                    stories: payload.stories,
+                    followingIds: followingIds
+                )
+            }
             isLoading = false
             hasPerformedInitialSearch = true
             if payload.isCompleteFailure {
                 errorMessage = NSLocalizedString("maps.error.mapUnavailable", comment: "Map content unavailable")
                 hasRecoverableError = true
-                showingBottomSheet = false
-            } else if payload.moments.isEmpty && payload.stories.isEmpty {
+                if selectedPlaceCluster == nil { mapSheetDetent = MapLocationSystemSheetModifier.collapsedDetent }
+            } else if payload.moments.isEmpty && payload.stories.isEmpty && momentsCursor == nil && storiesCursor == nil {
                 errorMessage = NSLocalizedString("maps.discover.empty", comment: "Discover map empty state")
                 hasRecoverableError = false
-                showingBottomSheet = false
+                if selectedPlaceCluster == nil { mapSheetDetent = MapLocationSystemSheetModifier.collapsedDetent }
             } else if payload.hasPartialFailure {
                 errorMessage = NSLocalizedString("maps.error.mapPartialContent", comment: "Map partial content warning")
                 hasRecoverableError = false
-                selectedPlaceCluster = nil
-                updateBottomSheetForCurrentFilter()
+                if originDetailToken == selectionToken {
+                    selectedPlaceCluster = nil
+                    updateBottomSheetForCurrentFilter()
+                }
             } else {
                 errorMessage = nil
                 hasRecoverableError = false
-                selectedPlaceCluster = nil
-                updateBottomSheetForCurrentFilter()
+                if originDetailToken == selectionToken {
+                    selectedPlaceCluster = nil
+                    updateBottomSheetForCurrentFilter()
+                }
             }
+            if !payload.hasContent && !payload.isCompleteFailure && (momentsCursor != nil || storiesCursor != nil) {
+                loadNextContentPage()
+            }
+        }
+    }
+
+    private func startPlacePagination(name: String) {
+        if paginationLocationName == nil, paginationRegion != nil {
+            zonePaginationState = ZonePaginationState(region: paginationRegion,
+                momentsCursor: momentsCursor, storiesCursor: storiesCursor)
+        }
+        paginationToken = UUID()
+        paginationLocationName = name
+        paginationRegion = nil
+        paginationFollowingOnly = !isSocialMap
+        momentsCursor = nil
+        storiesCursor = nil
+        isLoadingNextPage = true
+        fetchContentPage(firstPage: true)
+    }
+
+    private func loadNextContentPage() {
+        guard !isLoadingNextPage, momentsCursor != nil || storiesCursor != nil else { return }
+        isLoadingNextPage = true
+        fetchContentPage(firstPage: false)
+    }
+
+    private func fetchContentPage(firstPage: Bool) {
+        let token = paginationToken
+        let placeID = selectedPlaceCluster?.id
+        LocationSearchService.shared.searchContentPage(
+            region: paginationRegion, locationName: paginationLocationName,
+            followingOnly: paginationFollowingOnly,
+            momentsCursor: momentsCursor, storiesCursor: storiesCursor,
+            loadMoments: firstPage || momentsCursor != nil,
+            loadStories: firstPage || storiesCursor != nil
+        ) { payload in
+            guard isViewActive, paginationToken == token else { return }
+            isLoadingNextPage = false
+            if payload.momentsError == nil { momentsCursor = payload.momentsCursor }
+            if payload.storiesError == nil { storiesCursor = payload.storiesCursor }
+            if payload.momentsError != nil || payload.storiesError != nil {
+                errorMessage = NSLocalizedString("maps.error.mapPartialContent", comment: "")
+            }
+            func mergedMoments(_ existing: [Moment]) -> [Moment] {
+                var keys = Set<String>()
+                return (existing + payload.moments).filter { keys.insert($0.mapAvailabilityKey).inserted }
+                    .sorted { $0.timestamp > $1.timestamp }
+            }
+            func mergedStories(_ existing: [MapStoryPreview]) -> [MapStoryPreview] {
+                var keys = Set<String>()
+                return (existing + payload.stories).filter { keys.insert("\($0.authorId)|\($0.id)").inserted }
+                    .sorted { $0.timestamp > $1.timestamp }
+            }
+            if let place = selectedPlaceCluster, place.id == placeID {
+                selectedPlaceCluster = MapPlaceCluster(id: place.id, coordinate: place.coordinate,
+                    displayName: place.displayName, moments: mergedMoments(place.moments),
+                    stories: mergedStories(place.stories), friends: place.friends)
+            } else if placeID == nil {
+                moments = mergedMoments(moments)
+                stories = mergedStories(stories)
+                friendPins = LocationSearchService.shared.buildFriendActivityPins(
+                    moments: moments, stories: stories, followingIds: followingIds)
+            }
+            if payload.momentsError == nil && payload.storiesError == nil && sheetCluster.totalCount == 0 {
+                loadNextContentPage()
+            }
+        }
+    }
+
+    private func retryCurrentMapQuery() {
+        errorMessage = nil
+        if let name = paginationLocationName {
+            if momentsCursor == nil && storiesCursor == nil {
+                startPlacePagination(name: name)
+            } else {
+                loadNextContentPage()
+            }
+        } else {
+            performRegionSearch(force: true)
         }
     }
 
@@ -656,11 +728,11 @@ struct DiscoverMapView: View {
             Spacer(minLength: 0)
 
             Button {
-                performRegionSearch()
+                retryCurrentMapQuery()
             } label: {
                 Text(NSLocalizedString("maps.error.retry", comment: "Retry button text"))
                     .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                    .foregroundStyle(adaptiveColors.accent)
+                    .foregroundStyle(adaptiveColors.primary)
             }
             .buttonStyle(.plain)
         }
@@ -674,7 +746,7 @@ struct DiscoverMapView: View {
         VStack(spacing: 14) {
             Image(systemName: "wifi.exclamationmark")
                 .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(adaptiveColors.accent)
+                .foregroundStyle(adaptiveColors.primary)
 
             Text(message)
                 .font(.system(size: legacyPoppinsSize(14), weight: .medium))
@@ -682,15 +754,15 @@ struct DiscoverMapView: View {
                 .multilineTextAlignment(.center)
 
             Button {
-                performRegionSearch()
+                retryCurrentMapQuery()
             } label: {
                 Text(NSLocalizedString("maps.error.retry", comment: "Retry button text"))
                     .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
                     .background(
-                        Capsule().fill(adaptiveColors.accent)
+                        Capsule().fill(adaptiveColors.primary)
                     )
             }
             .buttonStyle(.plain)
@@ -701,27 +773,19 @@ struct DiscoverMapView: View {
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
-    private func applyContentFilter(_ filter: MapDiscoverContentFilter) {
-        contentFilter = filter
-        selectedPlaceCluster = nil
-        updateBottomSheetForCurrentFilter()
-    }
-
     private func updateBottomSheetForCurrentFilter() {
-        switch contentFilter {
-        case .friends:
-            showingBottomSheet = false
-        case .all, .places:
-            if filteredMoments.isEmpty && filteredStories.isEmpty {
-                showingBottomSheet = false
-            } else {
-                showingBottomSheet = true
-            }
+        if filteredMoments.isEmpty && filteredStories.isEmpty && momentsCursor == nil && storiesCursor == nil {
+            mapSheetDetent = MapLocationSystemSheetModifier.collapsedDetent
         }
     }
 
     private func openPlaceCluster(_ cluster: MapPlaceCluster) {
+        originDetailToken = UUID()
+        isBrowsingPlaces = true
+        if zoneRegion == nil { zoneRegion = region }
         selectedPlaceCluster = cluster
+        startPlacePagination(name: cluster.displayName)
+        mapSheetDetent = MapLocationSystemSheetModifier.middleDetent
         showingBottomSheet = true
     }
 
@@ -737,7 +801,16 @@ struct DiscoverMapView: View {
             return
         }
 
+        zonePaginationState = ZonePaginationState(region: paginationRegion,
+            momentsCursor: momentsCursor, storiesCursor: storiesCursor)
+        paginationToken = UUID()
+        paginationRegion = nil
+        paginationLocationName = nil
+        momentsCursor = nil
+        storiesCursor = nil
+        isLoadingNextPage = false
         selectedPlaceCluster = cluster
+        mapSheetDetent = MapLocationSystemSheetModifier.middleDetent
         showingBottomSheet = true
     }
 
@@ -796,7 +869,7 @@ struct DiscoverMapView: View {
 
         let presentation = MapStoryViewerPresentation(
             previews: cluster.stories,
-            initialPreviewId: preview?.id ?? cluster.primaryStory?.id
+            initialPreviewId: preview?.id
         )
 
         DispatchQueue.main.async {
@@ -819,7 +892,11 @@ struct DiscoverMapView: View {
             .document(userId)
             .collection("following")
             .getDocuments { snapshot, _ in
-                let ids = Set(snapshot?.documents.map(\.documentID) ?? [])
+                guard let snapshot else { return }
+                let ids = Set(snapshot.documents.map { document in
+                    let storedUserId = document.data()["userId"] as? String
+                    return storedUserId ?? document.documentID
+                })
                 DispatchQueue.main.async {
                     guard isViewActive else { return }
                     followingIds = ids
@@ -928,11 +1005,12 @@ struct MapFriendActivityPinView: View {
             )
 
             Text(pin.username)
-                .font(.system(size: legacyPoppinsSize(10), weight: .semibold))
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(AdaptiveColors(colorScheme: colorScheme).primary)
                 .lineLimit(1)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
-                .background(.ultraThinMaterial)
+                .background(AdaptiveColors(colorScheme: colorScheme).surfaceBackground)
                 .clipShape(Capsule())
         }
     }

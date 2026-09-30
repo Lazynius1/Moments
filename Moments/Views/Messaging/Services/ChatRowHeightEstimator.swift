@@ -111,7 +111,8 @@ enum ChatRowHeightEstimator {
     private static func estimatedHeight(for item: MessageItem, bubbleWidth: CGFloat) -> CGFloat {
         switch item {
         case .single(let message):
-            return estimatedHeight(for: message, bubbleWidth: bubbleWidth)
+            let editedLabelHeight: CGFloat = message.editedAt != nil && !message.isDeleted ? 20 : 0
+            return estimatedHeight(for: message, bubbleWidth: bubbleWidth) + editedLabelHeight
         case .mediaCluster(let messages):
             if messages.allSatisfy(\.isDeleted) {
                 return deletedRowHeight

@@ -890,7 +890,7 @@
 "onboarding.title.step3" = "Beginilah tampilanmu di Moments";
 "onboarding.subtitle.step3" = "Tinjau semuanya sebelum mulai";
 "onboarding.cancelRegistration" = "Batalkan pendaftaran";
-"onboarding.resume.banner" = "Lanjutkan dari bagian terakhir. Progresmu sudah disimpan.";
+"onboarding.resume.banner" = "Selesaikan pembuatan profilmu";
 "register.close" = "Tutup pendaftaran";
 "register.error.usernameTooShort" = "Minimal 3 karakter";
 /* Splash */
@@ -4685,3 +4685,8 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "toast.action.bestFriendsLeft.suffix" = "";
 "toast.action.commentDeleted.prefix.suffix" = "";
 "toast.action.leftGroup.suffix" = "";
+
+// Immersive map chrome
+"maps.chrome.nearby" = "Di dekatmu";
+"maps.chrome.chooseCity" = "Pilih kota";
+"maps.chrome.recenter" = "Lokasi saya";

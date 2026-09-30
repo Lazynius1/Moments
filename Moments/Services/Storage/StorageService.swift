@@ -47,7 +47,16 @@ class StorageService {
     // MARK: - Profile
 
     func uploadProfileImage(userId: String, image: UIImage, completion: @escaping (Result<String, Error>) -> Void) {
-        uploadModeratedAvatar(image: image, conversationId: nil, completion: completion)
+        uploadModeratedAvatar(image: image, conversationId: nil) { result in
+            if case .failure(let error) = result, error is ModerationError {
+                DispatchQueue.main.async {
+                    InAppNotificationService.shared.showActionToast(.profilePhotoRejected)
+                    completion(result)
+                }
+            } else {
+                completion(result)
+            }
+        }
     }
 
     func uploadGroupImage(groupId: String, image: UIImage, completion: @escaping (Result<String, Error>) -> Void) {

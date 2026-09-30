@@ -24,6 +24,7 @@ struct FeedListSection: View {
     @Binding var showExploreWithHashtag: Bool
     @Binding var selectedLocationName: String
     @Binding var selectedLocationCoordinate: CLLocationCoordinate2D?
+    @Binding var selectedLocationMoment: Moment?
     @Binding var showingLocationMap: Bool
     @Binding var showGlobalContextMenu: Bool
     @Binding var selectedMomentForMenu: Moment?
@@ -236,7 +237,10 @@ struct FeedListSection: View {
                 },
                 onNearEnd: { handleFeedNearEnd(for: moment) },
                 onHashtagTap: handleFeedHashtagTap,
-                onLocationTap: handleFeedLocationTap,
+                onLocationTap: { name, coordinate in
+                    selectedLocationMoment = moment
+                    handleFeedLocationTap(name, coordinate)
+                },
                 onContextMenu: handleFeedContextMenu,
                 onTagTap: onOpenUserProfile,
                 onOpenUserProfile: onOpenUserProfile,

@@ -890,7 +890,7 @@
 "onboarding.title.step3" = "Moments'ta nasıl görüneceksin";
 "onboarding.subtitle.step3" = "Başlamadan önce her şeyi gözden geçir";
 "onboarding.cancelRegistration" = "Kaydı iptal et";
-"onboarding.resume.banner" = "Kaldığın yerden devam et. İlerlemen kaydedildi.";
+"onboarding.resume.banner" = "Profilini oluşturmayı tamamla";
 "register.close" = "Kaydı kapat";
 "register.error.usernameTooShort" = "En az 3 karakter";
 /* Splash */
@@ -4685,3 +4685,8 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "toast.action.bestFriendsLeft.suffix" = " kullanıcısının yakın arkadaşlarından ayrıldın";
 "toast.action.commentDeleted.prefix.suffix" = " kullanıcısının yorumunu sildin";
 "toast.action.leftGroup.suffix" = " grubundan ayrıldın";
+
+// Immersive map chrome
+"maps.chrome.nearby" = "Yakınında";
+"maps.chrome.chooseCity" = "Bir şehir seç";
+"maps.chrome.recenter" = "Konumum";

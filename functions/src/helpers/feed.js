@@ -776,7 +776,7 @@ async function buildMapFallbackCandidateUserIds(uid, viewerCtx, db) {
   return [...extraIds];
 }
 
-async function fetchMapCandidatesByAuthorBatches(db, candidateUserIds, mode, filters) {
+async function fetchMapCandidatesByAuthorBatches(db, candidateUserIds, mode, filters, scopedQuery = false) {
   if (!Array.isArray(candidateUserIds) || candidateUserIds.length === 0) return [];
 
   const userBatches = [];
@@ -788,11 +788,17 @@ async function fetchMapCandidatesByAuthorBatches(db, candidateUserIds, mode, fil
   const allDocs = [];
 
   await Promise.all(userBatches.map(async (batch) => {
-    const snap = await db.collectionGroup('moments')
-      .where('authorId', 'in', batch)
-      .orderBy('timestamp', 'desc')
-      .limit(perBatchLimit)
-      .get();
+    let query = db.collectionGroup('moments').where('authorId', 'in', batch);
+    if (scopedQuery && mode === 'location') {
+      query = query.where('location', '==', filters.locationName).orderBy('timestamp', 'desc');
+    } else if (scopedQuery) {
+      query = query.where('locationCoordinate.latitude', '>=', filters.latitudeMin)
+        .where('locationCoordinate.latitude', '<=', filters.latitudeMax)
+        .orderBy('locationCoordinate.latitude', 'asc');
+    } else {
+      query = query.orderBy('timestamp', 'desc');
+    }
+    const snap = await query.limit(scopedQuery ? 480 : perBatchLimit).get();
     snap.docs.forEach((doc) => allDocs.push(doc));
   }));
 

@@ -86,7 +86,8 @@ enum MapPlaceStoryFetcher {
             return
         }
 
-        let sortedPreviews = previews.sorted { $0.timestamp > $1.timestamp }
+        // Zone playback is chronological; the cover independently uses the newest story.
+        let sortedPreviews = previews.sorted { $0.timestamp < $1.timestamp }
         let grouped = Dictionary(grouping: sortedPreviews, by: \.authorId)
         let group = DispatchGroup()
         var fetchedByKey: [String: Story] = [:]

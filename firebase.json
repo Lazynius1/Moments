@@ -12,6 +12,7 @@
       "codebase": "functions",
       "ignore": [
         "node_modules",
+        "tests",
         ".git",
         "firebase-debug.log",
         "firebase-debug.*.log",

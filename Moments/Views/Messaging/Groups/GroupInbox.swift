@@ -52,15 +52,15 @@ extension ChatService {
         let key = "group_conversations_\(userId)"
         var revision = 0
         activeListeners[key] = db.collection("groupConversations").whereField("participants", arrayContains: userId)
-            .addSnapshotListener { [weak self] snapshot, error in
+            .addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
                 Task { @MainActor in
-                    guard let self, Auth.auth().currentUser?.uid == userId else { return }
+                    guard let self, self.inboxMerge === merge, Auth.auth().currentUser?.uid == userId else { return }
                     guard let snapshot, error == nil else {
-                        merge.groups = []
-                        merge.receivedGroups = true
-                        merge.publish()
+                        if let error { merge.completion(.failure(error)) }
                         return
                     }
+                    // An empty disk snapshot is not confirmation that the inbox is empty.
+                    guard !snapshot.metadata.isFromCache || !snapshot.documents.isEmpty else { return }
                     revision += 1; let currentRevision = revision
                     GroupDirectory.shared.replace(snapshot.documents, userId: userId)
                     let groups = snapshot.documents.compactMap { self.groupConversation($0, userId: userId) }
@@ -71,16 +71,15 @@ extension ChatService {
                     merge.publish()
                 }
             }
-        fetchDirectConversations(for: userId) { result in
+        fetchDirectConversations(for: userId) { [weak self] result in
+            guard let self, self.inboxMerge === merge, Auth.auth().currentUser?.uid == userId else { return }
             switch result {
             case .success(let conversations):
                 merge.direct = conversations
                 merge.receivedDirect = true
                 merge.publish()
-            case .failure:
-                merge.direct = []
-                merge.receivedDirect = true
-                merge.publish()
+            case .failure(let error):
+                merge.completion(.failure(error))
             }
         }
     }

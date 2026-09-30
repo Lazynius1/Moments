@@ -925,7 +925,7 @@
 "onboarding.title.step3" = "So wirst du auf Moments erscheinen";
 "onboarding.subtitle.step3" = "Überprüfe alles, bevor du startest";
 "onboarding.cancelRegistration" = "Registrierung abbrechen";
-"onboarding.resume.banner" = "Mach dort weiter, wo du aufgehört hast. Deine Daten wurden gespeichert.";
+"onboarding.resume.banner" = "Vervollständige dein Profil";
 "register.close" = "Registrierung schließen";
 "register.error.usernameTooShort" = "Mindestens 3 Zeichen";
 
@@ -4914,3 +4914,8 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "toast.action.bestFriendsLeft.suffix" = "";
 "toast.action.commentDeleted.prefix.suffix" = " gelöscht";
 "toast.action.leftGroup.suffix" = " verlassen";
+
+// Immersive map chrome
+"maps.chrome.nearby" = "In deiner Nähe";
+"maps.chrome.chooseCity" = "Wähle eine Stadt";
+"maps.chrome.recenter" = "Mein Standort";

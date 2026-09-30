@@ -14,6 +14,7 @@ struct FeedPresentationModifier: ViewModifier {
     @Binding var showingLocationMap: Bool
     @Binding var selectedLocationName: String
     @Binding var selectedLocationCoordinate: CLLocationCoordinate2D?
+    @Binding var selectedLocationMoment: Moment?
     @Binding var zoomDestination: MomentZoomDestination?
     @Binding var zoomResolvedMoment: Moment?
     @Binding var showEditSheet: Bool
@@ -75,6 +76,7 @@ struct FeedPresentationModifier: ViewModifier {
                 LocationMapView(
                     locationName: selectedLocationName.isEmpty ? NSLocalizedString("feed.location.default", comment: "Default location name") : selectedLocationName,
                     coordinate: selectedLocationCoordinate,
+                    originMoment: selectedLocationMoment,
                     isPresented: $showingLocationMap
                 )
             }
@@ -148,6 +150,7 @@ extension View {
         showingLocationMap: Binding<Bool>,
         selectedLocationName: Binding<String>,
         selectedLocationCoordinate: Binding<CLLocationCoordinate2D?>,
+        selectedLocationMoment: Binding<Moment?>,
         zoomDestination: Binding<MomentZoomDestination?>,
         zoomResolvedMoment: Binding<Moment?>,
         showEditSheet: Binding<Bool>,
@@ -178,6 +181,7 @@ extension View {
                 showingLocationMap: showingLocationMap,
                 selectedLocationName: selectedLocationName,
                 selectedLocationCoordinate: selectedLocationCoordinate,
+                selectedLocationMoment: selectedLocationMoment,
                 zoomDestination: zoomDestination,
                 zoomResolvedMoment: zoomResolvedMoment,
                 showEditSheet: showEditSheet,

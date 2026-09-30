@@ -634,6 +634,11 @@ struct GridPhotoPickerView: View {
                 case .failure(let error):
                     DispatchQueue.main.async {
                         self.isUploading = false
+                        if error is ModerationError {
+                            self.uploadError = nil
+                            self.showUploadError = false
+                            return
+                        }
                         self.uploadError = String(format: NSLocalizedString("profileEditor.error.uploadImage", comment: ""), error.localizedDescription)
                         self.showUploadError = true
                     }
@@ -1651,6 +1656,10 @@ struct ModernEditProfileView: View {
                     DispatchQueue.main.async {
                         self.isProfileImageUploading = false
                         self.pendingProfileImage = nil
+                        if error is ModerationError {
+                            self.profileImageUploadError = nil
+                            return
+                        }
                         self.profileImageUploadError = String(format: NSLocalizedString("profileEditor.error.uploadImage", comment: ""), error.localizedDescription)
                     }
                 }

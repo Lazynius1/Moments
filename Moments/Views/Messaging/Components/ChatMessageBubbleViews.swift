@@ -132,6 +132,13 @@ struct GlassmorphicMessageRow: View {
                         )
                     }
 
+                    if message.editedAt != nil && !message.isDeleted {
+                        Text("chat.edited")
+                            .font(.caption2)
+                            .foregroundStyle(adaptiveColors.timestampColor)
+                            .padding(.horizontal, 12)
+                    }
+
                     incomingTextTranslation { displayedText in
                         messageBubbleWithReactions(
                             displayedText: displayedText,

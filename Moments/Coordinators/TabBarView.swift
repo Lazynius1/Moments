@@ -169,18 +169,15 @@ struct TabBarView: View {
         let userId = authService.currentFirebaseUser?.uid ?? "guest"
 
         switch authService.authState {
-        case .loading:
-            return "loading-\(userId)"
-        case .verifyingAccount:
-            return "verifying-\(userId)"
+        case .loading, .verifyingAccount, .unauthenticated:
+            // Conservar la navegación y los campos mientras se crea/verifica la sesión.
+            return "authentication"
         case .authenticated:
             return "authenticated-\(userId)"
         case .deactivated:
             return "deactivated-\(userId)"
         case .suspended(let reason, let expiresAt):
             return "suspended-\(userId)-\(reason ?? "none")-\(expiresAt?.timeIntervalSince1970 ?? 0)"
-        case .unauthenticated:
-            return "unauthenticated"
         }
     }
     

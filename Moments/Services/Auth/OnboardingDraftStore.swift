@@ -57,7 +57,13 @@ enum OnboardingDraftStore {
     }
 
     static func markStarted(context: OnboardingDraftContext, firebaseUID: String? = nil, pendingAppleEmail: String? = nil) {
-        var draft = load() ?? OnboardingDraft(
+        let previous = load()
+        let reusableDraft = previous.flatMap { draft -> OnboardingDraft? in
+            guard draft.context == context, !isExpired(draft) else { return nil }
+            if let firebaseUID, let draftUID = draft.firebaseUID, firebaseUID != draftUID { return nil }
+            return draft
+        }
+        var draft = reusableDraft ?? OnboardingDraft(
             context: context,
             firebaseUID: firebaseUID,
             step: 1,
@@ -103,7 +109,7 @@ enum OnboardingDraftStore {
     ) {
         guard var draft = load() else { return }
 
-        if let step { draft.step = min(max(step, 1), 3) }
+        if let step { draft.step = min(max(step, 1), draft.context == .email ? 5 : 3) }
         if let username { draft.username = username }
         if let email { draft.email = email }
         if let selectedInterests { draft.selectedInterests = selectedInterests }

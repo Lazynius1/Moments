@@ -16,6 +16,7 @@ struct InAppActionToast: Identifiable {
     /// Se queda hasta que llegue el resultado o se descarte.
     let holds: Bool
     let showsProgress: Bool
+    let isError: Bool
     /// Tras el toast, el chrome hace morph a la pill Incognito.
     let bridgesToIncognitoPill: Bool
     /// Toast de pausa: morph desde la pill.
@@ -37,6 +38,7 @@ struct InAppActionToast: Identifiable {
         undo: (@MainActor () -> Void)? = nil,
         holds: Bool = false,
         showsProgress: Bool = false,
+        isError: Bool = false,
         bridgesToIncognitoPill: Bool = false,
         isIncognitoPaused: Bool = false,
         onExpire: (@MainActor () -> Void)? = nil
@@ -50,6 +52,7 @@ struct InAppActionToast: Identifiable {
         self.undo = undo
         self.holds = holds
         self.showsProgress = showsProgress
+        self.isError = isError
         self.bridgesToIncognitoPill = bridgesToIncognitoPill
         self.isIncognitoPaused = isIncognitoPaused
         self.onExpire = onExpire
@@ -211,6 +214,14 @@ struct InAppActionToast: Identifiable {
 
     static var profilePhotoRemoved: InAppActionToast {
         .plain("toast.action.profilePhotoRemoved", fallback: "Profile photo removed", icon: "checkmark.circle.fill")
+    }
+
+    static var profilePhotoRejected: InAppActionToast {
+        InAppActionToast(
+            systemImage: "exclamationmark.shield.fill",
+            prefix: NSLocalizedString("profileEditor.error.profileImageRejected", comment: ""),
+            isError: true
+        )
     }
 
     static var highlightCreated: InAppActionToast {
@@ -588,7 +599,7 @@ class InAppNotificationService: ObservableObject {
             if toast.showsProgress {
                 dismissTimer?.cancel()
             } else {
-                HapticManager.shared.notification(.success)
+                HapticManager.shared.notification(toast.isError ? .error : .success)
                 activeDuration = toast.duration
                 startDismissTimer()
             }

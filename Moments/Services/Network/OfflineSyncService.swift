@@ -398,8 +398,11 @@ class OfflineSyncService: ObservableObject {
                                             }
                                             continuation.resume()
                                         }
-                                    case .failure(_):
-                                        // Falló la subida, se reintentará en el próximo sync
+                                    case .failure(let error):
+                                        if error is ModerationError {
+                                            LocalPersistenceService.shared.deleteAction(id: action.id)
+                                        }
+                                        // Los errores temporales se reintentan; los rechazos son definitivos.
                                         continuation.resume()
                                     }
                                 }

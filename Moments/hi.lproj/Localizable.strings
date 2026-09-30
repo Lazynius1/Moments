@@ -890,7 +890,7 @@
 "onboarding.title.step3" = "Moments पर आप ऐसे दिखेंगे";
 "onboarding.subtitle.step3" = "शुरू करने से पहले सब कुछ देख लें";
 "onboarding.cancelRegistration" = "रजिस्ट्रेशन रद्द करें";
-"onboarding.resume.banner" = "जहाँ छोड़ा था, वहीं से शुरू करें। आपकी प्रगति सेव हो गई है।";
+"onboarding.resume.banner" = "अपनी प्रोफ़ाइल बनाना पूरा करें";
 "register.close" = "रजिस्ट्रेशन बंद करें";
 "register.error.usernameTooShort" = "कम से कम 3 अक्षर";
 /* Splash */
@@ -4685,3 +4685,8 @@
 "toast.action.bestFriendsLeft.suffix" = " की क्लोज़ फ्रेंड्स सूची से निकल गए";
 "toast.action.commentDeleted.prefix.suffix" = " की टिप्पणी हटाई";
 "toast.action.leftGroup.suffix" = " से निकल गए";
+
+// Immersive map chrome
+"maps.chrome.nearby" = "आपके आस-पास";
+"maps.chrome.chooseCity" = "एक शहर चुनें";
+"maps.chrome.recenter" = "मेरा स्थान";

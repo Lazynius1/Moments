@@ -357,14 +357,33 @@ struct LocationBottomSheet: View {
 }
 
 struct MapLocationSystemSheetModifier: ViewModifier {
+    static let collapsedDetent = PresentationDetent.height(80)
+    static let middleDetent = PresentationDetent.height(350)
     @Binding var selectedDetent: PresentationDetent
 
+    @ViewBuilder
     func body(content: Content) -> some View {
+        if selectedDetent == .large {
+            sheet(content)
+        } else {
+            sheet(content)
+                .presentationBackground {
+                    Color.clear
+                        .momentsChromeGlass(
+                            in: RoundedRectangle(cornerRadius: 28),
+                            interactive: false,
+                            style: .tinted
+                        )
+                }
+        }
+    }
+
+    private func sheet(_ content: Content) -> some View {
         content
-            .presentationDetents([.medium, .large], selection: $selectedDetent)
+            .presentationDetents([Self.collapsedDetent, Self.middleDetent, .large], selection: $selectedDetent)
             .presentationDragIndicator(.visible)
-            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
-            .presentationBackground(.clear)
+            .presentationBackgroundInteraction(.enabled)
+            .interactiveDismissDisabled()
     }
 }
 
@@ -500,7 +519,6 @@ struct MapsVideoThumbnailView: View {
     }
 }
 
-// ✅ ROW PARA VISTA DE LISTA CON GLASSMORPHISM
 // ✅ COMPONENTE DE FILA MODERNA (Inspirado en ModernPostCardView)
 struct ModernLocationMomentRow: View {
     @Environment(\.momentsViewportSize) private var momentsViewportSize
@@ -576,7 +594,7 @@ struct ModernLocationMomentRow: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 18)
-                    .fill(.ultraThinMaterial.opacity(0.5))
+                    .fill(adaptiveColors.background.opacity(0.35))
                     .overlay(
                         RoundedRectangle(cornerRadius: 18)
                             .stroke(

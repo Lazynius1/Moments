@@ -1847,10 +1847,11 @@ class ChatService: ObservableObject {
         let listenerKey = "conversations_\(userId)"
         activeListeners[listenerKey]?.remove()
         
+        var snapshotRevision = 0
         let listener = db.collection("conversations")
             .whereField("participants", arrayContains: userId)
             .order(by: "timestamp", descending: true)
-            .addSnapshotListener { [weak self] snapshot, error in
+            .addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
                 guard let self else { return }
 
                 if let error = error {
@@ -1862,10 +1863,12 @@ class ChatService: ObservableObject {
                     return
                 }
 
-                guard let documents = snapshot?.documents else {
-                    completion(.success([]))
-                    return
-                }
+                guard let snapshot else { return }
+                // Wait for server confirmation before accepting an empty cache snapshot.
+                guard !snapshot.metadata.isFromCache || !snapshot.documents.isEmpty else { return }
+                snapshotRevision += 1
+                let currentRevision = snapshotRevision
+                let documents = snapshot.documents
 
                 var conversations: [Conversation] = []
                 var archivedIds: Set<String> = []
@@ -2038,6 +2041,8 @@ class ChatService: ObservableObject {
                     }
 
                     let hydratedConversations = await self.hydrateConversationPreviews(conversations)
+                    guard currentRevision == snapshotRevision,
+                          Auth.auth().currentUser?.uid == userId else { return }
                     completion(.success(hydratedConversations))
                 }
             }

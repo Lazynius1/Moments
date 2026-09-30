@@ -36,6 +36,7 @@ struct ProfileOnboardingView: View {
     @State private var isCreatingProfile = false
     @State private var firebaseOperationsCompleted = false
     @State private var animationFinished = false
+    @State private var isFinalizingRegistration = false
     @State private var showAlert = false
     @State private var errorMessage: String?
     @State private var isVisible = false
@@ -143,7 +144,7 @@ struct ProfileOnboardingView: View {
                     )
                 }
                 .labelStyle(.iconOnly)
-                .disabled(isCancelling)
+                .disabled(isCancelling || isCreatingProfile)
             }
         }
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
@@ -356,6 +357,11 @@ struct ProfileOnboardingView: View {
         }
     }
 
+    private var hasEmailRegistrationSession: Bool {
+        guard context == .email, let user = Auth.auth().currentUser else { return false }
+        return user.email?.lowercased() == email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
     private func canProceed() -> Bool {
         switch (context, currentStep) {
         case (.email, 1):
@@ -364,7 +370,7 @@ struct ProfileOnboardingView: View {
             return AuthService.isValidEmail(email.trimmingCharacters(in: .whitespacesAndNewlines))
                 && emailError == nil && !emailChecking
         case (.email, 3):
-            return password.count >= 8
+            return hasEmailRegistrationSession || password.count >= 8
         case (.email, 4), (.apple, 2):
             return selectedInterests.count >= RegisterInterestsPolicy.minimum
         case (.apple, 1):
@@ -379,7 +385,7 @@ struct ProfileOnboardingView: View {
         if currentStep < totalSteps {
             stepDirection = 1
             withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
-                currentStep += 1
+                currentStep += currentStep == 2 && hasEmailRegistrationSession ? 2 : 1
             }
         } else {
             completeRegistration()
@@ -395,7 +401,7 @@ struct ProfileOnboardingView: View {
         if currentStep > 1 {
             stepDirection = -1
             withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
-                currentStep -= 1
+                currentStep -= currentStep == 4 && hasEmailRegistrationSession ? 2 : 1
             }
         } else {
             context == .apple ? cancelAppleOnboarding() : cancelEmailOnboarding()
@@ -403,9 +409,11 @@ struct ProfileOnboardingView: View {
     }
 
     private func completeRegistration() {
+        guard !isCreatingProfile else { return }
         isLoading = true
         firebaseOperationsCompleted = false
         animationFinished = false
+        isFinalizingRegistration = false
         isCreatingProfile = true
 
         switch context {
@@ -462,11 +470,14 @@ struct ProfileOnboardingView: View {
     }
 
     private func checkAndFinalizeRegistration() {
-        guard firebaseOperationsCompleted && animationFinished else { return }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        guard firebaseOperationsCompleted && animationFinished && !isFinalizingRegistration else { return }
+        isFinalizingRegistration = true
+        // El overlay se mantiene hasta que la sesión autenticada sustituye el onboarding.
+        if !authService.completeRegistration() {
+            isFinalizingRegistration = false
             isCreatingProfile = false
-            authService.completeRegistration()
+            errorMessage = NSLocalizedString("auth.error.userIdNotFound", comment: "")
+            showAlert = true
         }
     }
 
@@ -512,9 +523,19 @@ struct ProfileOnboardingView: View {
             return
         }
 
-        if draft.context == .email, draft.firebaseUID == nil, draft.step > 1 {
-            // Sin sesión Auth guardada, la contraseña no se persiste: volver al paso 1.
-            currentStep = 1
+        if draft.context == .email {
+            let hasRegistrationSession = draft.firebaseUID != nil
+                && Auth.auth().currentUser?.uid == draft.firebaseUID
+            if draft.username.count < 3 {
+                currentStep = 1
+            } else if !AuthService.isValidEmail(draft.email) {
+                currentStep = 2
+            } else if !hasRegistrationSession {
+                // La contraseña no se guarda; conservar el resto y pedirla en su paso.
+                currentStep = min(max(draft.step, 1), 3)
+            } else {
+                currentStep = draft.selectedInterests.count >= RegisterInterestsPolicy.minimum ? 5 : 4
+            }
         } else {
             currentStep = min(max(draft.step, 1), totalSteps)
         }
@@ -1305,7 +1326,7 @@ private struct OnboardingResumeBanner: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "arrow.counterclockwise.circle.fill")
+            Image(systemName: "person.crop.circle")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(AuthColors.primary(colorScheme))
 

@@ -8,6 +8,8 @@ import CryptoKit
 struct LoginView: View {
     @EnvironmentObject var authService: AuthService
     @State private var showLoginForm = false
+    @State private var showEmailRegistration = false
+    @State private var showResumedOnboarding = false
 
     var body: some View {
         NavigationStack {
@@ -25,7 +27,7 @@ struct LoginView: View {
                     // Mostrar pantalla de cuenta desactivada solo cuando no se está verificando
                     DeactivatedAccountView()
                 } else {
-                    WelcomeContent(showLoginForm: $showLoginForm)
+                    WelcomeContent(showLoginForm: $showLoginForm, goToRegister: $showEmailRegistration)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -33,14 +35,19 @@ struct LoginView: View {
             .navigationDestination(isPresented: $showLoginForm) {
                 LoginFormScreen()
             }
-            .navigationDestination(isPresented: $authService.isRegistering) {
+            .navigationDestination(isPresented: $showResumedOnboarding) {
                 ProfileOnboardingView(
                     context: authService.resumingOnboardingContext == .email ? .email : .apple
                 )
             }
         }
-        // ✅ NUEVO: Observar cambios en el estado de autenticación
-        .onChange(of: authService.authState) { _, newState in
+        .onAppear {
+            showResumedOnboarding = authService.isRegistering && !showEmailRegistration
+        }
+        .onChange(of: authService.isRegistering) { _, isRegistering in
+            if isRegistering && !showEmailRegistration {
+                showResumedOnboarding = true
+            }
         }
     }
 }
@@ -162,7 +169,7 @@ struct WelcomeContent: View {
     @EnvironmentObject var authService: AuthService
     @Environment(\.colorScheme) private var colorScheme
     @Binding var showLoginForm: Bool
-    @State private var goToRegister = false
+    @Binding var goToRegister: Bool
     @State private var isVisible = false
 
     private var primaryText: Color {

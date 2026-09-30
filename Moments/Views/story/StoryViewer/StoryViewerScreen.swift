@@ -461,6 +461,24 @@ struct StoryViewerScreen: View {
                 .position(x: captureRect.midX, y: captureRect.midY)
             }
 
+            if !isUIHidden {
+                LinearGradient(
+                    stops: [
+                        .init(color: .black.opacity(0.48), location: 0),
+                        .init(color: .black.opacity(0.32), location: 0.4),
+                        .init(color: .clear, location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: min(120, captureRect.height))
+                .frame(width: captureRect.width, height: captureRect.height, alignment: .top)
+                .clipShape(FeedMomentCardLayout.continuousRoundedRect)
+                .position(x: captureRect.midX, y: captureRect.midY)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+
             // MARK: - 4. PROGRESS - EN EL HUECO SUPERIOR, FUERA DEL MARCO
             if !isUIHidden {
                 StorySegmentProgressChrome(
@@ -969,7 +987,7 @@ struct StoryViewerScreen: View {
                         HStack(spacing: 4) {
                             Text(story.username)
                                 .foregroundStyle(.white)
-                                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
+                                .font(.system(size: legacyPoppinsSize(15), weight: .bold))
                                 .lineLimit(1)
                                 .shadow(color: Color.black.opacity(0.60), radius: 5, x: 0, y: 2)
 
@@ -981,7 +999,7 @@ struct StoryViewerScreen: View {
                         }
 
                         Text(timeAgoString(from: story.timestamp))
-                            .foregroundStyle(.white.opacity(0.7))
+                            .foregroundStyle(.white.opacity(0.85))
                             .font(.system(size: legacyPoppinsSize(11)))
                             .shadow(color: Color.black.opacity(0.55), radius: 4, x: 0, y: 2)
                     }
@@ -1005,11 +1023,11 @@ struct StoryViewerScreen: View {
                         }
                     }) {
                         Image(systemName: "link")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(MomentsChromeGlass.contentColor(for: colorScheme))
                             .font(.system(size: 16, weight: .medium))
                             .frame(width: 40, height: 40)
                             .background(Color.white.opacity(0.001))
-                            .momentsChromeGlass(in: Circle(), interactive: true)
+                            .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
                     }
                     .buttonStyle(PlainButtonStyle())
                     .overlay(alignment: .topTrailing) {
@@ -1036,7 +1054,7 @@ struct StoryViewerScreen: View {
                             .font(.system(size: 16, weight: .medium))
                             .frame(width: 40, height: 40)
                             .background(Color.white.opacity(0.001))
-                            .momentsChromeGlass(in: Circle(), interactive: true, style: .nativeTinted)
+                            .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
                     }
                     .buttonStyle(PlainButtonStyle())
 
@@ -1046,7 +1064,7 @@ struct StoryViewerScreen: View {
                             .font(.system(size: 16, weight: .medium))
                             .frame(width: 40, height: 40)
                             .background(Color.white.opacity(0.001))
-                            .momentsChromeGlass(in: Circle(), interactive: true, style: .nativeTinted)
+                            .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
                     }
                 }
             }

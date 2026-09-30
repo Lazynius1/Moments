@@ -1,5 +1,7 @@
 const b = require('../bootstrap');
 const h = require('../helpers');
+const { mapSocialAuthorIds } = require('../helpers/map-scope');
+const { mapQueryKey, decodeMapCursor, fetchMapMomentCandidatePage, fetchMapStoryCandidatePage, MAP_CURSOR_KEY } = require('../helpers/map-pagination');
 const {
   onDocumentCreated,
   onDocumentDeleted,
@@ -1133,12 +1135,19 @@ function serializeMapStory(docId, data, mapLocation, authorData) {
   };
 }
 
-async function fetchMapStoryCandidates(db, uid, viewerCtx, mode, filters, limit) {
-  const candidateUserIds = await buildMapFallbackCandidateUserIds(uid, viewerCtx, db);
+async function fetchMapStoryCandidates(db, uid, viewerCtx, mode, filters, limit, followingOnly = false) {
+  const candidateUserIds = followingOnly
+    ? mapSocialAuthorIds(uid, viewerCtx)
+    : await buildMapFallbackCandidateUserIds(uid, viewerCtx, db);
   const now = admin.firestore.Timestamp.now();
   const storyDocs = await fetchActiveStoryDocsForAuthors(db, candidateUserIds, now);
 
-  return storyDocs.filter(({ data }) => {
+  return filterMapStoryCandidates(storyDocs, mode, filters).slice(0, Math.max(limit * 4, 200));
+}
+
+function filterMapStoryCandidates(storyDocs, mode, filters) {
+  return storyDocs.filter(({ doc, data }) => {
+    if (!isStoryPathAuthorConsistent(doc, data)) return false;
     if (!isMapContentVisible(data)) return false;
     const mapLocation = extractStoryMapLocation(data);
     if (!mapLocation) return false;
@@ -1154,7 +1163,7 @@ async function fetchMapStoryCandidates(db, uid, viewerCtx, mode, filters, limit)
       filters.longitudeMin,
       filters.longitudeMax
     );
-  }).slice(0, Math.max(limit * 4, 200));
+  });
 }
 
 /**
@@ -1168,7 +1177,8 @@ async function fetchMapStoryCandidates(db, uid, viewerCtx, mode, filters, limit)
  *   latitudeDelta?: number,
  *   longitudeDelta?: number,
  *   locationName?: string,
- *   limit?: number
+ *   limit?: number,
+ *   scope?: "following" // viewer + followed authors; visibility rules still apply
  * }
  *
  * Response:
@@ -1182,7 +1192,8 @@ const getMapMomentsPage = onRequest(
   {
     timeoutSeconds: 30,
     memory: '512MiB',
-    concurrency: 40
+    concurrency: 40,
+    secrets: [MAP_CURSOR_KEY]
   },
   async (req, res) => {
     setProxyCors(res);
@@ -1200,6 +1211,7 @@ const getMapMomentsPage = onRequest(
 
     const body = parseJsonBody(req);
     const mode = body.mode === 'location' ? 'location' : 'region';
+    const followingOnly = body.scope === 'following';
     const rawLimit = Number(body.limit);
     const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 120)) : 80;
 
@@ -1253,12 +1265,39 @@ const getMapMomentsPage = onRequest(
           .limit(Math.max(limit * 4, 220));
       }
 
+      const paginate = body.paginate === true;
+      const filters = mode === 'location' ? { locationName: body.locationName.trim() }
+        : { latitudeMin, latitudeMax, longitudeMin, longitudeMax };
+      const pageKey = mapQueryKey(uid, mode, filters, followingOnly ? 'following' : 'all', 'moments');
+      let cursor;
+      try { cursor = paginate ? decodeMapCursor(body.cursor, pageKey) : null; }
+      catch { res.status(400).json({ error: 'Invalid map cursor' }); return; }
+      let nextCursor = null;
       let snapshot;
       let usedFallbackPath = false;
       try {
-        snapshot = await query.get();
+        if (paginate) {
+          const page = await fetchMapMomentCandidatePage(db, admin,
+            followingOnly ? mapSocialAuthorIds(uid, viewerCtx) : null,
+            mode, filters, limit, cursor, pageKey);
+          snapshot = { docs: page.docs };
+          nextCursor = page.nextCursor;
+        } else if (followingOnly) {
+          // Apply the relationship scope before the candidate/result limits.
+          // Privacy checks below still decide whether each item may be returned.
+          snapshot = { docs: await fetchMapCandidatesByAuthorBatches(
+            db, mapSocialAuthorIds(uid, viewerCtx), mode,
+            {
+              locationName: mode === 'location' ? body.locationName.trim() : '',
+              latitudeMin, latitudeMax, longitudeMin, longitudeMax
+            },
+            true
+          ) };
+        } else {
+          snapshot = await query.get();
+        }
       } catch (queryError) {
-        if (!isFirestoreFailedPrecondition(queryError)) {
+        if (paginate || followingOnly || !isFirestoreFailedPrecondition(queryError)) {
           throw queryError;
         }
 
@@ -1342,13 +1381,14 @@ const getMapMomentsPage = onRequest(
         return serializeMomentForMap(doc.id, data, authorData);
       });
 
-      const pathTag = usedFallbackPath ? 'fallback_author_batches' : 'geo_query';
+      const pathTag = followingOnly ? 'following_author_batches' : (usedFallbackPath ? 'fallback_author_batches' : 'geo_query');
       console.log(`✅ getMapMomentsPage: uid=${uid}, scope=${debugScope}, path=${pathTag}, candidates=${candidateDocs.length}, visible=${visible.length}, returned=${moments.length}`);
 
       res.status(200).json({
         moments,
         source: 'backend',
-        totalCandidates: candidateDocs.length
+        totalCandidates: candidateDocs.length,
+        ...(paginate ? { nextCursor } : {})
       });
     } catch (error) {
       console.error('❌ getMapMomentsPage error:', error);
@@ -1367,7 +1407,8 @@ const getMapStoriesPage = onRequest(
   {
     timeoutSeconds: 30,
     memory: '512MiB',
-    concurrency: 40
+    concurrency: 40,
+    secrets: [MAP_CURSOR_KEY]
   },
   async (req, res) => {
     setProxyCors(res);
@@ -1385,6 +1426,7 @@ const getMapStoriesPage = onRequest(
 
     const body = parseJsonBody(req);
     const mode = body.mode === 'location' ? 'location' : 'region';
+    const followingOnly = body.scope === 'following';
     const rawLimit = Number(body.limit);
     const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 120)) : 80;
     const db = admin.firestore();
@@ -1433,14 +1475,21 @@ const getMapStoriesPage = onRequest(
         ? { locationName: typeof body.locationName === 'string' ? body.locationName.trim() : '' }
         : { latitudeMin, latitudeMax, longitudeMin, longitudeMax };
 
-      const candidateStories = await fetchMapStoryCandidates(
-        db,
-        uid,
-        viewerCtx,
-        mode,
-        filters,
-        limit
-      );
+      const paginate = body.paginate === true;
+      const pageKey = mapQueryKey(uid, mode, filters, followingOnly ? 'following' : 'all', 'stories');
+      let cursor;
+      try { cursor = paginate ? decodeMapCursor(body.cursor, pageKey) : null; }
+      catch { res.status(400).json({ error: 'Invalid map cursor' }); return; }
+      let nextCursor = null;
+      let candidateStories;
+      if (paginate) {
+        const authors = followingOnly ? mapSocialAuthorIds(uid, viewerCtx) : null;
+        const page = await fetchMapStoryCandidatePage(db, admin, authors, limit, cursor, pageKey);
+        nextCursor = page.nextCursor;
+        candidateStories = filterMapStoryCandidates(page.docs.map(doc => ({ doc, data: doc.data() || {} })), mode, filters);
+      } else {
+        candidateStories = await fetchMapStoryCandidates(db, uid, viewerCtx, mode, filters, limit, followingOnly);
+      }
 
       const authorIds = [...new Set(candidateStories.map(({ data }) => data.authorId).filter(Boolean))];
       const authorMap = await batchLoadAuthorDocs(authorIds);
@@ -1500,7 +1549,8 @@ const getMapStoriesPage = onRequest(
       res.status(200).json({
         stories,
         source: 'backend',
-        totalCandidates: candidateStories.length
+        totalCandidates: candidateStories.length,
+        ...(paginate ? { nextCursor } : {})
       });
     } catch (error) {
       console.error('❌ getMapStoriesPage error:', error);

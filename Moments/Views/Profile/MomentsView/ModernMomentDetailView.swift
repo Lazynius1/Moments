@@ -235,6 +235,7 @@ struct ModernMomentDetailView: View {
                 LocationMapView(
                     locationName: resolvedLocationName(moment.location ?? ""),
                     coordinate: moment.locationCoordinate?.toCLLocationCoordinate2D,
+                    originMoment: moment,
                     isPresented: Binding(
                         get: { selectedLocationMoment != nil },
                         set: { if !$0 { selectedLocationMoment = nil } }

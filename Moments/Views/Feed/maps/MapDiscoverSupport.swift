@@ -122,6 +122,8 @@ struct MapDiscoverPayload {
     let source: String
     let momentsError: MapServiceError?
     let storiesError: MapServiceError?
+    var momentsCursor: String? = nil
+    var storiesCursor: String? = nil
 
     var hasContent: Bool {
         !moments.isEmpty || !stories.isEmpty

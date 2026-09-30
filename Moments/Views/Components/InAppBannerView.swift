@@ -328,7 +328,7 @@ struct InAppBannerView: View {
                 ProgressView()
                     .controlSize(.small)
             } else {
-                if toast.bridgesToIncognitoPill || toast.isIncognitoPaused {
+                if toast.isError || toast.bridgesToIncognitoPill || toast.isIncognitoPaused {
                     Image(systemName: toast.systemImage)
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.primary)

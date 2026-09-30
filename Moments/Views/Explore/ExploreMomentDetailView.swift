@@ -46,6 +46,7 @@ struct ExploreMomentDetailView: View {
     @State private var showingLocationMap = false
     @State private var selectedLocationName = ""
     @State private var selectedLocationCoordinate: CLLocationCoordinate2D?
+    @State private var selectedLocationMoment: Moment?
     @Namespace private var profileZoomNamespace
     @State private var profileRoute: FeedProfileSheetRoute?
     /// Ancho real del pane. En Duo abierto el viewport es las dos pantallas y la card se infla.
@@ -185,6 +186,7 @@ struct ExploreMomentDetailView: View {
             LocationMapView(
                 locationName: selectedLocationName,
                 coordinate: selectedLocationCoordinate,
+                originMoment: selectedLocationMoment,
                 isPresented: $showingLocationMap
             )
         }
@@ -314,6 +316,7 @@ struct ExploreMomentDetailView: View {
                                     onLocationTap: { locationName, coordinate in
                                         selectedLocationName = locationName
                                         selectedLocationCoordinate = coordinate
+                                        selectedLocationMoment = moment
                                         showingLocationMap = true
                                     },
                                     onContextMenu: { tappedMoment in

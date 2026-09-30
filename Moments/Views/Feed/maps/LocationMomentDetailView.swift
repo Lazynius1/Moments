@@ -347,7 +347,7 @@ struct LocationMomentDetailView: View {
         withAnimation(.easeOut(duration: 0.3)) {
             isPresented = false
         }
-        dismiss()
+        // The binding owns dismissal (navigation pop or modal close), once.
     }
 
     private func refreshLocationDisplayTitle() {

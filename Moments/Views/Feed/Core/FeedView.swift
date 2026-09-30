@@ -51,6 +51,7 @@ struct FeedView: View {
     @State private var showingLocationMap = false
     @State private var selectedLocationName: String = ""
     @State private var selectedLocationCoordinate: CLLocationCoordinate2D?
+    @State private var selectedLocationMoment: Moment?
     @State private var selectedUserId: String = ""
     @State private var selectedProfileRoute: FeedProfileSheetRoute?
     @Namespace private var profileZoomNamespace
@@ -313,6 +314,7 @@ struct FeedView: View {
             showingLocationMap: $showingLocationMap,
             selectedLocationName: $selectedLocationName,
             selectedLocationCoordinate: $selectedLocationCoordinate,
+                selectedLocationMoment: $selectedLocationMoment,
             zoomDestination: $zoomDestination,
             zoomResolvedMoment: $zoomResolvedMoment,
             showEditSheet: $showEditSheet,
@@ -531,6 +533,7 @@ struct FeedView: View {
                 showExploreWithHashtag: $showExploreWithHashtag,
                 selectedLocationName: $selectedLocationName,
                 selectedLocationCoordinate: $selectedLocationCoordinate,
+                selectedLocationMoment: $selectedLocationMoment,
                 showingLocationMap: $showingLocationMap,
                 showGlobalContextMenu: $showGlobalContextMenu,
                 selectedMomentForMenu: $selectedMomentForMenu,

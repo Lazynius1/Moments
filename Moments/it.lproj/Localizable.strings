@@ -925,7 +925,7 @@
 "onboarding.title.step3" = "Ecco come apparirai su Moments";
 "onboarding.subtitle.step3" = "Controlla tutto prima di iniziare";
 "onboarding.cancelRegistration" = "Annulla registrazione";
-"onboarding.resume.banner" = "Riprendi da dove avevi lasciato. I tuoi dati sono stati salvati.";
+"onboarding.resume.banner" = "Completa la creazione del tuo profilo";
 "register.close" = "Chiudi registrazione";
 "register.error.usernameTooShort" = "Minimo 3 caratteri";
 
@@ -4914,3 +4914,8 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "toast.action.bestFriendsLeft.suffix" = "";
 "toast.action.commentDeleted.prefix.suffix" = "";
 "toast.action.leftGroup.suffix" = "";
+
+// Immersive map chrome
+"maps.chrome.nearby" = "Vicino a te";
+"maps.chrome.chooseCity" = "Scegli una città";
+"maps.chrome.recenter" = "La mia posizione";

@@ -842,12 +842,6 @@ struct MessageTimestamp: View {
                 .font(.system(size: legacyPoppinsSize(11)))
                 .foregroundStyle(adaptiveColors.timestampColor)
 
-            if message.editedAt != nil {
-                Text("chat.edited")
-                    .font(.system(size: legacyPoppinsSize(11)))
-                    .foregroundStyle(adaptiveColors.timestampColor)
-            }
-
             if isCurrentUser {
                 if showSeenLabel && displayStatus == .read {
                     Text("chat.seen")

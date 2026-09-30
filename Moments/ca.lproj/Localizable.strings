@@ -927,7 +927,7 @@
 "onboarding.title.step3" = "Així et veuran a Moments";
 "onboarding.subtitle.step3" = "Revisa-ho tot abans d'entrar";
 "onboarding.cancelRegistration" = "Cancel·lar registre";
-"onboarding.resume.banner" = "Continua on ho vas deixar. Les teves dades s'han desat.";
+"onboarding.resume.banner" = "Acaba de crear el teu perfil";
 "register.close" = "Tancar registre";
 
 /* Splash */
@@ -4933,3 +4933,8 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "toast.action.bestFriendsLeft.suffix" = "";
 "toast.action.commentDeleted.prefix.suffix" = "";
 "toast.action.leftGroup.suffix" = "";
+
+// Immersive map chrome
+"maps.chrome.nearby" = "A prop teu";
+"maps.chrome.chooseCity" = "Tria una ciutat";
+"maps.chrome.recenter" = "La meva ubicació";

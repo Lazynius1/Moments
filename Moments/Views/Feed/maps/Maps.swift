@@ -12,6 +12,7 @@ import WeatherKit
 struct LocationMapView: View {
     let locationName: String
     let coordinate: CLLocationCoordinate2D?
+    let originMoment: Moment?
     let echoHistoryUserId: String?
     let echoHistoryOnly: Bool
     @Binding var isPresented: Bool
@@ -21,24 +22,26 @@ struct LocationMapView: View {
     init(
         locationName: String,
         coordinate: CLLocationCoordinate2D?,
+        originMoment: Moment? = nil,
         echoHistoryUserId: String? = nil,
         echoHistoryOnly: Bool = false,
         isPresented: Binding<Bool>
     ) {
         self.locationName = locationName
         self.coordinate = coordinate
+        self.originMoment = originMoment
         self.echoHistoryUserId = echoHistoryUserId
         self.echoHistoryOnly = echoHistoryOnly
         self._isPresented = isPresented
     }
 
     @State private var region = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 40.7128, longitude: -74.0060),
-        span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+        center: MapRegionStore.initialRegion().center,
+        span: MapRegionStore.initialRegion().span
     )
     @State private var mapPosition = MapCameraPosition.region(MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 40.7128, longitude: -74.0060),
-        span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+        center: MapRegionStore.initialRegion().center,
+        span: MapRegionStore.initialRegion().span
     ))
     @State private var annotations: [MapsLocationAnnotation] = []
     @State private var isLoading = true
@@ -63,9 +66,10 @@ struct LocationMapView: View {
 
     @StateObject private var weatherService = WeatherService.shared
     @State private var currentWeather: WeatherData?
-    @State private var weatherEffectsEnabled = true
+    @State private var weatherEffectsEnabled = false
     @State private var showingBottomSheet = false
-    @State private var mapSheetDetent: PresentationDetent = .medium
+    @State private var mapSheetDetent: PresentationDetent = MapLocationSystemSheetModifier.collapsedDetent
+    @State private var mapPanelHeight: CGFloat = 80
     @Namespace private var zoomNamespace
     @Namespace private var profileZoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
@@ -87,6 +91,9 @@ struct LocationMapView: View {
     // ✅ NUEVO: Estado para manejar mejor la carga inicial
     @State private var hasInitializedMap = false
     @State private var isViewActive = true
+    @State private var searchText = ""
+    @State private var nearbySearchToken = UUID()
+    @State private var initialContentToken = UUID()
 
     private struct LocationMapStoryViewerPresentation: Identifiable {
         let id = UUID()
@@ -185,16 +192,48 @@ struct LocationMapView: View {
     }
 
     var body: some View {
+        if isEchoHistoryMode {
+            echoHistoryBody
+        } else {
+            DiscoverMapView(
+                isPresented: $isPresented,
+                initialLocationName: locationName,
+                initialCoordinate: coordinate,
+                originMoment: originMoment
+            )
+        }
+    }
+
+    private var echoHistoryBody: some View {
         NavigationStack {
             ZStack {
             // ✅ EL MAPA OCUPA TODO EL FONDO
             modernMapView
                 .ignoresSafeArea()
-                .overlay(alignment: .top) {
-                    topControlsOverlay
-                        .zIndex(20)
-                        .allowsHitTesting(true)
+            MapImmersiveChrome(
+                title: selectedPlaceCluster?.displayName ?? effectiveHeaderLocationName,
+                subtitle: String(format: NSLocalizedString("maps.placeSheet.stats", comment: ""), sheetCluster.momentCount, sheetCluster.storyCount),
+                isLoading: isLoading || isLoadingMoments || isLoadingNearbyMoments,
+                searchText: $searchText,
+                onClose: closeLocationMap,
+                onSearch: searchForPlace,
+                onRecenter: recenterOnUser,
+                onOpenContent: {},
+                showsSearchArea: hasInitializedMap && !isLoading && !isLoadingMoments && !isLoadingNearbyMoments && nearbyQueryKey(for: region) != lastNearbyQueryKey,
+                onSearchArea: { selectedPlaceCluster = nil; searchInCurrentArea() },
+                showsDock: false,
+                panelHeight: mapPanelHeight
+            )
+            .zIndex(20)
+            if let contentErrorMessage, errorMessage == nil {
+                VStack {
+                    compactContentErrorBanner(message: contentErrorMessage)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 68)
+                    Spacer()
                 }
+                .zIndex(21)
+            }
 
             // ✅ BARRA DE ESTADÍSTICAS (SI EXISTE) - La movimos dentro de modernHeaderView en el paso anterior,
             // pero si hay componentes adicionales los manejamos aquí.
@@ -213,6 +252,12 @@ struct LocationMapView: View {
         .momentZoomNavigationSurface(colorScheme: colorScheme)
         .momentsFloatingTabBarHidden()
         .sheet(isPresented: $showingBottomSheet) {
+            MapImmersivePanel(
+                title: selectedPlaceCluster?.displayName ?? effectiveHeaderLocationName,
+                subtitle: String(format: NSLocalizedString("maps.placeSheet.stats", comment: ""), sheetCluster.momentCount, sheetCluster.storyCount),
+                isLoading: isLoading || isLoadingMoments || isLoadingNearbyMoments,
+                detent: $mapSheetDetent
+            ) {
             MapPlaceBottomSheet(
                 cluster: sheetCluster,
                 momentAvailability: momentAvailability,
@@ -228,28 +273,27 @@ struct LocationMapView: View {
                     openPlaceStories(cluster)
                 },
                 weather: currentWeather,
-                userLocation: locationManager.currentLocation?.coordinate,
+                userLocation: locationManager.usableCurrentLocation?.coordinate,
                 placeIndex: contextualPlaceIndex,
                 onPlaceTap: contextualPlaceIndex.isEmpty ? nil : { place in
                     selectPlaceFromIndex(place)
-                }
+                },
+                showsHeader: false
             )
+            }
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height
+            } action: { height in
+                mapPanelHeight = height
+            }
             .mapLocationSystemSheet(detent: $mapSheetDetent)
         }
         .onChange(of: showingBottomSheet) { _, isShowing in
-            if isShowing {
-                mapSheetDetent = .medium
-                return
-            }
-            presentDeferredMapContent()
-        }
-        .onChange(of: sheetCluster.totalCount) { _, count in
-            if count == 0 && !isLoadingMoments {
-                showingBottomSheet = false
-            }
+            if !isShowing { presentDeferredMapContent() }
         }
         .onAppear {
             isViewActive = true
+            showingBottomSheet = true
             if mapHeaderLocationName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 mapHeaderLocationName = locationName
             }
@@ -257,7 +301,7 @@ struct LocationMapView: View {
             if let coordinate = coordinate, CLLocationCoordinate2DIsValid(coordinate) {
                 setupMapWithCoordinate(coordinate)
             } else {
-                checkLocationPermissionsAndSetup()
+                setupMapLocation()
             }
         }
         .onDisappear {
@@ -268,18 +312,6 @@ struct LocationMapView: View {
             if let newCoordinate = coordinate, CLLocationCoordinate2DIsValid(newCoordinate), !hasInitializedMap {
                 setupMapWithCoordinate(newCoordinate)
             }
-        }
-        .onChange(of: region.center.latitude) { _, _ in
-            handleMapRegionChanged()
-        }
-        .onChange(of: region.center.longitude) { _, _ in
-            handleMapRegionChanged()
-        }
-        .onChange(of: region.span.latitudeDelta) { _, _ in
-            handleMapRegionChanged()
-        }
-        .onChange(of: region.span.longitudeDelta) { _, _ in
-            handleMapRegionChanged()
         }
         .onReceive(locationManager.$authorizationStatus) { status in
             handleLocationPermissionChange(status)
@@ -351,224 +383,6 @@ struct LocationMapView: View {
         }
     }
 
-    private var topControlsOverlay: some View {
-        VStack(spacing: 10) {
-            modernHeaderView
-            if let contentErrorMessage, errorMessage == nil {
-                compactContentErrorBanner(message: contentErrorMessage)
-            }
-        }
-        .padding(.top, 8)
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, alignment: .top)
-    }
-
-    private var searchInAreaButton: some View {
-        Button {
-            searchInCurrentArea()
-        } label: {
-            HStack(spacing: 8) {
-                if isLoadingNearbyMoments {
-                    ProgressView()
-                        .scaleEffect(0.9)
-                } else {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 13, weight: .semibold))
-                }
-
-                Text(NSLocalizedString("maps.search.thisArea", comment: "Search in this area"))
-                    .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-            }
-            .foregroundStyle(adaptiveColors.primary)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                Color.clear
-                    .momentsChromeGlass(in: Capsule())
-            )
-            .shadow(color: adaptiveColors.shadowColor.opacity(0.15), radius: 10, x: 0, y: 5)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var modernHeaderView: some View {
-        VStack(alignment: .trailing, spacing: 12) {
-            // ✅ FILA SUPERIOR: PILLS DE NAVEGACIÓN Y ACCIÓN
-            HStack(alignment: .top, spacing: 12) {
-                // ✅ PILL 1: NAVEGACIÓN Y INFO
-                HStack(spacing: 12) {
-                    Button(action: closeLocationMap) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(adaptiveColors.primary)
-                            .frame(width: 32, height: 32)
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(effectiveHeaderLocationName)
-                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
-                            .foregroundStyle(adaptiveColors.primary)
-                            .lineLimit(1)
-
-                        if !locationMoments.isEmpty {
-                            Text(String(format: NSLocalizedString("maps.location.moments", comment: "Number of moments in location"), locationMoments.count))
-                                .font(.system(size: legacyPoppinsSize(11)))
-                                .foregroundStyle(adaptiveColors.tertiary)
-                        }
-                    }
-                }
-                .padding(.leading, 8)
-                .padding(.trailing, 16)
-                .padding(.vertical, 8)
-                .background(Color.clear.momentsChromeGlass(in: Capsule()))
-                .overlay(
-                    Capsule()
-                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
-                )
-                .shadow(color: adaptiveColors.shadowColor.opacity(0.15), radius: 10, x: 0, y: 5)
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 4) {
-                    // ✅ PILL 2: ACCIONES (Weather Info + Share)
-                    HStack(spacing: 12) {
-                        if let weather = currentWeather {
-                            Button(action: {
-                                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
-                                    weatherEffectsEnabled.toggle()
-                                }
-                            }) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: weatherEffectsEnabled ? weather.condition.systemImageName : "cloud.slash.fill")
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundStyle(weatherEffectsEnabled ? adaptiveColors.accent : adaptiveColors.primary.opacity(0.7))
-
-                                    VStack(alignment: .leading, spacing: -2) {
-                                        Text(weather.temperatureFormatted)
-                                            .font(.system(size: legacyPoppinsSize(13), weight: .bold))
-                                            .foregroundStyle(adaptiveColors.primary)
-
-                                        Text(weather.condition.displayName)
-                                            .font(.system(size: legacyPoppinsSize(9), weight: .medium))
-                                            .foregroundStyle(adaptiveColors.secondary)
-                                            .lineLimit(1)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(.leading, 16)
-                    .padding(.trailing, 8)
-                    .padding(.vertical, 8)
-                    .background(Color.clear.momentsChromeGlass(in: Capsule()))
-                    .overlay(
-                        Capsule()
-                            .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
-                    )
-                    .shadow(color: adaptiveColors.shadowColor.opacity(0.15), radius: 10, x: 0, y: 5)
-
-                    // ✅ ATRIBUCIÓN CONTEXTUAL
-                    if currentWeather != nil && weatherEffectsEnabled {
-                        HStack(spacing: 4) {
-                            Text(NSLocalizedString("weather.attribution.text", comment: "Weather attribution text"))
-                                .font(.system(size: legacyPoppinsSize(7)))
-                                .foregroundStyle(.secondary.opacity(0.8))
-
-                            Link(NSLocalizedString("weather.attribution.link", comment: "Weather attribution link"), destination: URL(string: "https://weatherkit.apple.com/legal-attribution.html")!)
-                                .font(.system(size: legacyPoppinsSize(7), weight: .medium))
-                                .foregroundStyle(.blue.opacity(0.6))
-                        }
-                        .padding(.trailing, 8)
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-
-            if hasInitializedMap && showSearchInAreaButton {
-                HStack {
-                    Spacer()
-                    searchInAreaButton
-                    Spacer()
-                }
-                .padding(.top, 10)
-                .padding(.horizontal, 16)
-                .transition(.move(edge: .top).combined(with: .opacity))
-            }
-
-            // ✅ PILL LATERAL: ESTADÍSTICAS (Vertical a la derecha)
-            if !locationMoments.isEmpty {
-                VStack(spacing: 16) {
-                    StatisticItem(
-                        icon: "photo.fill",
-                        value: "\(locationMoments.count)",
-                        label: NSLocalizedString("maps.stats.photos", comment: "Photos label"),
-                        color: adaptiveColors.accent
-                    )
-
-                    StatisticItem(
-                        icon: "person.2.fill",
-                        value: "\(Set(locationMoments.map { $0.authorId }).count)",
-                        label: NSLocalizedString("maps.stats.users", comment: "Users label"),
-                        color: .blue
-                    )
-
-                    StatisticItem(
-                        icon: "calendar",
-                        value: formatDateRange(),
-                        label: NSLocalizedString("maps.stats.time", comment: "Time label"),
-                        color: .orange
-                    )
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 16)
-                .background(
-                    Color.clear
-                        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 30, style: .continuous)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
-                )
-                .shadow(color: adaptiveColors.shadowColor.opacity(0.1), radius: 10, x: 0, y: 5)
-                .padding(.trailing, 16)
-                .onTapGesture {
-                    MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
-                        showingBottomSheet.toggle()
-                    }
-                }
-            }
-        }
-        .padding(.top, 8)
-    }
-
-    // ✅ NUEVO: Componente de estadística Premium
-    private func StatisticItem(icon: String, value: String, label: String, color: Color) -> some View {
-        VStack(spacing: 4) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.15))
-                    .frame(width: 32, height: 32)
-
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(color)
-            }
-
-            VStack(spacing: 0) {
-                Text(value)
-                    .font(.system(size: legacyPoppinsSize(12), weight: .bold))
-                    .foregroundStyle(adaptiveColors.primary)
-
-                Text(label.uppercased())
-                    .font(.system(size: legacyPoppinsSize(7), weight: .bold))
-                    .foregroundStyle(adaptiveColors.tertiary)
-                    .tracking(0.5)
-            }
-        }
-    }
-
     private func compactContentErrorBanner(message: String) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -591,22 +405,7 @@ struct LocationMapView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.clear.momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous)))
-    }
-
-    // ✅ NUEVO: Formatear rango de fechas
-    private func formatDateRange() -> String {
-        guard !locationMoments.isEmpty else { return "N/A" }
-
-        let sortedMoments = locationMoments.sorted { $0.timestamp < $1.timestamp }
-        let oldest = sortedMoments.first!.timestamp
-        let newest = sortedMoments.last!.timestamp
-
-        if Calendar.current.isDate(oldest, equalTo: newest, toGranularity: .month) {
-            return MomentsFormat.smartDate(from: oldest, context: .monthAbbreviated)
-        } else {
-            return "\(MomentsFormat.smartDate(from: oldest, context: .monthAbbreviated))-\(MomentsFormat.smartDate(from: newest, context: .monthAbbreviated))"
-        }
+        .background(Color.clear.momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), style: .tinted))
     }
 
     // ✅ HELPER PARA COLORES DE CLIMA
@@ -651,8 +450,13 @@ struct LocationMapView: View {
                         }
                     }
                     .mapStyle(getMapStyle())
-                    .onMapCameraChange { context in
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        Color.clear.frame(height: showingBottomSheet ? mapPanelHeight + 12 : 0)
+                            .allowsHitTesting(false)
+                    }
+                    .onMapCameraChange(frequency: .onEnd) { context in
                         self.region = context.region
+                        handleMapRegionChanged()
                     }
 
 
@@ -1047,15 +851,12 @@ extension LocationMapView {
     private func setupDefaultLocation(showMessage: Bool = true) {
 
 
-        // ✅ Usar ubicación por defecto (Madrid, España)
-        let defaultCoordinate = CLLocationCoordinate2D(latitude: 40.4168, longitude: -3.7038)
+        let fallbackRegion = MapRegionStore.initialRegion()
+        let defaultCoordinate = fallbackRegion.center
 
         DispatchQueue.main.async {
             withAnimation(.easeInOut(duration: 0.5)) {
-                let defaultRegion = MKCoordinateRegion(
-                    center: defaultCoordinate,
-                    span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-                )
+                let defaultRegion = fallbackRegion
                 self.region = defaultRegion
                 self.mapPosition = .region(defaultRegion)
             }
@@ -1069,9 +870,10 @@ extension LocationMapView {
             ))
 
             self.isLoading = false
-            self.errorMessage = showMessage
-                ? String(format: NSLocalizedString("maps.defaultLocation.message", comment: "Showing default location message"), self.locationName)
-                : nil
+            self.errorMessage = nil
+            self.contentErrorMessage = showMessage ? NSLocalizedString("maps.error.locationLoadFailed", comment: "") : nil
+            self.mapHeaderLocationName = NSLocalizedString("maps.chrome.chooseCity", comment: "")
+            self.hasInitializedMap = true
             self.nearbyMoments = []
             self.lastNearbyQueryKey = self.nearbyQueryKey(for: self.region)
             self.showSearchInAreaButton = true
@@ -1107,6 +909,8 @@ extension LocationMapView {
     }
 
     func loadLocationMoments() {
+        let initialToken = UUID()
+        initialContentToken = initialToken
         DispatchQueue.main.async {
             self.isLoadingMoments = true
             self.contentErrorMessage = nil
@@ -1123,6 +927,7 @@ extension LocationMapView {
             currentUserId: Auth.auth().currentUser?.uid
         ) { result in
             DispatchQueue.main.async {
+                guard self.isViewActive, self.initialContentToken == initialToken else { return }
                 self.isLoadingMoments = false
 
                 switch result {
@@ -1132,7 +937,7 @@ extension LocationMapView {
                     if !moments.isEmpty || !self.locationStories.isEmpty {
                         self.errorMessage = nil
                         self.contentErrorMessage = nil
-                        self.showingBottomSheet = true
+                        self.mapSheetDetent = MapLocationSystemSheetModifier.collapsedDetent
                     } else if self.locationStories.isEmpty {
                         self.contentErrorMessage = nil
                     }
@@ -1150,13 +955,14 @@ extension LocationMapView {
 
         LocationSearchService.shared.searchStoriesByLocation(locationName: locationName) { result in
             DispatchQueue.main.async {
+                guard self.isViewActive, self.initialContentToken == initialToken else { return }
                 switch result {
                 case .success(let stories):
                     self.locationStories = stories
                     if !stories.isEmpty && self.locationMoments.isEmpty && !self.isLoadingMoments {
                         self.errorMessage = nil
                         self.contentErrorMessage = nil
-                        self.showingBottomSheet = true
+                        self.mapSheetDetent = MapLocationSystemSheetModifier.collapsedDetent
                     } else if !stories.isEmpty {
                         self.errorMessage = nil
                     }
@@ -1196,6 +1002,7 @@ extension LocationMapView {
     }
 
     private func closeLocationMap() {
+        isViewActive = false
         showingBottomSheet = false
         zoomDestination = nil
         storyViewerPresentation = nil
@@ -1334,69 +1141,89 @@ extension LocationMapView {
     }
 
     private func handleMapRegionChanged() {
-        guard hasInitializedMap else { return }
-        let _ = nearbyQueryKey(for: region)
-        showSearchInAreaButton = true
+        // The camera updates the visible region; content changes only on explicit search.
     }
 
     private func searchInCurrentArea() {
         let queryKey = nearbyQueryKey(for: region)
-        showSearchInAreaButton = true
-
         if isEchoHistoryMode {
             loadNearbyEchoMoments(in: region, queryKey: queryKey)
-            return
+        } else {
+            loadNearbyMoments(in: region, queryKey: queryKey)
         }
-
-        loadNearbyMoments(in: region, queryKey: queryKey)
     }
 
     private func nearbyQueryKey(for region: MKCoordinateRegion) -> String {
-        let lat = (region.center.latitude * 100).rounded() / 100
-        let lon = (region.center.longitude * 100).rounded() / 100
-        let latDelta = (region.span.latitudeDelta * 100).rounded() / 100
-        let lonDelta = (region.span.longitudeDelta * 100).rounded() / 100
-        return "\(lat)|\(lon)|\(latDelta)|\(lonDelta)"
+        MapViewportQuery.key(for: region)
     }
 
-    private func loadNearbyMoments(in region: MKCoordinateRegion, queryKey: String) {
-        DispatchQueue.main.async {
-            self.isLoadingNearbyMoments = true
-            self.lastNearbyQueryKey = queryKey
-            self.contentErrorMessage = nil
-        }
-
-        LocationSearchService.shared.searchMomentsInRegion(
-            region: region,
-            currentUserId: Auth.auth().currentUser?.uid
-        ) { result in
+    private func searchForPlace() {
+        guard !isLoading else { return }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = query
+        MKLocalSearch(request: request).start { response, _ in
             DispatchQueue.main.async {
-                guard self.isViewActive else { return }
-                // Evitar resultados stale si el usuario ya movió el mapa a otra región.
-                guard self.lastNearbyQueryKey == queryKey else { return }
-                self.isLoadingNearbyMoments = false
+                guard isViewActive, let item = response?.mapItems.first else { return }
+                selectedPlaceCluster = nil
+                errorMessage = nil
+                contentErrorMessage = nil
+                hasInitializedMap = true
+                mapHeaderLocationName = item.name ?? query
+                let next = MKCoordinateRegion(center: item.placemark.coordinate, span: MKCoordinateSpan(latitudeDelta: 0.015, longitudeDelta: 0.015))
+                region = next
+                mapPosition = .region(next)
+                searchInCurrentArea()
+            }
+        }
+    }
 
-                switch result {
-                case .success(let moments):
-                    self.nearbyMoments = moments
-                    self.showSearchInAreaButton = false
-                    self.errorMessage = nil
-                    self.contentErrorMessage = nil
-                    self.selectedPlaceCluster = nil
-
-                    if !moments.isEmpty {
-                        self.locationMoments = moments
-                        self.refreshMomentAvailability(for: moments)
-                        if let firstLocation = moments.compactMap({ self.normalizedLocationName(from: $0) }).first {
-                            self.mapHeaderLocationName = firstLocation
-                        }
-                        self.showingBottomSheet = true
-                    }
-                case .failure:
-                    self.nearbyMoments = []
-                    self.contentErrorMessage = NSLocalizedString("maps.error.mapUnavailable", comment: "Map content unavailable")
-                    self.showSearchInAreaButton = true
+    private func recenterOnUser() {
+        let center: () -> Void = {
+            locationManager.getCurrentLocation { coordinate in
+                DispatchQueue.main.async {
+                    guard isViewActive, let coordinate else { return }
+                    selectedPlaceCluster = nil
+                    let next = MKCoordinateRegion(center: coordinate, span: MKCoordinateSpan(latitudeDelta: 0.03, longitudeDelta: 0.03))
+                    region = next
+                    mapPosition = .region(next)
+                    searchInCurrentArea()
                 }
+            }
+        }
+        if locationManager.authorizationStatus == .authorizedAlways || locationManager.authorizationStatus == .authorizedWhenInUse {
+            center()
+        } else {
+            locationGate.requestAccess(onGranted: center)
+        }
+    }
+
+    private func loadNearbyMoments(in queryRegion: MKCoordinateRegion, queryKey: String) {
+        let token = UUID()
+        nearbySearchToken = token
+        initialContentToken = UUID()
+        isLoadingMoments = false
+        isLoadingNearbyMoments = true
+        lastNearbyQueryKey = queryKey
+        contentErrorMessage = nil
+        LocationSearchService.shared.searchDiscoverContentInRegion(region: queryRegion) { payload in
+            DispatchQueue.main.async {
+                guard isViewActive, nearbySearchToken == token else { return }
+                isLoadingNearbyMoments = false
+                if payload.isCompleteFailure {
+                    lastNearbyQueryKey = ""
+                    contentErrorMessage = NSLocalizedString("maps.error.mapUnavailable", comment: "")
+                    return
+                }
+                nearbyMoments = payload.moments
+                locationMoments = payload.moments
+                locationStories = payload.stories
+                refreshMomentAvailability(for: payload.moments)
+                errorMessage = nil
+                contentErrorMessage = payload.hasPartialFailure ? NSLocalizedString("maps.error.mapPartialContent", comment: "") : nil
+                // A pan updates the dock; only a tap opens the native content sheet.
+                if !showingBottomSheet { selectedPlaceCluster = nil }
             }
         }
     }

@@ -787,6 +787,10 @@ struct MessagingView: View {
              .frame(maxWidth: .infinity, maxHeight: .infinity)
              .padding(.horizontal, 28)
              .momentsEmptyStateAppear()
+         } else if !viewModel.hasLoadedConversations && viewModel.conversations.isEmpty && viewModel.archivedConversations.isEmpty && messageRequestService.outgoingPendingRequests.isEmpty && !isSearching {
+             ProgressView()
+                 .tint(adaptiveColors.primary)
+                 .frame(maxWidth: .infinity, maxHeight: .infinity)
          } else if viewModel.conversations.isEmpty && viewModel.archivedConversations.isEmpty && messageRequestService.outgoingPendingRequests.isEmpty && !isSearching {
              VStack(spacing: 22) {
                  Image(systemName: "bubble.left.and.bubble.right")

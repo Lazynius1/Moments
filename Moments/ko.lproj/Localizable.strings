@@ -890,7 +890,7 @@
 "onboarding.title.step3" = "Moments에서 이렇게 표시돼요";
 "onboarding.subtitle.step3" = "시작하기 전에 모두 확인해 보세요";
 "onboarding.cancelRegistration" = "가입 취소";
-"onboarding.resume.banner" = "중단한 부분부터 계속하세요. 진행 상황이 저장됐어요.";
+"onboarding.resume.banner" = "프로필 만들기를 완료하세요";
 "register.close" = "가입 종료";
 "register.error.usernameTooShort" = "최소 3자 이상 입력하세요";
 /* Splash */
@@ -4685,3 +4685,8 @@
 "toast.action.bestFriendsLeft.suffix" = "님의 친한 친구 목록에서 나왔어요";
 "toast.action.commentDeleted.prefix.suffix" = "님의 댓글을 삭제했어요";
 "toast.action.leftGroup.suffix" = " 그룹에서 나왔어요";
+
+// Immersive map chrome
+"maps.chrome.nearby" = "내 주변";
+"maps.chrome.chooseCity" = "도시 선택";
+"maps.chrome.recenter" = "내 위치";

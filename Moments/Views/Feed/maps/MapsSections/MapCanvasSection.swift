@@ -41,7 +41,7 @@ struct MapPlacePin: View {
                 Circle()
                     .fill(Color.gray.opacity(0.25))
                     .frame(width: 48, height: 48)
-                    .overlay(Image(systemName: "mappin").foregroundStyle(.white))
+                    .overlay(Image("AttachmentMapIcon").resizable().scaledToFit().frame(width: 22, height: 22).foregroundStyle(colorScheme == .dark ? Color.white : Color.black))
             }
 
             if extraCount > 0 {
@@ -78,8 +78,29 @@ struct MapMomentPin: View {
                 stackedPlaceholder(offset: CGSize(width: 7, height: -5), scale: 0.88, opacity: 0.7)
             }
 
-            momentThumbnail
-                .shadow(color: .black.opacity(0.28), radius: 7, x: 0, y: 3)
+            ZStack(alignment: .top) {
+                LocationAvatarPinSilhouette(badgeDiameter: 22, badgeShift: 2, shortTip: true)
+                    .fill(Color.white)
+                    .frame(width: mediaSize + 5, height: mediaSize + 12)
+                    .shadow(color: .black.opacity(0.28), radius: 7, x: 0, y: 3)
+
+                momentThumbnail
+                    .frame(width: mediaSize + 5, height: mediaSize + 5)
+                    .reversedMask(alignment: .bottomTrailing) {
+                        Circle()
+                            .frame(width: 22, height: 22)
+                            .offset(x: 2, y: 2)
+                    }
+                    .overlay(alignment: .bottomTrailing) {
+                        Image("AttachmentMapIcon")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 18, height: 18)
+                            .foregroundStyle(Color.black)
+                            .frame(width: 22, height: 22)
+                            .offset(x: 2, y: 2)
+                    }
+            }
 
             if count > 1 {
                 VStack {
@@ -99,7 +120,7 @@ struct MapMomentPin: View {
                 .frame(width: pinSize, height: pinSize)
             }
         }
-        .frame(width: pinSize, height: pinSize)
+        .frame(width: pinSize, height: max(pinSize, mediaSize + 12), alignment: .top)
     }
 
     @ViewBuilder

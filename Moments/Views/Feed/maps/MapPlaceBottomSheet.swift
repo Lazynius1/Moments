@@ -1,6 +1,7 @@
 import SwiftUI
 import CoreLocation
 import Kingfisher
+import WeatherKit
 
 enum MapPlaceSheetViewMode: String, CaseIterable {
     case gallery
@@ -28,17 +29,27 @@ struct MapPlaceBottomSheet: View {
     var onPlaceTap: ((MapPlaceCluster) -> Void)?
     var timeFilter: Binding<MapDiscoverTimeFilter>?
     var onTimeFilterChange: (() -> Void)?
+    var socialMode = false
+    var showsStoryStrip = true
+    var showsHeader = true
+    var hasMoreContent = false
+    var paginationKey: String? = nil
+    var isLoadingMore = false
+    var onLoadMore: (() -> Void)? = nil
 
     @State private var viewMode: MapPlaceSheetViewMode = .gallery
     @State private var displayTitle: String = ""
+
+    private var controlColor: Color { colorScheme == .dark ? .white : .black }
+    private var selectedControlColor: Color { colorScheme == .dark ? .black : .white }
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
-    /// Modo índice: sheet agregado de la zona con varios lugares debajo.
+    /// Zone browsing keeps its list of places, even when only one has content.
     private var showsPlaceIndex: Bool {
-        cluster.isAggregate && placeIndex.count > 1 && onPlaceTap != nil
+        !socialMode && cluster.isAggregate && !placeIndex.isEmpty && onPlaceTap != nil
     }
 
     private var statsText: String {
@@ -64,21 +75,27 @@ struct MapPlaceBottomSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
+            if showsHeader {
+                header
+            } else {
+                contentControls
+            }
             if timeFilter != nil {
                 timeFilterChips
             }
             content
         }
+        .tint(controlColor)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear {
-            if showsPlaceIndex {
-                viewMode = .list
-            }
+            viewMode = socialMode || showsPlaceIndex ? .list : .gallery
             refreshDisplayTitle()
         }
+        .onChange(of: socialMode) { _, _ in
+            viewMode = socialMode || showsPlaceIndex ? .list : .gallery
+        }
         .onChange(of: cluster.id) { _, _ in
-            viewMode = showsPlaceIndex ? .list : .gallery
+            viewMode = socialMode || showsPlaceIndex ? .list : .gallery
             refreshDisplayTitle()
         }
     }
@@ -110,10 +127,10 @@ struct MapPlaceBottomSheet: View {
                             if cluster.storyCount > 1 {
                                 Text("\(cluster.storyCount)")
                                     .font(.system(size: 9, weight: .bold))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(selectedControlColor)
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 2)
-                                    .background(Capsule().fill(adaptiveColors.accent))
+                                    .background(Capsule().fill(controlColor))
                                     .offset(x: 4, y: 4)
                             }
                         }
@@ -139,24 +156,20 @@ struct MapPlaceBottomSheet: View {
             .padding(.top, 12)
             .padding(.bottom, 12)
 
-            HStack(spacing: 10) {
-                if let weather {
-                    weatherChip(weather)
-                }
-
-                if !cluster.friends.isEmpty {
-                    friendAvatarStack
-                }
-
-                Spacer()
-
-                if !cluster.moments.isEmpty {
-                    viewModeToggle
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 10)
+            contentControls
         }
+    }
+
+    // Content shares the panel's material; these controls add no glass layer.
+    private var contentControls: some View {
+        HStack(spacing: 10) {
+            if let weather { weatherChip(weather) }
+            if !cluster.friends.isEmpty { friendAvatarStack }
+            Spacer()
+            if !showsPlaceIndex && !cluster.moments.isEmpty { viewModeToggle }
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 10)
     }
 
     private var timeFilterChips: some View {
@@ -170,15 +183,15 @@ struct MapPlaceBottomSheet: View {
                     Text(NSLocalizedString(filter.titleKey, comment: "Map time filter"))
                         .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                         .foregroundStyle(
-                            timeFilter?.wrappedValue == filter ? .white : adaptiveColors.secondary
+                            timeFilter?.wrappedValue == filter ? selectedControlColor : adaptiveColors.secondary
                         )
                         .padding(.horizontal, 12)
                         .padding(.vertical, 7)
                         .background {
                             if timeFilter?.wrappedValue == filter {
-                                Capsule().fill(adaptiveColors.accent)
+                                Capsule().fill(controlColor)
                             } else {
-                                Color.clear.momentsChromeGlass(in: Capsule(), interactive: true)
+                                Capsule().fill(adaptiveColors.secondary.opacity(0.08))
                             }
                         }
                 }
@@ -195,17 +208,19 @@ struct MapPlaceBottomSheet: View {
     }
 
     private func weatherChip(_ weather: WeatherData) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: weather.condition.systemImageName)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(adaptiveColors.accent)
-            Text(weather.temperatureFormatted)
-                .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                .foregroundStyle(adaptiveColors.secondary)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: weather.condition.systemImageName)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(controlColor)
+                Text(weather.temperatureFormatted)
+                    .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
+                    .foregroundStyle(adaptiveColors.secondary)
+            }
+            MapWeatherAttributionView()
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: false))
     }
 
     private var viewModeToggle: some View {
@@ -218,14 +233,14 @@ struct MapPlaceBottomSheet: View {
                 } label: {
                     Image(systemName: mode.icon)
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(viewMode == mode ? .white : adaptiveColors.tertiary)
+                        .foregroundStyle(viewMode == mode ? selectedControlColor : adaptiveColors.secondary)
                         .frame(width: 36, height: 36)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
                                 .fill(
                                     viewMode == mode ?
                                     LinearGradient(
-                                        colors: [adaptiveColors.accent, adaptiveColors.accent.opacity(0.8)],
+                                        colors: [controlColor, controlColor.opacity(0.8)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     ) :
@@ -237,8 +252,8 @@ struct MapPlaceBottomSheet: View {
         }
         .padding(4)
         .background(
-            Color.clear
-                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(adaptiveColors.secondary.opacity(0.08))
         )
     }
 
@@ -255,11 +270,12 @@ struct MapPlaceBottomSheet: View {
     private var content: some View {
         if isLoading {
             loadingView
-        } else if !hasContent {
+        } else if !hasContent && !hasMoreContent {
             emptyView
         } else {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                LazyVStack(alignment: .leading, spacing: 16) {
+                    if showsStoryStrip && !showsPlaceIndex && !cluster.stories.isEmpty { socialStories }
                     if showsPlaceIndex && viewMode == .list {
                         placeIndexSection
                     } else if !cluster.moments.isEmpty {
@@ -269,11 +285,59 @@ struct MapPlaceBottomSheet: View {
                             listSection
                         }
                     }
+                    if hasMoreContent {
+                    Button(action: { onLoadMore?() }) {
+                        if isLoadingMore { ProgressView() }
+                        else { Text(NSLocalizedString("global.seeMore", comment: "")) }
+                    }
+                    .disabled(isLoadingMore)
+                    .padding(.bottom, 20)
+                    .id(paginationKey)
+                    .frame(maxWidth: .infinity)
+                    .onAppear { onLoadMore?() }
+                    }
                 }
                 .padding(.bottom, 30)
             }
             .scrollIndicators(.hidden)
         }
+    }
+
+    private var socialStoryAuthors: [MapStoryPreview] {
+        var authors = Set<String>()
+        return cluster.stories.sorted { $0.timestamp > $1.timestamp }
+            .filter { authors.insert($0.authorId).inserted }
+    }
+
+    private var socialStories: some View {
+        ScrollView(.horizontal) {
+            HStack(alignment: .top, spacing: 16) {
+                ForEach(socialStoryAuthors) { story in
+                    Button {
+                        onPlaceStoriesTap(MapPlaceCluster(
+                            id: "\(cluster.id)-\(story.authorId)",
+                            coordinate: cluster.coordinate,
+                            displayName: cluster.displayName,
+                            moments: [],
+                            stories: cluster.stories.filter { $0.authorId == story.authorId },
+                            friends: []
+                        ))
+                    } label: {
+                        VStack(spacing: 6) {
+                            StoryRingAvatarView(userId: story.authorId, size: 48, lineWidth: 2)
+                            LiveUsernameText(userId: story.authorId, fallbackUsername: story.username, prefix: "@")
+                                .font(.caption.weight(.semibold))
+                                .lineLimit(1)
+                                .foregroundStyle(adaptiveColors.primary)
+                        }
+                        .frame(width: 80)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+        .scrollIndicators(.hidden)
     }
 
     private var placeIndexSection: some View {
@@ -332,7 +396,7 @@ struct MapPlaceBottomSheet: View {
 
     private var listSection: some View {
         LazyVStack(spacing: 16) {
-            ForEach(cluster.moments) { moment in
+            ForEach(cluster.moments.sorted { $0.timestamp > $1.timestamp }) { moment in
                 ModernLocationMomentRow(
                     moment: moment,
                     colorScheme: colorScheme,
@@ -393,71 +457,85 @@ struct MapPlaceIndexRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                if let story = place.primaryStory {
+                    StoryRingAvatarView(userId: story.authorId, size: 40, lineWidth: 2)
+                }
+                VStack(alignment: .leading, spacing: 4) {
                     Text(place.displayName)
-                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(adaptiveColors.primary)
-                        .lineLimit(1)
-
-                    if place.hasFreshStory {
-                        Circle()
-                            .fill(adaptiveColors.accent)
-                            .frame(width: 7, height: 7)
+                    Text(metadataText)
+                        .font(.caption)
+                        .foregroundStyle(adaptiveColors.secondary)
+                        .lineLimit(2)
+                    if place.storyCount > 0 {
+                        Text(String(format: NSLocalizedString("maps.zoneSheet.storiesCount", comment: ""), place.storyCount))
+                            .font(.caption)
+                            .foregroundStyle((colorScheme == .dark ? Color.white : Color.black))
                     }
                 }
-
-                Text(metadataText)
-                    .font(.system(size: legacyPoppinsSize(12)))
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
                     .foregroundStyle(adaptiveColors.secondary)
-                    .lineLimit(1)
-
-                if place.storyCount > 0 {
-                    Text(
-                        String(
-                            format: NSLocalizedString("maps.zoneSheet.storiesCount", comment: "Stories count in place row"),
-                            place.storyCount
-                        )
-                    )
-                    .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                    .foregroundStyle(adaptiveColors.accent)
+            }
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3), spacing: 2) {
+                ForEach(place.moments.prefix(3)) { moment in
+                    KFImage(URL(string: moment.mapPreferredImageURL ?? ""))
+                        .placeholder { Color.gray.opacity(0.18) }
+                        .applyingFeedCrop(moment.mapPreferredFeedCrop)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 96)
+                        .frame(maxWidth: .infinity)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                ForEach(place.stories.prefix(max(0, 3 - place.momentCount))) { story in
+                    KFImage(URL(string: story.previewURL ?? ""))
+                        .placeholder { Color.gray.opacity(0.18) }
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 96)
+                        .frame(maxWidth: .infinity)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
             }
-
-            Spacer(minLength: 8)
-
-            previewStrip
+            Divider()
         }
-        .padding(12)
-        .background(
-            Color.clear
-                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
-        )
+        .contentShape(Rectangle())
     }
+}
 
-    private var previewStrip: some View {
-        HStack(spacing: 4) {
-            ForEach(Array(place.moments.prefix(3).enumerated()), id: \.element.id) { _, moment in
-                KFImage(URL(string: moment.mapPreferredImageURL ?? ""))
-                    .placeholder { Color.gray.opacity(0.18) }
-                    .applyingFeedCrop(moment.mapPreferredFeedCrop)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 44, height: 44)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            }
+/// WeatherKit's legal link stays next to the data, independent of visual weather effects.
+private struct MapWeatherAttributionView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var attribution: WeatherAttribution?
 
-            if place.momentCount > 3 {
-                Text("+\(place.momentCount - 3)")
-                    .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
-                    .foregroundStyle(adaptiveColors.secondary)
-                    .frame(width: 30, height: 44)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.gray.opacity(0.12))
-                    )
+    private var fallbackURL: URL { URL(string: "https://weatherkit.apple.com/legal-attribution.html")! }
+
+    var body: some View {
+        Link(destination: attribution?.legalPageURL ?? fallbackURL) {
+            HStack(spacing: 4) {
+                Text(NSLocalizedString("weather.attribution.text", comment: ""))
+                if let attribution {
+                    AsyncImage(url: colorScheme == .dark ? attribution.combinedMarkDarkURL : attribution.combinedMarkLightURL) { image in
+                        image.resizable().scaledToFit()
+                    } placeholder: {
+                        Text(NSLocalizedString("weather.attribution.link", comment: ""))
+                    }
+                    .frame(width: 68, height: 12)
+                } else {
+                    Text(NSLocalizedString("weather.attribution.link", comment: ""))
+                }
             }
+            .font(.caption2)
+            .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+        }
+        .task {
+            attribution = try? await WeatherKit.WeatherService.shared.attribution
         }
     }
 }

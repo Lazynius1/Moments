@@ -145,6 +145,7 @@ struct SingleMomentDetailView: View {
             LocationMapView(
                 locationName: selectedLocationName,
                 coordinate: selectedLocationCoordinate,
+                originMoment: moment,
                 isPresented: $showingLocationMap
             )
         }

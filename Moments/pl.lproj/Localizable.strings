@@ -890,7 +890,7 @@
 "onboarding.title.step3" = "Tak będziesz wyglądać w Moments";
 "onboarding.subtitle.step3" = "Zobacz wszystko, zanim zaczniesz";
 "onboarding.cancelRegistration" = "Anuluj rejestrację";
-"onboarding.resume.banner" = "Wróć do przerwanej rejestracji. Twój postęp został zapisany.";
+"onboarding.resume.banner" = "Dokończ tworzenie swojego profilu";
 "register.close" = "Zamknij rejestrację";
 "register.error.usernameTooShort" = "Minimum 3 znaki";
 /* Splash */
@@ -4685,3 +4685,8 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "toast.action.leftGroup.suffix" = "";
 "toast.action.requestAccepted.suffix" = " przyjęta";
 "toast.action.requestRejected.suffix" = " odrzucona";
+
+// Immersive map chrome
+"maps.chrome.nearby" = "W pobliżu";
+"maps.chrome.chooseCity" = "Wybierz miasto";
+"maps.chrome.recenter" = "Moja lokalizacja";

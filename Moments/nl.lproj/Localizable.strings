@@ -890,7 +890,7 @@
 "onboarding.title.step3" = "Zo verschijn je op Moments";
 "onboarding.subtitle.step3" = "Bekijk alles voordat je begint";
 "onboarding.cancelRegistration" = "Registratie annuleren";
-"onboarding.resume.banner" = "Ga verder waar je gebleven was. Je voortgang is opgeslagen.";
+"onboarding.resume.banner" = "Maak je profiel af";
 "register.close" = "Registratie sluiten";
 "register.error.usernameTooShort" = "Minimaal 3 tekens";
 /* Splash */
@@ -4685,3 +4685,8 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "toast.action.bestFriendsLeft.suffix" = " verlaten";
 "toast.action.commentDeleted.prefix.suffix" = " verwijderd";
 "toast.action.leftGroup.suffix" = " verlaten";
+
+// Immersive map chrome
+"maps.chrome.nearby" = "Bij jou in de buurt";
+"maps.chrome.chooseCity" = "Kies een stad";
+"maps.chrome.recenter" = "Mijn locatie";

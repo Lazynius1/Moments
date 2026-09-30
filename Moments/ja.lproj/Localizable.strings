@@ -890,7 +890,7 @@
 "onboarding.title.step3" = "Momentsではこのように表示されます";
 "onboarding.subtitle.step3" = "始める前にすべて確認";
 "onboarding.cancelRegistration" = "登録をキャンセル";
-"onboarding.resume.banner" = "続きから再開できます。進捗は保存されています。";
+"onboarding.resume.banner" = "プロフィールの作成を完了しましょう";
 "register.close" = "登録を終了";
 "register.error.usernameTooShort" = "3文字以上";
 /* Splash */
@@ -4685,3 +4685,8 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "toast.action.bestFriendsLeft.suffix" = "さんの親しい友達から退出しました";
 "toast.action.commentDeleted.prefix.suffix" = "さんのコメントを削除しました";
 "toast.action.leftGroup.suffix" = "」から退出しました";
+
+// Immersive map chrome
+"maps.chrome.nearby" = "近くの投稿";
+"maps.chrome.chooseCity" = "都市を選択";
+"maps.chrome.recenter" = "現在地";

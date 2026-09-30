@@ -12,6 +12,7 @@ struct InboxParticipantState: Equatable {
 
 @MainActor
 class MessagingViewModel: ObservableObject {
+    @Published private(set) var hasLoadedConversations = false
     @Published var conversations: [Conversation] = []
     @Published var archivedConversations: [Conversation] = []
     @Published var suggestedUsers: [AppUser] = []
@@ -43,6 +44,9 @@ class MessagingViewModel: ObservableObject {
     private let participantStateTTL: TimeInterval = 300
 
     init() {
+        if let userId = Auth.auth().currentUser?.uid {
+            restoreCachedConversations(for: userId)
+        }
         conversationReadObserver = NotificationCenter.default.addObserver(
             forName: .conversationMarkedReadLocally,
             object: nil,
@@ -247,29 +251,33 @@ class MessagingViewModel: ObservableObject {
         }
     }
 
+    private func restoreCachedConversations(for userId: String) {
+        let cached = LocalPersistenceService.shared.loadConversations()
+            .filter { $0.participants.contains(userId) }
+        let active = reconcilingOptimisticReadState(
+            sortConversationsForInbox(cached.filter { !$0.isArchived(for: userId) }),
+            currentUserId: userId
+        )
+        let archived = reconcilingOptimisticReadState(
+            sortConversationsForInbox(cached.filter { $0.isArchived(for: userId) }),
+            currentUserId: userId
+        )
+        conversations = active
+        archivedConversations = archived
+        hasUnreadMessages = (active + archived).contains { !($0.readStatus[userId] ?? true) }
+    }
+
     func fetchConversations(for userId: String) {
-        if conversations.isEmpty {
-            let cachedConversations = sortConversationsForInbox(LocalPersistenceService.shared.loadConversations())
-            if !cachedConversations.isEmpty {
-                let active = reconcilingOptimisticReadState(
-                    cachedConversations.filter { !$0.isArchived(for: userId) },
-                    currentUserId: userId
-                )
-                let archived = reconcilingOptimisticReadState(
-                    cachedConversations.filter { $0.isArchived(for: userId) },
-                    currentUserId: userId
-                )
-                conversations = active
-                archivedConversations = archived
-                hasUnreadMessages = (active + archived).contains { !($0.readStatus[userId] ?? true) }
-            }
+        if conversations.isEmpty && archivedConversations.isEmpty {
+            restoreCachedConversations(for: userId)
         }
 
         chatService.fetchConversations(for: userId) { [weak self] result in
             DispatchQueue.main.async {
-                guard let self = self else { return }
+                guard let self = self, Auth.auth().currentUser?.uid == userId else { return }
                 switch result {
                 case .success(let conversations):
+                    self.hasLoadedConversations = true
                     let filtered = conversations.filter { $0.id != nil && !$0.id!.isEmpty }
                     let active = self.reconcilingOptimisticReadState(
                         self.sortConversationsForInbox(filtered.filter { !$0.isArchived(for: userId) }),
@@ -292,7 +300,7 @@ class MessagingViewModel: ObservableObject {
                     }
 
                 case .failure(let error):
-                    if self.conversations.isEmpty {
+                    if self.conversations.isEmpty && self.archivedConversations.isEmpty {
                         self.errorMessage = String(
                             format: NSLocalizedString("messaging.error.loadConversations", comment: "Failed to load conversations"),
                             error.localizedDescription
@@ -789,6 +797,7 @@ class MessagingViewModel: ObservableObject {
     }
 
     func stopListening() {
+        hasLoadedConversations = false
         if let userId = Auth.auth().currentUser?.uid {
             chatService.removeConversationsListener(for: userId)
         }

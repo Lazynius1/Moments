@@ -890,7 +890,7 @@
 "onboarding.title.step3" = "這就是你在 Moments 上的樣子";
 "onboarding.subtitle.step3" = "開始前確認所有內容";
 "onboarding.cancelRegistration" = "取消註冊";
-"onboarding.resume.banner" = "接著完成註冊吧。你的進度已儲存。";
+"onboarding.resume.banner" = "完成建立你的個人檔案";
 "register.close" = "關閉註冊";
 "register.error.usernameTooShort" = "至少 3 個字元";
 /* Splash */
@@ -4685,3 +4685,8 @@
 "toast.action.bestFriendsLeft.prefix" = "你已退出 ";
 "toast.action.bestFriendsLeft.suffix" = " 的摯友名單";
 "toast.action.commentDeleted.prefix.suffix" = " 的留言";
+
+// Immersive map chrome
+"maps.chrome.nearby" = "附近";
+"maps.chrome.chooseCity" = "選擇城市";
+"maps.chrome.recenter" = "我的位置";

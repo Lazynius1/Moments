@@ -142,7 +142,8 @@ struct ChatLocationMessageBubble: View {
                     LiveLocationAvatarPin(
                         senderId: message.senderId,
                         avatarSize: 40,
-                        isActive: !isLive || isLiveActive
+                        isActive: !isLive || isLiveActive,
+                        isLive: isLive
                     )
                 } else {
                     Image(systemName: "mappin.circle.fill")
@@ -373,7 +374,8 @@ struct ChatLocationDetailView: View {
             LiveLocationAvatarPin(
                 senderId: senderId,
                 avatarSize: 48,
-                isActive: !isLive || isLiveActive
+                isActive: !isLive || isLiveActive,
+                isLive: isLive
             )
         } else {
             Image(systemName: "mappin.circle.fill")
@@ -566,47 +568,134 @@ struct ChatLocationDetailView: View {
     }
 }
 
-// MARK: - Marcador de avatar para ubicación en vivo
+// MARK: - Marcador de avatar (ubicación fija + live)
 
+/// Pin blanco continuo (gota): cabeza circular + punta, sin junta círculo/triángulo.
+/// La insignia comparte la silueta blanca; solo recorta el avatar debajo del icono.
 struct LiveLocationAvatarPin: View {
     let senderId: String
     var avatarSize: CGFloat = 44
     var isActive: Bool = true
+    /// `true` → liveLocation icon; `false` → location fija.
+    var isLive: Bool = false
+
+    private var headDiameter: CGFloat { avatarSize + 8 }
+    /// Altura de la punta ~38% del diámetro de cabeza (diseño B).
+    private var tipHeight: CGFloat { headDiameter * 0.38 }
+    private var totalHeight: CGFloat { headDiameter + tipHeight }
+
+    /// Hueco del badge (un poco mayor que el de banners para el glifo de location).
+    private var cutoutSize: CGFloat { max(18, avatarSize * 0.48) }
+    private var badgeShift: CGFloat { 2 }
+    /// Glifo casi a tope del hueco; el PNG template rellena poco del frame.
+    private var badgeIconSize: CGFloat { cutoutSize * 0.92 }
+
+    private var badgeIcon: AttachmentIcon { isLive ? .liveLocation : .location }
+    private var badgeTint: Color {
+        if isLive {
+            return isActive ? .green : Color.primary.opacity(0.55)
+        }
+        return .red
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ZStack {
-                Circle()
+        ZStack(alignment: .top) {
+            ZStack(alignment: .top) {
+                LocationAvatarPinSilhouette(badgeDiameter: cutoutSize, badgeShift: badgeShift)
                     .fill(.white)
-                    .frame(width: avatarSize + 8, height: avatarSize + 8)
+                    .frame(width: headDiameter, height: totalHeight)
                     .shadow(color: .black.opacity(0.25), radius: 3, y: 1)
 
-                StoryRingAvatarView(userId: senderId, size: avatarSize)
+                ZStack {
+                    StoryRingAvatarView(userId: senderId, size: avatarSize)
 
-                if !isActive {
+                    if !isActive {
+                        Circle()
+                            .fill(Color.black.opacity(0.35))
+                            .frame(width: avatarSize, height: avatarSize)
+                    }
+                }
+                .frame(width: headDiameter, height: headDiameter)
+                .reversedMask(alignment: .bottomTrailing) {
                     Circle()
-                        .fill(Color.black.opacity(0.35))
-                        .frame(width: avatarSize, height: avatarSize)
+                        .frame(width: cutoutSize, height: cutoutSize)
+                        .offset(x: badgeShift, y: badgeShift)
                 }
             }
+            .drawingGroup(opaque: false)
 
-            // Punta del pin
-            Triangle()
-                .fill(.white)
-                .frame(width: 16, height: 10)
-                .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
-                .offset(y: -2)
+            Color.clear
+                .frame(width: headDiameter, height: headDiameter)
+                .overlay(alignment: .bottomTrailing) {
+                    pinBadgeIcon
+                        .frame(width: cutoutSize, height: cutoutSize)
+                        .offset(x: badgeShift, y: badgeShift)
+                }
         }
+        .frame(width: headDiameter, height: totalHeight)
+    }
+
+    /// Icono un pelín más “gordo”: halo mínimo del mismo tint + glifo.
+    private var pinBadgeIcon: some View {
+        ZStack {
+            AttachmentIconView(icon: badgeIcon, size: badgeIconSize, tintColor: badgeTint)
+                .blur(radius: 0.35)
+                .opacity(0.55)
+            AttachmentIconView(icon: badgeIcon, size: badgeIconSize, tintColor: badgeTint)
+        }
+        .frame(width: badgeIconSize, height: badgeIconSize)
     }
 }
 
-private struct Triangle: Shape {
+/// Silueta compartida: cabeza, punta e insignia con un único relleno.
+struct LocationAvatarPinSilhouette: Shape {
+    var badgeDiameter: CGFloat = 0
+    var badgeShift: CGFloat = 2
+    var shortTip: Bool = false
+
     func path(in rect: CGRect) -> Path {
+        let headR = rect.width / 2
+        let cx = rect.midX
+        let cy = rect.minY + headR
+        let tip = CGPoint(x: cx, y: rect.maxY)
+
+        let leftJoin = CGPoint(x: cx - headR * (shortTip ? 0.38 : 0.72), y: cy + headR * (shortTip ? 0.925 : 0.70))
+        let rightJoin = CGPoint(x: cx + headR * (shortTip ? 0.38 : 0.72), y: cy + headR * (shortTip ? 0.925 : 0.70))
+        let leftCtrl = CGPoint(x: cx - headR * 0.35, y: cy + headR * 1.05)
+        let rightCtrl = CGPoint(x: cx + headR * 0.35, y: cy + headR * 1.05)
+
+        let leftAngle = Angle(radians: atan2(leftJoin.y - cy, leftJoin.x - cx))
+        let rightAngle = Angle(radians: atan2(rightJoin.y - cy, rightJoin.x - cx))
+        let topAngle = Angle.degrees(-90)
+
         var path = Path()
-        path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        // Cima → lado derecho → punta → lado izquierdo → cima.
+        path.move(to: CGPoint(x: cx, y: cy - headR))
+        path.addArc(
+            center: CGPoint(x: cx, y: cy),
+            radius: headR,
+            startAngle: topAngle,
+            endAngle: rightAngle,
+            clockwise: false
+        )
+        path.addQuadCurve(to: tip, control: rightCtrl)
+        path.addQuadCurve(to: leftJoin, control: leftCtrl)
+        path.addArc(
+            center: CGPoint(x: cx, y: cy),
+            radius: headR,
+            startAngle: leftAngle,
+            endAngle: topAngle,
+            clockwise: false
+        )
         path.closeSubpath()
+        if badgeDiameter > 0 {
+            path.addEllipse(in: CGRect(
+                x: rect.width - badgeDiameter + badgeShift,
+                y: rect.width - badgeDiameter + badgeShift,
+                width: badgeDiameter,
+                height: badgeDiameter
+            ))
+        }
         return path
     }
 }

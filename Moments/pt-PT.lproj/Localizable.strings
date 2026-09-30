@@ -1699,7 +1699,7 @@
 "onboarding.title.step3" = "É assim que vais aparecer no Moments";
 "onboarding.subtitle.step3" = "Revê tudo antes de entrar";
 "onboarding.cancelRegistration" = "Cancelar registo";
-"onboarding.resume.banner" = "Continue de onde parou. Os seus dados foram guardados.";
+"onboarding.resume.banner" = "Termina de criar o teu perfil";
 "register.close" = "Fechar registo";
 "register.error.usernameTooShort" = "Mínimo de 3 caracteres";
 
@@ -5688,3 +5688,8 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "toast.action.bestFriendsLeft.suffix" = "";
 "toast.action.commentDeleted.prefix.suffix" = "";
 "toast.action.leftGroup.suffix" = "";
+
+// Immersive map chrome
+"maps.chrome.nearby" = "Perto de ti";
+"maps.chrome.chooseCity" = "Escolhe uma cidade";
+"maps.chrome.recenter" = "A minha localização";

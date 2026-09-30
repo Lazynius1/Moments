@@ -3,6 +3,7 @@ import CoreLocation
 import MapKit
 import FirebaseAuth
 import FirebaseCore
+import FirebaseFirestore
 
 class LocationSearchService {
     static let shared = LocationSearchService()
@@ -14,12 +15,14 @@ class LocationSearchService {
         let moments: [BackendMoment]
         let source: String?
         let totalCandidates: Int?
+        let nextCursor: String?
     }
 
     private struct BackendMapStoriesResponse: Codable {
         let stories: [BackendMapStory]
         let source: String?
         let totalCandidates: Int?
+        let nextCursor: String?
     }
 
     private enum MapQueryMode {
@@ -55,6 +58,7 @@ class LocationSearchService {
 
     func searchDiscoverContentInRegion(
         region: MKCoordinateRegion,
+        followingOnly: Bool = false,
         completion: @escaping (MapDiscoverPayload) -> Void
     ) {
         guard Auth.auth().currentUser != nil else {
@@ -75,9 +79,23 @@ class LocationSearchService {
         var stories: [MapStoryPreview] = []
         var momentsError: MapServiceError?
         var storiesError: MapServiceError?
+        var socialAuthorIds = Set<String>()
+        var socialGraphError = false
+        if followingOnly, let uid = Auth.auth().currentUser?.uid {
+            socialAuthorIds.insert(uid)
+            group.enter()
+            Firestore.firestore().collection("users").document(uid).collection("following").getDocuments { snapshot, error in
+                if error != nil || snapshot == nil {
+                    socialGraphError = true
+                } else if let snapshot {
+                    socialAuthorIds.formUnion(snapshot.documents.map { ($0.data()["userId"] as? String) ?? $0.documentID })
+                }
+                group.leave()
+            }
+        }
 
         group.enter()
-        fetchMapMomentsFromBackend(mode: .region(region), limit: 120) { result in
+        fetchMapMomentsFromBackend(mode: .region(region), limit: 120, followingOnly: followingOnly) { result in
             switch result {
             case .success(let fetchedMoments):
                 moments = fetchedMoments
@@ -88,7 +106,7 @@ class LocationSearchService {
         }
 
         group.enter()
-        fetchMapStoriesFromBackend(mode: .region(region), limit: 120) { result in
+        fetchMapStoriesFromBackend(mode: .region(region), limit: 120, followingOnly: followingOnly) { result in
             switch result {
             case .success(let fetchedStories):
                 stories = fetchedStories
@@ -101,13 +119,73 @@ class LocationSearchService {
         group.notify(queue: .main) {
             completion(
                 MapDiscoverPayload(
-                    moments: moments,
-                    stories: stories,
+                    moments: socialGraphError ? [] : (followingOnly ? moments.filter { socialAuthorIds.contains($0.authorId) } : moments),
+                    stories: socialGraphError ? [] : (followingOnly ? stories.filter { socialAuthorIds.contains($0.authorId) } : stories),
                     source: "backend",
-                    momentsError: momentsError,
-                    storiesError: storiesError
+                    momentsError: socialGraphError ? .network : momentsError,
+                    storiesError: socialGraphError ? .network : storiesError
                 )
             )
+        }
+    }
+
+    /// Both cursors belong to the frozen query, never the current moving camera.
+    func searchContentPage(
+        region: MKCoordinateRegion? = nil,
+        locationName: String? = nil,
+        followingOnly: Bool,
+        momentsCursor: String? = nil,
+        storiesCursor: String? = nil,
+        loadMoments: Bool = true,
+        loadStories: Bool = true,
+        completion: @escaping (MapDiscoverPayload) -> Void
+    ) {
+        let mode: MapQueryMode
+        if let locationName { mode = .location(locationName) }
+        else if let region { mode = .region(region) }
+        else { return }
+        let group = DispatchGroup()
+        var payload = MapDiscoverPayload(moments: [], stories: [], source: "backend", momentsError: nil, storiesError: nil)
+        var fetchedMoments: [Moment] = []
+        var fetchedStories: [MapStoryPreview] = []
+        var momentError: MapServiceError?
+        var storyError: MapServiceError?
+        if loadMoments {
+            group.enter()
+            postMapEndpoint(functionName: "getMapMomentsPage", mode: mode, limit: 60,
+                            followingOnly: followingOnly, paginate: true, cursor: momentsCursor) { result in
+                switch result {
+                case .success(let data):
+                    do {
+                        let page = try JSONDecoder().decode(BackendMapMomentsResponse.self, from: data)
+                        fetchedMoments = page.moments.map { $0.toMoment() }.filter { $0.isArchived != true && $0.mapHasRenderableMedia }
+                        payload.momentsCursor = page.nextCursor
+                    } catch { momentError = .decoding }
+                case .failure(let error): momentError = error
+                }
+                group.leave()
+            }
+        }
+        if loadStories {
+            group.enter()
+            postMapEndpoint(functionName: "getMapStoriesPage", mode: mode, limit: 60,
+                            followingOnly: followingOnly, paginate: true, cursor: storiesCursor) { result in
+                switch result {
+                case .success(let data):
+                    do {
+                        let page = try JSONDecoder().decode(BackendMapStoriesResponse.self, from: data)
+                        fetchedStories = page.stories.map { $0.toStoryPreview() }
+                        payload.storiesCursor = page.nextCursor
+                    } catch { storyError = .decoding }
+                case .failure(let error): storyError = error
+                }
+                group.leave()
+            }
+        }
+        group.notify(queue: .main) {
+            completion(MapDiscoverPayload(moments: fetchedMoments, stories: fetchedStories,
+                source: "backend", momentsError: momentError, storiesError: storyError,
+                momentsCursor: payload.momentsCursor, storiesCursor: payload.storiesCursor))
         }
     }
 
@@ -190,12 +268,14 @@ class LocationSearchService {
     private func fetchMapMomentsFromBackend(
         mode: MapQueryMode,
         limit: Int,
+        followingOnly: Bool = false,
         completion: @escaping (Result<[Moment], MapServiceError>) -> Void
     ) {
         postMapEndpoint(
             functionName: "getMapMomentsPage",
             mode: mode,
-            limit: limit
+            limit: limit,
+            followingOnly: followingOnly
         ) { result in
             guard case .success(let data) = result else {
                 if case .failure(let error) = result {
@@ -219,12 +299,14 @@ class LocationSearchService {
     private func fetchMapStoriesFromBackend(
         mode: MapQueryMode,
         limit: Int,
+        followingOnly: Bool = false,
         completion: @escaping (Result<[MapStoryPreview], MapServiceError>) -> Void
     ) {
         postMapEndpoint(
             functionName: "getMapStoriesPage",
             mode: mode,
-            limit: limit
+            limit: limit,
+            followingOnly: followingOnly
         ) { result in
             guard case .success(let data) = result else {
                 if case .failure(let error) = result {
@@ -246,6 +328,9 @@ class LocationSearchService {
         functionName: String,
         mode: MapQueryMode,
         limit: Int,
+        followingOnly: Bool = false,
+        paginate: Bool = false,
+        cursor: String? = nil,
         completion: @escaping (Result<Data, MapServiceError>) -> Void
     ) {
         guard let user = Auth.auth().currentUser else {
@@ -267,6 +352,9 @@ class LocationSearchService {
                 }
 
                 var body: [String: Any] = ["limit": limit]
+                if followingOnly { body["scope"] = "following" }
+                if paginate { body["paginate"] = true }
+                if let cursor { body["cursor"] = cursor }
                 switch mode {
                 case .location(let locationName):
                     body["mode"] = "location"
@@ -308,6 +396,22 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
     @Published var currentLocation: CLLocation?
+    private var pendingLocationCompletions: [(CLLocationCoordinate2D?) -> Void] = []
+    private var locationRequestToken = UUID()
+
+    var usableCurrentLocation: CLLocation? {
+        guard let location = currentLocation,
+              location.horizontalAccuracy >= 0, location.horizontalAccuracy <= 5_000,
+              abs(location.timestamp.timeIntervalSinceNow) <= 60 else { return nil }
+        return location
+    }
+
+    private func finishLocationRequest(with coordinate: CLLocationCoordinate2D?) {
+        locationRequestToken = UUID()
+        let completions = pendingLocationCompletions
+        pendingLocationCompletions.removeAll()
+        completions.forEach { $0(coordinate) }
+    }
 
     private override init() {
         super.init()
@@ -347,17 +451,20 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.first else { return }
-
+        guard let location = locations.last,
+              location.horizontalAccuracy >= 0, location.horizontalAccuracy <= 5_000,
+              abs(location.timestamp.timeIntervalSinceNow) <= 60 else { return }
         DispatchQueue.main.async {
             self.currentLocation = location
+            self.finishLocationRequest(with: location.coordinate)
         }
-
         locationManager.stopUpdatingLocation()
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        // Error de ubicación
+        DispatchQueue.main.async {
+            self.finishLocationRequest(with: self.usableCurrentLocation?.coordinate)
+        }
     }
 
     static func getCoordinates(for locationName: String, completion: @escaping (CLLocationCoordinate2D?) -> Void) {
@@ -420,19 +527,22 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     func getCurrentLocation(completion: @escaping (CLLocationCoordinate2D?) -> Void) {
-        switch authorizationStatus {
-        case .authorizedWhenInUse, .authorizedAlways:
-            locationManager.requestLocation()
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                completion(self.currentLocation?.coordinate)
-            }
-
-        case .notDetermined:
+        guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
             completion(nil)
-
-        default:
-            completion(nil)
+            return
+        }
+        if let location = usableCurrentLocation {
+            completion(location.coordinate)
+            return
+        }
+        pendingLocationCompletions.append(completion)
+        guard pendingLocationCompletions.count == 1 else { return }
+        let token = UUID()
+        locationRequestToken = token
+        locationManager.requestLocation()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
+            guard self.locationRequestToken == token else { return }
+            self.finishLocationRequest(with: self.usableCurrentLocation?.coordinate)
         }
     }
 
@@ -468,7 +578,7 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
 
 enum MapRegionStore {
     private static let lastRegionKey = "discoverMap.lastRegion"
-    private static let defaultSpan = MKCoordinateSpan(latitudeDelta: 0.08, longitudeDelta: 0.08)
+    private static let defaultSpan = MKCoordinateSpan(latitudeDelta: 12, longitudeDelta: 12)
 
     /// Centro de España como fallback geográfico (no Madrid hardcoded).
     static let spainCenter = CLLocationCoordinate2D(latitude: 40.0, longitude: -4.0)
@@ -496,6 +606,9 @@ enum MapRegionStore {
             return nil
         }
 
+        guard CLLocationCoordinate2DIsValid(CLLocationCoordinate2D(latitude: lat, longitude: lon)),
+              latDelta.isFinite, lonDelta.isFinite, latDelta > 0, lonDelta > 0,
+              !(abs(lat - 40) < 0.0001 && abs(lon + 4) < 0.0001) else { return nil }
         return MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
             span: MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
@@ -523,10 +636,11 @@ enum MapRegionStore {
                 }) {
                     let data = document.data()
                     if let lat = data["latitude"] as? Double,
-                       let lon = data["longitude"] as? Double {
+                       let lon = data["longitude"] as? Double,
+                       CLLocationCoordinate2DIsValid(CLLocationCoordinate2D(latitude: lat, longitude: lon)) {
                         completion(MKCoordinateRegion(
                             center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-                            span: defaultSpan
+                            span: MKCoordinateSpan(latitudeDelta: 0.08, longitudeDelta: 0.08)
                         ))
                         return
                     }

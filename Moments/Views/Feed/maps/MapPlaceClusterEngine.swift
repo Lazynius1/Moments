@@ -76,12 +76,6 @@ enum MapPlaceClusterEngine {
         filter: MapDiscoverContentFilter,
         region: MKCoordinateRegion
     ) -> MapPlaceLayout {
-        switch filter {
-        case .friends:
-            return MapPlaceLayout(placeClusters: [], standaloneFriends: friendPins)
-        case .places, .all:
-            break
-        }
 
         let mergeRadius = mergeRadiusMeters(for: region)
         let coordPrecision = coordinatePrecision(for: region)
@@ -152,7 +146,7 @@ enum MapPlaceClusterEngine {
         }
 
         var absorbedFriendIds = Set<String>()
-        if filter == .all {
+        if filter != .places {
             for pin in friendPins {
                 guard let index = clusters.firstIndex(where: { cluster in
                     shouldMerge(cluster.coordinate, pin.coordinate, radius: mergeRadius, name: cluster.displayName, otherName: "")
@@ -303,9 +297,6 @@ enum MapPlaceClusterEngine {
         name: String,
         otherName: String
     ) -> Bool {
-        if !name.isEmpty, !otherName.isEmpty, name == otherName {
-            return true
-        }
         let left = CLLocation(latitude: lhs.latitude, longitude: lhs.longitude)
         let right = CLLocation(latitude: rhs.latitude, longitude: rhs.longitude)
         return left.distance(from: right) <= radius
