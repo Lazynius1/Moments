@@ -867,7 +867,21 @@ struct StoryStickerView: View {
     @ViewBuilder
     private var interactiveStickerBody: some View {
         // ✅ SOLUCIÓN DEFINITIVA: Solo una renderización
-        if sticker.type == .shareMoment {
+        if let music = sticker.interactionData?.music {
+            if music.style == .record {
+                StoryMusicRecordView(selection: music)
+                    .frame(width: music.artworkLayoutSize.width, height: music.artworkLayoutSize.height)
+                    .dynamicTypeSize(.large)
+                    .scaleEffect(sticker.scale)
+                    .rotationEffect(sticker.rotation)
+                    .allowsHitTesting(false)
+            } else if music.style != .hidden {
+                StoryMusicRasterView(sticker: sticker)
+                    .scaleEffect(sticker.scale)
+                    .rotationEffect(sticker.rotation)
+                    .allowsHitTesting(false)
+            }
+        } else if sticker.type == .shareMoment {
             Button(action: {
                 handleStickerTap()
             }) {

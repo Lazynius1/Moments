@@ -77,7 +77,7 @@ struct StickerOverlayView: View {
     private var interactiveBoundsSize: CGSize {
         // La tarjeta compartida ya se escala como una sola unidad. Mantener su
         // caja natural estable evita que el layout cambie durante el pellizco.
-        if sticker.type == .shareMoment {
+        if sticker.type == .shareMoment || sticker.interactionData?.music != nil {
             return stickerSize
         }
 
@@ -156,6 +156,19 @@ struct StickerOverlayView: View {
                         size: CGSize(width: sticker.image.size.width, height: sticker.image.size.height)
                     )
                         .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+                        .allowsHitTesting(false)
+                }
+            } else if let music = sticker.interactionData?.music {
+                if music.style == .record {
+                    StoryMusicRecordView(selection: music)
+                        .frame(width: stickerSize.width, height: stickerSize.height)
+                        .allowsHitTesting(false)
+                } else if music.style != .hidden {
+                    StoryMusicRasterView(sticker: sticker)
+                        .allowsHitTesting(false)
+                } else if isEditingInline {
+                    Label(music.track.title, systemImage: "music.note").font(.headline)
+                        .foregroundStyle(.white).frame(width: 280, height: 52)
                         .allowsHitTesting(false)
                 }
             } else if isLiveSelfieSticker {
@@ -814,6 +827,9 @@ struct StickerOverlayView: View {
 }
 
 func storyStickerBaseLayoutSize(_ sticker: StickerItem) -> CGSize {
+    if let music = sticker.interactionData?.music {
+        return music.artworkLayoutSize
+    }
     switch sticker.type {
     case .frame: return CGSize(width: 200, height: 240)
     case .poll: return CGSize(width: 300, height: 172)

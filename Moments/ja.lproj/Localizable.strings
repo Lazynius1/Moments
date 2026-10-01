@@ -4690,3 +4690,36 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "maps.chrome.nearby" = "近くの投稿";
 "maps.chrome.chooseCity" = "都市を選択";
 "maps.chrome.recenter" = "現在地";
+
+// Story music
+"story.music.title" = "音楽";
+"story.music.done" = "完了";
+"story.music.search" = "曲やアーティストを検索";
+"story.music.unavailable" = "音楽を利用できません";
+"story.music.unavailable.detail" = "音楽を読み込めませんでした。後でもう一度お試しください。";
+"story.music.retry" = "再試行";
+"story.music.more" = "他の曲";
+"story.music.empty" = "曲が見つかりません";
+"story.music.color" = "文字の色";
+"story.music.lyrics" = "歌詞";
+"story.music.preview" = "プレビュー";
+"story.music.remove" = "音楽を削除";
+"story.music.fragment" = "選択した部分";
+"story.music.style.hidden" = "音楽のみ";
+"story.music.style.title" = "タイトル";
+"story.music.style.card" = "カード";
+"story.music.style.cover" = "ジャケット";
+"story.music.style.lyrics" = "歌詞";
+
+"story.music.style.record" = "レコード";
+
+// Music discovery and explicit bookmarks
+"story.music.tab.songs" = "曲";
+"story.music.tab.discover" = "見つける";
+"story.music.tab.saved" = "保存済み";
+"story.music.save" = "曲を保存";
+"story.music.unsave" = "保存済みから削除";
+"story.music.posts" = "この曲を使った投稿";
+"story.music.posts.placeholder" = "音楽付きの投稿がここに表示されます。";
+"story.music.saved.confirmation" = "曲をお気に入りに保存しました";
+"story.music.unsaved.confirmation" = "曲をお気に入りから削除しました";

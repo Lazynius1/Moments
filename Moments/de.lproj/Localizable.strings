@@ -4919,3 +4919,36 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "maps.chrome.nearby" = "In deiner Nähe";
 "maps.chrome.chooseCity" = "Wähle eine Stadt";
 "maps.chrome.recenter" = "Mein Standort";
+
+// Story music
+"story.music.title" = "Musik";
+"story.music.done" = "Fertig";
+"story.music.search" = "Songs oder Künstler suchen";
+"story.music.unavailable" = "Musik nicht verfügbar";
+"story.music.unavailable.detail" = "Die Musik konnte nicht geladen werden. Versuche es später erneut.";
+"story.music.retry" = "Erneut versuchen";
+"story.music.more" = "Weitere Songs";
+"story.music.empty" = "Keine Songs gefunden";
+"story.music.color" = "Textfarbe";
+"story.music.lyrics" = "Liedtext";
+"story.music.preview" = "Vorschau";
+"story.music.remove" = "Musik entfernen";
+"story.music.fragment" = "Ausgewählter Ausschnitt";
+"story.music.style.hidden" = "Nur Musik";
+"story.music.style.title" = "Titel";
+"story.music.style.card" = "Karte";
+"story.music.style.cover" = "Cover";
+"story.music.style.lyrics" = "Liedtext";
+
+"story.music.style.record" = "Schallplatte";
+
+// Music discovery and explicit bookmarks
+"story.music.tab.songs" = "Songs";
+"story.music.tab.discover" = "Entdecken";
+"story.music.tab.saved" = "Gespeichert";
+"story.music.save" = "Song speichern";
+"story.music.unsave" = "Aus Gespeichert entfernen";
+"story.music.posts" = "Beiträge mit diesem Song";
+"story.music.posts.placeholder" = "Beiträge mit Musik erscheinen hier.";
+"story.music.saved.confirmation" = "Song zu Favoriten hinzugefügt";
+"story.music.unsaved.confirmation" = "Song aus Favoriten entfernt";

@@ -4690,3 +4690,36 @@
 "maps.chrome.nearby" = "आपके आस-पास";
 "maps.chrome.chooseCity" = "एक शहर चुनें";
 "maps.chrome.recenter" = "मेरा स्थान";
+
+// Story music
+"story.music.title" = "संगीत";
+"story.music.done" = "हो गया";
+"story.music.search" = "गाने या कलाकार खोजें";
+"story.music.unavailable" = "संगीत उपलब्ध नहीं है";
+"story.music.unavailable.detail" = "संगीत लोड नहीं हो सका। बाद में फिर कोशिश करें।";
+"story.music.retry" = "फिर कोशिश करें";
+"story.music.more" = "और गाने";
+"story.music.empty" = "कोई गाना नहीं मिला";
+"story.music.color" = "टेक्स्ट का रंग";
+"story.music.lyrics" = "बोल";
+"story.music.preview" = "पूर्वावलोकन";
+"story.music.remove" = "संगीत हटाएँ";
+"story.music.fragment" = "चुना गया अंश";
+"story.music.style.hidden" = "केवल संगीत";
+"story.music.style.title" = "शीर्षक";
+"story.music.style.card" = "कार्ड";
+"story.music.style.cover" = "कवर";
+"story.music.style.lyrics" = "बोल";
+
+"story.music.style.record" = "रिकॉर्ड";
+
+// Music discovery and explicit bookmarks
+"story.music.tab.songs" = "गाने";
+"story.music.tab.discover" = "खोजें";
+"story.music.tab.saved" = "सहेजे गए";
+"story.music.save" = "गाना सहेजें";
+"story.music.unsave" = "सहेजे गए से हटाएँ";
+"story.music.posts" = "इस गाने वाले पोस्ट";
+"story.music.posts.placeholder" = "संगीत वाले पोस्ट यहाँ दिखाई देंगे।";
+"story.music.saved.confirmation" = "गाना पसंदीदा में सहेजा गया";
+"story.music.unsaved.confirmation" = "गाना पसंदीदा से हटा दिया गया";

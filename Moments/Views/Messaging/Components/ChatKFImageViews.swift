@@ -6,6 +6,7 @@ struct ChatKFImage: View {
     @Environment(\.displayScale) private var displayScale
     let url: URL?
     var downsamplingSize: CGSize? = nil
+    var previewURL: URL? = nil
 
     var body: some View {
         Group {
@@ -14,6 +15,15 @@ struct ChatKFImage: View {
             } else {
                 ChatMediaResolvingPlaceholder()
             }
+        }
+    }
+
+    @ViewBuilder
+    private var previewPlaceholder: some View {
+        if let previewURL, previewURL != url {
+            ChatKFImage(url: previewURL, downsamplingSize: downsamplingSize)
+        } else {
+            ChatMediaResolvingPlaceholder()
         }
     }
 
@@ -29,7 +39,7 @@ struct ChatKFImage: View {
     private func configuredImage(_ image: KFImage) -> some View {
         if let downsamplingSize {
             image
-                .placeholder { ChatMediaResolvingPlaceholder() }
+                .placeholder { previewPlaceholder }
                 .loadTransition(.opacity, animation: .easeOut(duration: 0.2))
                 .downsampling(size: downsamplingSize)
                 .scaleFactor(displayScale)
@@ -37,7 +47,7 @@ struct ChatKFImage: View {
                 .scaledToFill()
         } else {
             image
-                .placeholder { ChatMediaResolvingPlaceholder() }
+                .placeholder { previewPlaceholder }
                 .loadTransition(.opacity, animation: .easeOut(duration: 0.2))
                 .resizable()
                 .scaledToFill()

@@ -23,6 +23,8 @@ struct StoryMediaOverlayRendererView: View {
     var replayToken: Int = 0
     var reportsDeckInteractionExclusion: Bool = true
     var allowsStickerHitTesting: Bool = true
+    var revealPolicy: StoryRevealThumbnailPolicy = .exposed
+    var interactiveReveal: Bool = false
     var renderingMode: StoryOverlayRenderingMode = .live
     var clipCornerRadius: CGFloat = storyViewerCanvasCornerRadius
     var textMaxLayoutWidth: CGFloat? = nil
@@ -54,11 +56,27 @@ struct StoryMediaOverlayRendererView: View {
                 .zIndex(Double(overlay.layerOrder))
             }
 
-            ForEach(stickerItems, id: \.id) { sticker in
+            ForEach(stickerItems.filter { $0.interactionData?.music?.style != .hidden }, id: \.id) { sticker in
                 stickerView(for: stickerForDisplay(sticker))
                 .position(stickerDisplayPosition(sticker))
                 .zIndex(Double(sticker.zIndex))
                 .allowsHitTesting(allowsStickerHitTesting)
+            }
+        }
+        .overlay {
+            if revealPolicy == .concealed,
+               let reveal = stickerItems.first(where: { $0.type == .reveal }) {
+                if interactiveReveal {
+                    InteractiveRevealSticker(storyId: storyId,
+                        reportsDeckInteractionExclusion: false,
+                        revealType: reveal.interactionData?.revealType,
+                        revealPattern: reveal.interactionData?.revealPattern,
+                        revealPrimaryColor: reveal.interactionData?.revealPrimaryColor,
+                        revealSecondaryColor: reveal.interactionData?.revealSecondaryColor,
+                        revealEffectColor: reveal.interactionData?.revealEffectColor)
+                } else {
+                    StoryStaticRevealOverlay(sticker: reveal)
+                }
             }
         }
         .frame(width: containerSize.width, height: containerSize.height)
@@ -112,6 +130,34 @@ struct StoryMediaOverlayRendererView: View {
     }
 }
 
+/// Lay out thumbnails at the shared story canvas size before scaling the complete
+/// overlay into a cell. Individual stickers never receive the cell's narrow proposal.
+struct StoryThumbnailOverlayView: View {
+    let containerSize: CGSize
+    let textOverlays: [StoryTextOverlayMetadata]
+    let stickerItems: [StickerItem]
+    let storyId: String
+    let userId: String
+    var revealPolicy: StoryRevealThumbnailPolicy = .exposed
+    var interactiveReveal = false
+
+    var body: some View {
+        let referenceSize = CGSize(width: 375, height: 375 * 16 / 9)
+        StoryMediaOverlayRendererView(
+            containerSize: referenceSize,
+            textOverlays: textOverlays, stickerItems: stickerItems, drawingData: nil,
+            storyId: storyId, userId: userId,
+            reportsDeckInteractionExclusion: false, allowsStickerHitTesting: false,
+            revealPolicy: revealPolicy, interactiveReveal: interactiveReveal,
+            renderingMode: .thumbnail, clipCornerRadius: 0
+        )
+        .frame(width: referenceSize.width, height: referenceSize.height)
+        .fixedSize()
+        .scaleEffect(max(containerSize.width, 1) / referenceSize.width)
+        .frame(width: containerSize.width, height: containerSize.height)
+    }
+}
+
 /// Superficie ligera para grids, mensajes y previews. Conserva las mismas
 /// coordenadas del visor, pero congela vídeo/animaciones y no crea interacción.
 struct StoryStaticPreviewSurface: View {
@@ -120,6 +166,7 @@ struct StoryStaticPreviewSurface: View {
 
     @Environment(\.displayScale) private var displayScale
     @State private var stickerItems: [StickerItem] = []
+    @State private var revealed = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -128,21 +175,15 @@ struct StoryStaticPreviewSurface: View {
             ZStack {
                 StoryStaticPreviewMedia(story: story)
 
-                StoryMediaOverlayRendererView(
+                StoryThumbnailOverlayView(
                     containerSize: canvasSize,
                     textOverlays: story.resolvedTextOverlays,
                     stickerItems: stickerItems,
-                    drawingData: nil,
-                    storyId: story.id ?? "",
-                    userId: story.authorId,
-                    reportsDeckInteractionExclusion: false,
-                    allowsStickerHitTesting: false,
-                    renderingMode: .thumbnail,
-                    clipCornerRadius: 0
+                    storyId: story.id ?? "", userId: story.authorId
                 )
                 .allowsHitTesting(false)
 
-                if revealPolicy == .concealed,
+                if revealPolicy == .concealed, !revealed,
                    let revealSticker = stickerItems.first(where: { $0.type == .reveal }) {
                     StoryStaticRevealOverlay(sticker: revealSticker)
                         .frame(width: canvasSize.width, height: canvasSize.height)
@@ -153,7 +194,12 @@ struct StoryStaticPreviewSurface: View {
             .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
         }
         .clipped()
+        .onAppear { revealed = UserDefaults.standard.bool(forKey: "reveal_revealed_\(story.id ?? "")") }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+            revealed = UserDefaults.standard.bool(forKey: "reveal_revealed_\(story.id ?? "")")
+        }
         .task(id: previewIdentity) {
+            revealed = UserDefaults.standard.bool(forKey: "reveal_revealed_\(story.id ?? "")")
             stickerItems = story.convertStickersToStickerItems(
                 traitCollection: UITraitCollection(displayScale: displayScale)
             )
@@ -287,6 +333,7 @@ private struct StoryStaticStickerView: View {
                 onPauseStory: {},
                 onResumeStory: {}
             )
+            .environment(\.storyMusicIsPlaying, false)
             .allowsHitTesting(false)
         }
     }

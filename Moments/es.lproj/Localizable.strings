@@ -4939,3 +4939,36 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "maps.chrome.nearby" = "Cerca de ti";
 "maps.chrome.chooseCity" = "Elige una ciudad";
 "maps.chrome.recenter" = "Mi ubicación";
+
+// Story music
+"story.music.title" = "Música";
+"story.music.done" = "Listo";
+"story.music.search" = "Buscar canciones o artistas";
+"story.music.unavailable" = "Música no disponible";
+"story.music.unavailable.detail" = "No se pudo cargar la música. Inténtalo más tarde.";
+"story.music.retry" = "Reintentar";
+"story.music.more" = "Más canciones";
+"story.music.empty" = "No se encontraron canciones";
+"story.music.color" = "Color del texto";
+"story.music.lyrics" = "Letra";
+"story.music.preview" = "Previsualizar";
+"story.music.remove" = "Quitar música";
+"story.music.fragment" = "Fragmento seleccionado";
+"story.music.style.hidden" = "Solo música";
+"story.music.style.title" = "Título";
+"story.music.style.card" = "Tarjeta";
+"story.music.style.cover" = "Portada";
+"story.music.style.lyrics" = "Letra";
+
+"story.music.style.record" = "Disco";
+
+// Music discovery and explicit bookmarks
+"story.music.tab.songs" = "Canciones";
+"story.music.tab.discover" = "Descubre";
+"story.music.tab.saved" = "Guardadas";
+"story.music.save" = "Guardar canción";
+"story.music.unsave" = "Quitar de Guardadas";
+"story.music.posts" = "Posts con esta canción";
+"story.music.posts.placeholder" = "Los posts con música aparecerán aquí.";
+"story.music.saved.confirmation" = "Canción guardada en favoritos";
+"story.music.unsaved.confirmation" = "Canción eliminada de favoritos";

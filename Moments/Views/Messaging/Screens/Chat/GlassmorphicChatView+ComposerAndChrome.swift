@@ -263,7 +263,8 @@ extension GlassmorphicChatView {
         guard let selected = sharedMedia(from: message) else { return items }
 
         if items.contains(where: { $0.id == selected.id }) {
-            return items
+            // Keep the tapped message's overlay payload when the list still has a sparse copy.
+            return items.map { $0.id == selected.id ? selected : $0 }
         }
 
         return items + [selected]

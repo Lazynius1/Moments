@@ -4690,3 +4690,36 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "maps.chrome.nearby" = "Bij jou in de buurt";
 "maps.chrome.chooseCity" = "Kies een stad";
 "maps.chrome.recenter" = "Mijn locatie";
+
+// Story music
+"story.music.title" = "Muziek";
+"story.music.done" = "Gereed";
+"story.music.search" = "Zoek nummers of artiesten";
+"story.music.unavailable" = "Muziek niet beschikbaar";
+"story.music.unavailable.detail" = "De muziek kon niet worden geladen. Probeer het later opnieuw.";
+"story.music.retry" = "Opnieuw proberen";
+"story.music.more" = "Meer nummers";
+"story.music.empty" = "Geen nummers gevonden";
+"story.music.color" = "Tekstkleur";
+"story.music.lyrics" = "Songtekst";
+"story.music.preview" = "Voorbeeld";
+"story.music.remove" = "Muziek verwijderen";
+"story.music.fragment" = "Geselecteerd fragment";
+"story.music.style.hidden" = "Alleen muziek";
+"story.music.style.title" = "Titel";
+"story.music.style.card" = "Kaart";
+"story.music.style.cover" = "Hoes";
+"story.music.style.lyrics" = "Songtekst";
+
+"story.music.style.record" = "Plaat";
+
+// Music discovery and explicit bookmarks
+"story.music.tab.songs" = "Nummers";
+"story.music.tab.discover" = "Ontdek";
+"story.music.tab.saved" = "Opgeslagen";
+"story.music.save" = "Nummer opslaan";
+"story.music.unsave" = "Verwijderen uit opgeslagen";
+"story.music.posts" = "Posts met dit nummer";
+"story.music.posts.placeholder" = "Posts met muziek verschijnen hier.";
+"story.music.saved.confirmation" = "Nummer opgeslagen in favorieten";
+"story.music.unsaved.confirmation" = "Nummer verwijderd uit favorieten";

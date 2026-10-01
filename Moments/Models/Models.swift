@@ -1621,8 +1621,13 @@ struct Story: Identifiable, Codable {
             case .time, .weather, .sticker, .generic, .selfie, .questionResponse, .shareMoment, .frame, .quiz:
                 // scale 1: píxeles = points (Android bakea 1×; iOS export también a 1×).
                 if let image = Self.stickerUIImage(fromBase64: stickerData.content, normalizeEmojiSide: nil),
-                   max(image.size.width, image.size.height) >= 40 {
-                    stickerImage = image
+                   max(image.size.width, image.size.height) >= (stickerData.music != nil ? 8 : 40) {
+                    if let density = stickerData.music?.rasterScale, density.isFinite,
+                       density >= 1, density <= 4, let cgImage = image.cgImage {
+                        stickerImage = UIImage(cgImage: cgImage, scale: CGFloat(density), orientation: image.imageOrientation)
+                    } else {
+                        stickerImage = image
+                    }
                 } else if stickerData.isAnimated || stickerData.gifURL != nil ||
                             (stickerData.content.hasPrefix("http") && stickerData.content.contains("giphy")) {
                     // Sin Base64 de tamaño (GIF solo-URL): frame 180pt como iOS editor.
@@ -1681,7 +1686,8 @@ struct Story: Identifiable, Codable {
                 contentOffsetX: stickerData.contentOffsetX,
                 contentOffsetY: stickerData.contentOffsetY,
                 audioURL: stickerData.audioURL,
-                audioDuration: stickerData.audioDuration
+                audioDuration: stickerData.audioDuration,
+                music: stickerData.music
             )
 
             // Crear StickerItem con las transformaciones aplicadas
@@ -1978,7 +1984,7 @@ struct Story: Identifiable, Codable {
 }
 
 // Modelo para almacenar datos de stickers
-struct StickerData: Codable {
+struct StickerData: Codable, Equatable {
     let stickerId: String?
     let type: String
     let content: String
@@ -2029,6 +2035,7 @@ struct StickerData: Codable {
     // Audio Data
     let audioURL: String?
     let audioDuration: Double?
+    let music: StoryMusicSelection?
 
     // ✅ NUEVAS PROPIEDADES para animación
     let isAnimated: Bool
@@ -2044,7 +2051,7 @@ struct StickerData: Codable {
          frameStyle: String? = nil,
          contentScale: CGFloat? = nil, contentOffsetX: CGFloat? = nil, contentOffsetY: CGFloat? = nil,
          moderationState: String? = nil, moderationReason: String? = nil, moderationCategory: String? = nil,
-         audioURL: String? = nil, audioDuration: Double? = nil,
+         audioURL: String? = nil, audioDuration: Double? = nil, music: StoryMusicSelection? = nil,
          isAnimated: Bool = false, gifURL: String? = nil, videoURL: String? = nil) {
         self.stickerId = stickerId
         self.type = type
@@ -2092,6 +2099,7 @@ struct StickerData: Codable {
         self.moderationCategory = moderationCategory
         self.audioURL = audioURL
         self.audioDuration = audioDuration
+        self.music = music
         self.isAnimated = isAnimated
         self.gifURL = gifURL
         self.videoURL = videoURL
@@ -2160,6 +2168,7 @@ struct StickerData: Codable {
         self.moderationCategory = try container.decodeIfPresent(String.self, forKey: .moderationCategory)
         self.audioURL = try container.decodeIfPresent(String.self, forKey: .audioURL)
         self.audioDuration = try container.decodeIfPresent(Double.self, forKey: .audioDuration)
+        self.music = try container.decodeIfPresent(StoryMusicSelection.self, forKey: .music)
 
         // ✅ COMPATIBILIDAD HACIA ATRÁS: Detectar stickers animados basándose en el contenido
         let decodedIsAnimated = try container.decodeIfPresent(Bool.self, forKey: .isAnimated) ?? false
@@ -2234,6 +2243,7 @@ struct StickerData: Codable {
             moderationCategory: nil,
             audioURL: interactionData?.audioURL,
             audioDuration: interactionData?.audioDuration,
+            music: interactionData?.music,
             isAnimated: stickerItem.isAnimated,
             gifURL: stickerItem.gifURL?.absoluteString,
             videoURL: stickerItem.videoURL?.absoluteString
@@ -2244,8 +2254,9 @@ struct StickerData: Codable {
 
     // ✅ FUNCIÓN extractContent ACTUALIZADA para incluir música y renderizar imágenes a Base64
     private static func extractContent(from sticker: StickerItem) -> String {
-        // Selfie/emoji need alpha channel to avoid black corners/background after upload/render.
-        if sticker.type == .selfie || sticker.type == .emoji, let pngData = sticker.image.pngData() {
+        // Music, selfie and emoji preserve their silhouettes after upload.
+        if sticker.interactionData?.music != nil || sticker.type == .selfie || sticker.type == .emoji,
+           let pngData = sticker.image.pngData() {
             return pngData.base64EncodedString()
         }
 
@@ -2344,6 +2355,7 @@ extension StickerData {
         case moderationCategory
         case audioURL
         case audioDuration
+        case music
     }
 
     func encode(to encoder: Encoder) throws {
@@ -2397,6 +2409,7 @@ extension StickerData {
         try container.encodeIfPresent(moderationCategory, forKey: .moderationCategory)
         try container.encodeIfPresent(audioURL, forKey: .audioURL)
         try container.encodeIfPresent(audioDuration, forKey: .audioDuration)
+        try container.encodeIfPresent(music, forKey: .music)
     }
 }
 

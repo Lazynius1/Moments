@@ -205,6 +205,7 @@ struct CachedStickerInteractionData: Codable {
     let contentOffsetY: CGFloat?
     let audioURL: String?
     let audioDuration: Double?
+    let music: StoryMusicSelection?
 }
 
 // MARK: - 🔥 SERVICIO PRINCIPAL DE STORIES
@@ -1890,7 +1891,8 @@ class BackgroundStoryUploadService: ObservableObject {
                 contentOffsetX: data.contentOffsetX,
                 contentOffsetY: data.contentOffsetY,
                 audioURL: data.audioURL,
-                audioDuration: data.audioDuration
+                audioDuration: data.audioDuration,
+                music: data.music
             )
         }
 
@@ -2025,6 +2027,10 @@ class BackgroundStoryUploadService: ObservableObject {
                     if let localName = cached.localImageName {
                         let path = pendingUploadsDir.appendingPathComponent(localName).path
                         image = UIImage(contentsOfFile: path) ?? UIImage()
+                        if let density = cached.interactionData?.music?.rasterScale,
+                           density.isFinite, density >= 1, density <= 4, let cgImage = image.cgImage {
+                            image = UIImage(cgImage: cgImage, scale: CGFloat(density), orientation: image.imageOrientation)
+                        }
                     }
 
                     let type = StickerItem.StickerType(rawValue: cached.type) ?? .generic
@@ -2064,7 +2070,8 @@ class BackgroundStoryUploadService: ObservableObject {
                             contentOffsetX: data.contentOffsetX,
                             contentOffsetY: data.contentOffsetY,
                             audioURL: data.audioURL,
-                            audioDuration: data.audioDuration
+                            audioDuration: data.audioDuration,
+                            music: data.music
                         )
                     }
 

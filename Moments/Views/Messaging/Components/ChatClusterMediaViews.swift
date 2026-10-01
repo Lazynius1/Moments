@@ -465,6 +465,7 @@ struct MediaGridTileView: View {
         ZStack {
             tileContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ChatMessageStaticOverlay(message: message)
 
             if isDownloadingMedia {
                 ChatMediaDownloadProgressOverlay(
@@ -475,8 +476,7 @@ struct MediaGridTileView: View {
             } else if message.status == .sending {
                 let uploadProgress = max(progress ?? 0.03, 0.03)
                 ZStack {
-                    Color(hex: "0B1215").opacity(0.38)
-                    BlurView(style: UIBlurEffect.Style.systemThinMaterialDark)
+                    Color(hex: "0B1215").opacity(0.12)
                     MediaProgressRing(progress: uploadProgress, size: 42, lineWidth: 3)
                 }
             }
@@ -489,39 +489,19 @@ struct MediaGridTileView: View {
     @ViewBuilder
     private var tileContent: some View {
         ZStack {
-            if message.type == .image {
-                if isDownloadingMedia {
-                    if let preview = message.previewThumbnailURLForDisplay, let url = URL(string: preview) {
-                        ChatKFImage(url: url, downsamplingSize: downsamplingSize)
-                            .blur(radius: 18)
-                    } else {
-                        ChatMediaResolvingPlaceholder()
-                    }
-                } else if message.isMediaPendingResolution {
+            if message.type == .image || message.type == .video {
+                let source = message.type == .image ? message.mediaUrl : message.thumbnailUrl
+                let previewURL = message.previewThumbnailURLForDisplay.flatMap(URL.init(string:))
+                if let source, let url = URL(string: source),
+                   message.localMediaFileIsReachable(url),
+                   (url.isFileURL || (!isDownloadingMedia && !message.isMediaPendingResolution)) {
+                    ChatKFImage(url: url, downsamplingSize: downsamplingSize, previewURL: previewURL)
+                } else if let previewURL {
+                    ChatKFImage(url: previewURL, downsamplingSize: downsamplingSize)
+                } else if isDownloadingMedia || message.isMediaPendingResolution || message.needsVideoThumbnailForDisplay {
                     ChatMediaResolvingPlaceholder()
-                } else if let mediaUrl = message.mediaUrl,
-                          let url = URL(string: mediaUrl),
-                          message.localMediaFileIsReachable(url) {
-                    ChatKFImage(url: url, downsamplingSize: downsamplingSize)
                 } else {
-                    placeholder(icon: "photo.fill")
-                }
-            } else if message.type == .video {
-                if isDownloadingMedia {
-                    if let preview = message.previewThumbnailURLForDisplay, let url = URL(string: preview) {
-                        ChatKFImage(url: url, downsamplingSize: downsamplingSize)
-                            .blur(radius: 18)
-                    } else {
-                        ChatMediaResolvingPlaceholder()
-                    }
-                } else if message.isMediaPendingResolution || message.needsVideoThumbnailForDisplay {
-                    ChatMediaResolvingPlaceholder()
-                } else if let thumbnailUrl = message.thumbnailUrl,
-                          let url = URL(string: thumbnailUrl),
-                          message.localMediaFileIsReachable(url) {
-                    ChatKFImage(url: url, downsamplingSize: downsamplingSize)
-                } else {
-                    placeholder(icon: "video.fill")
+                    placeholder(icon: message.type == .video ? "video.fill" : "photo.fill")
                 }
             } else {
                 placeholder(icon: "doc.fill")

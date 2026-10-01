@@ -48,7 +48,7 @@ struct GlassmorphicImageMessage: View {
     var downsamplingSize: CGSize? = nil
     let progress: Double?
 
-    private var blurredPreviewURL: URL? {
+    private var previewURL: URL? {
         if let previewThumbnailUrl,
            let url = URL(string: previewThumbnailUrl) {
             return url
@@ -60,11 +60,12 @@ struct GlassmorphicImageMessage: View {
         ZStack {
             if isDownloadingMedia {
                 ZStack {
-                    if let previewURL = blurredPreviewURL {
+                    if let imageUrl, let localURL = URL(string: imageUrl), localURL.isFileURL {
+                        ChatKFImage(url: localURL, downsamplingSize: downsamplingSize, previewURL: previewURL)
+                    } else if let previewURL {
                         ChatKFImage(url: previewURL, downsamplingSize: downsamplingSize)
-                            .blur(radius: 22)
                     } else if let imageUrl, let imageURL = URL(string: imageUrl) {
-                        ChatKFImage(url: imageURL, downsamplingSize: downsamplingSize)
+                        ChatKFImage(url: imageURL, downsamplingSize: downsamplingSize, previewURL: previewURL)
                     } else {
                         RoundedRectangle(cornerRadius: 16)
                             .fill(Color.white.opacity(0.1))
@@ -75,10 +76,14 @@ struct GlassmorphicImageMessage: View {
                         lineWidth: 4
                     )
                 }
-            } else if isResolvingMedia {
-                ChatMediaResolvingPlaceholder()
+            } else if isResolvingMedia, imageUrl.flatMap(URL.init(string:))?.isFileURL != true {
+                if let previewURL {
+                    ChatKFImage(url: previewURL, downsamplingSize: downsamplingSize)
+                } else {
+                    ChatMediaResolvingPlaceholder()
+                }
             } else if let imageUrl, let imageURL = URL(string: imageUrl) {
-                ChatKFImage(url: imageURL, downsamplingSize: downsamplingSize)
+                ChatKFImage(url: imageURL, downsamplingSize: downsamplingSize, previewURL: previewURL)
             } else {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.white.opacity(0.1))
@@ -92,8 +97,7 @@ struct GlassmorphicImageMessage: View {
             if isSending {
                 let uploadProgress = max(progress ?? 0.03, 0.03)
                 ZStack {
-                    Color.black.opacity(0.4)
-                    BlurView(style: UIBlurEffect.Style.systemThinMaterialDark)
+                    Color.black.opacity(0.12)
                     MediaProgressRing(progress: uploadProgress, size: 60, lineWidth: 4)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -139,7 +143,7 @@ struct GlassmorphicVideoMessage: View {
     var downsamplingSize: CGSize? = nil
     let progress: Double?
 
-    private var blurredPreviewURL: URL? {
+    private var previewURL: URL? {
         if let thumbnailUrl,
            let url = URL(string: thumbnailUrl) {
             return url
@@ -151,9 +155,8 @@ struct GlassmorphicVideoMessage: View {
         ZStack {
             if isDownloadingMedia {
                 ZStack {
-                    if let previewURL = blurredPreviewURL {
+                    if let previewURL = previewURL {
                         ChatKFImage(url: previewURL, downsamplingSize: downsamplingSize)
-                            .blur(radius: 22)
                             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                     } else if let videoUrl, let url = URL(string: videoUrl) {
                         ChatKFImage(url: url, downsamplingSize: downsamplingSize)
@@ -170,7 +173,7 @@ struct GlassmorphicVideoMessage: View {
                     )
                     .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                 }
-            } else if isResolvingMedia {
+            } else if isResolvingMedia, previewURL == nil {
                 ChatMediaResolvingPlaceholder()
                     .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
             } else if let thumbnailUrl, let url = URL(string: thumbnailUrl) {
@@ -185,8 +188,7 @@ struct GlassmorphicVideoMessage: View {
             if isSending {
                 let uploadProgress = max(progress ?? 0.03, 0.03)
                 ZStack {
-                    Color.black.opacity(0.4)
-                    BlurView(style: UIBlurEffect.Style.systemThinMaterialDark)
+                    Color.black.opacity(0.12)
                     MediaProgressRing(progress: uploadProgress, size: 60, lineWidth: 4)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 16))

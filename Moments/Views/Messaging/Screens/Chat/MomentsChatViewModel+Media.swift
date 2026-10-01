@@ -9,11 +9,11 @@ import MapKit
 
 extension MomentsChatViewModel {
     // MARK: - New Media Message Functions
-    func sendImageMessage(_ imageData: Data, replyTo: String? = nil) {
+    func sendImageMessage(_ imageData: Data, replyTo: String? = nil, textOverlays: [StoryTextOverlayMetadata]? = nil, stickers: [StickerData]? = nil) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             ensureConversationExists { [weak self] id in
                 guard let self, let id, !id.isEmpty else { return }
-                self.sendImageMessage(imageData, replyTo: replyTo)
+                self.sendImageMessage(imageData, replyTo: replyTo, textOverlays: textOverlays, stickers: stickers)
             }
             return
         }
@@ -35,6 +35,7 @@ extension MomentsChatViewModel {
             mediaUrl: localPreview,
             status: .sending,
             replyTo: replyTo,
+            textOverlays: textOverlays, stickers: stickers,
             isVanishModeMessage: outgoingVanishMessageFlag
         )
 
@@ -47,7 +48,8 @@ extension MomentsChatViewModel {
             mediaData: imageData,
             messageId: messageId,
             isVanishModeMessage: marksOutgoingAsVanish,
-            replyTo: replyTo
+            replyTo: replyTo,
+            textOverlays: textOverlays, stickers: stickers
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {

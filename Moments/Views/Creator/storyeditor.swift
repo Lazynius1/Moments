@@ -109,6 +109,7 @@ struct StoryEditingView: View {
     @State private var filterIntensity: Double = 1.0
     @State private var isApplyingFilter = false
     @State private var showingIntensitySlider = false
+    @State private var musicPreviewIsPlaying = false
     @State private var isEditingSticker = false // ✅ NUEVO
     @State private var editingRevealStickerId: String? = nil
     @State private var stickerPickerDetent: PresentationDetent = .medium
@@ -266,6 +267,7 @@ struct StoryEditingView: View {
                              selectedStickerId: $selectedStickerId, // ✅ NUEVO: Enlace bidireccional de selección
                              activeEditingStickerId: $activeEditingStickerId // ✅ NUEVO: Edición inline en Canvas
                         )
+                        .environment(\.storyMusicIsPlaying, !isEditingMusicSticker || musicPreviewIsPlaying)
                         .id(forceUpdate)
                         .frame(width: mediaCanvasRect.width, height: mediaCanvasRect.height)
                         .position(x: mediaCanvasRect.midX, y: mediaCanvasRect.midY)
@@ -303,7 +305,7 @@ struct StoryEditingView: View {
                                 .zIndex(34)
                         }
 
-                        if activeEditorMode == .idle && !isEditingReveal && !isChatSendMode && !usesSystemEditorToolbar {
+                        if activeEditorMode == .idle && !isEditingReveal && !isEditingMusicSticker && !isChatSendMode && !usesSystemEditorToolbar {
                             sideToolbarView()
                                 .position(x: sideRailCenterX, y: mediaCanvasRect.midY - 16)
                                 .zIndex(34)
@@ -379,6 +381,21 @@ struct StoryEditingView: View {
                         )
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                         .zIndex(40)
+                    }
+
+                    ForEach($selectedStickers) { $sticker in
+                        if activeEditingStickerId == sticker.id, let music = sticker.interactionData?.music {
+                            StoryMusicInlineEditor(sticker: $sticker, music: music,
+                                                   canvasSize: viewportSize,
+                                                   canvasTop: mediaCanvasRect.minY,
+                                                   bottomInset: windowInsets.bottom,
+                                                   allowsDurationSelection: selectedMediaItems.first?.type != .video,
+                                                   onPlaybackChanged: { musicPreviewIsPlaying = $0 }) {
+                                activeEditingStickerId = nil
+                            }
+                            .id(sticker.id)
+                            .zIndex(3100)
+                        }
                     }
 
                     // Floating Emoji Slider Bar — anchored to bottom above keyboard
@@ -520,7 +537,7 @@ struct StoryEditingView: View {
             )
         }
         .sheet(isPresented: $showingStickerPicker) {
-            StickerPickerView(selectedStickers: $selectedStickers, activeEditingStickerId: $activeEditingStickerId, isVideo: selectedMediaItems.first?.type == .video, canvasSize: currentMediaCanvasRect().size)
+            StickerPickerView(selectedStickers: $selectedStickers, activeEditingStickerId: $activeEditingStickerId, musicDuration: min(selectedMediaItems.first?.videoDuration ?? 15, StoryVideoProcessingService.maxStorySegmentDuration), allowsMusic: !isChatSendMode, isVideo: selectedMediaItems.first?.type == .video, canvasSize: currentMediaCanvasRect().size)
                 .ignoresSafeArea()
                 .onDisappear {
                     activeEditorMode = .idle
@@ -2385,10 +2402,16 @@ struct StoryEditingView: View {
         autoBackgroundPaletteMediaId = mediaId
     }
 
+    private var isEditingMusicSticker: Bool {
+        guard let activeEditingStickerId else { return false }
+        return selectedStickers.first(where: { $0.id == activeEditingStickerId })?.interactionData?.music != nil
+    }
+
     private var showsStickerPaletteButton: Bool {
         guard let activeId = activeEditingStickerId ?? selectedStickerId,
               let activeSticker = selectedStickers.first(where: { $0.id == activeId }) else { return false }
 
+        if let music = activeSticker.interactionData?.music { return music.style != .hidden && music.style != .record }
         switch activeSticker.type {
         case .poll, .question, .quiz, .countdown, .emojiSlider, .shareMoment:
             return true
@@ -2401,6 +2424,20 @@ struct StoryEditingView: View {
         guard let selectedId = activeEditingStickerId ?? selectedStickerId,
               let index = selectedStickers.firstIndex(where: { $0.id == selectedId }) else { return }
         
+        if var data = selectedStickers[index].interactionData, var music = data.music {
+            if music.style == .card {
+                music.cardStyleVariant = ((music.cardStyleVariant ?? 0) + 1) % 6
+            } else if music.style != .record && music.style != .hidden {
+                let colors = StoryMusicInlineEditor.paletteColors
+                let currentIndex = colors.firstIndex(of: music.colorHex) ?? -1
+                music.colorHex = colors[(currentIndex + 1) % colors.count]
+            }
+            data.music = music
+            selectedStickers[index].interactionData = data
+            HapticManager.shared.lightImpact()
+            return
+        }
+
         let currentVariant = selectedStickers[index].interactionData?.styleVariant ?? 0
         let nextVariant = (currentVariant + 1) % 6
         
@@ -2415,7 +2452,13 @@ struct StoryEditingView: View {
     }
 
     private func stickerPalettePreviewColors() -> [Color] {
-        [Color(hex: "FF5F6D"), Color(hex: "9D4EDD"), Color(hex: "4A00E0")]
+        if isEditingMusicSticker,
+           let id = activeEditingStickerId,
+           let music = selectedStickers.first(where: { $0.id == id })?.interactionData?.music,
+           music.style != .card {
+            return StoryMusicInlineEditor.paletteColors.prefix(3).map { Color(hex: $0) }
+        }
+        return [Color(hex: "FF5F6D"), Color(hex: "9D4EDD"), Color(hex: "4A00E0")]
     }
 
     private func updateActiveSliderEmoji(_ emoji: String) {

@@ -71,6 +71,7 @@ struct StoryViewerScreen: View {
         self.initialElapsed = initialElapsed
     }
 
+    @State private var musicTrackSheet: StoryMusicTrack?
     @State private var showMomentDetail: Bool = false
     @State private var targetMomentId: String? = nil
     @State private var targetMomentUserId: String? = nil
@@ -355,6 +356,12 @@ struct StoryViewerScreen: View {
 
     var body: some View {
         profileAndChainBoundView
+            .modifier(StoryMusicPlayback(
+                selection: story.stickers?.compactMap(\.music).first,
+                storyId: story.id,
+                active: isDeckPageActive && !playbackCoordinator.isPaused && !isHoldingStory,
+                elapsed: playbackCoordinator.progress * (story.duration > 0 ? story.duration : 15)
+            ))
     }
 
     @ViewBuilder
@@ -630,6 +637,9 @@ struct StoryViewerScreen: View {
             interactionCaptureRect = newValue
         }
         .permissionPrimerGate(photosSaveGate)
+        .sheet(item: $musicTrackSheet, onDismiss: { resumeStory() }) { track in
+            StoryMusicTrackSheet(track: track)
+        }
         .sheet(isPresented: $showMomentDetail) {
             if let momentId = targetMomentId, let userId = targetMomentUserId,
                !momentId.isEmpty, !userId.isEmpty {
@@ -996,12 +1006,20 @@ struct StoryViewerScreen: View {
                             } else {
                                 VerifiedBadgeView(userId: story.authorId, size: 12)
                             }
+                            Text(timeAgoString(from: story.timestamp))
+                                .foregroundStyle(.white.opacity(0.85))
+                                .font(.system(size: legacyPoppinsSize(11)))
+                                .lineLimit(1)
+                                .shadow(color: Color.black.opacity(0.55), radius: 4, x: 0, y: 2)
                         }
 
-                        Text(timeAgoString(from: story.timestamp))
-                            .foregroundStyle(.white.opacity(0.85))
-                            .font(.system(size: legacyPoppinsSize(11)))
-                            .shadow(color: Color.black.opacity(0.55), radius: 4, x: 0, y: 2)
+                        if let music = story.stickers?.compactMap(\.music).first {
+                            Label("\(music.track.title) · \(music.track.artist) ›", systemImage: "music.note")
+                                .font(.caption2).foregroundStyle(.white).lineLimit(1)
+                                .shadow(color: .black.opacity(0.55), radius: 4)
+                                .contentShape(Rectangle())
+                                .highPriorityGesture(TapGesture().onEnded { pauseStory(); musicTrackSheet = music.track })
+                        }
                     }
                 }
             }
@@ -2647,7 +2665,7 @@ struct StoryViewerScreen: View {
 
     private func resumeStory() {
         // ✅ REFUERZO SEGURO: No reanudar si cualquier overlay está visible o si hay teclado/drag
-        let isAnyOverlayVisible = showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || profileRoute != nil || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation || showDeleteConfirmation || showUnfollowConfirmation || showMuteConfirmation
+        let isAnyOverlayVisible = musicTrackSheet != nil || showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || profileRoute != nil || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation || showDeleteConfirmation || showUnfollowConfirmation || showMuteConfirmation
 
         let canResume = !isKeyboardVisible && !isDragging && !isMenuInteractionActive && !isAnyOverlayVisible && isDeckPageActive
         playbackCoordinator.resumeStory(story, canResume: canResume, onImageComplete: onNext)

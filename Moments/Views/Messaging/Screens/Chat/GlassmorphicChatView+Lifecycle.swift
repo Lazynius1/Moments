@@ -108,9 +108,9 @@ extension GlassmorphicChatView {
             viewModel.sendViewOnceMessage(data: data, mediaType: mediaType, allowReplay: true, replyTo: replyTo, overlayPayload: overlayPayload)
         case .keepInChat:
             if mediaType == .image {
-                viewModel.sendImageMessage(data, replyTo: replyTo)
+                viewModel.sendImageMessage(data, replyTo: replyTo, textOverlays: overlayPayload?.textOverlays, stickers: overlayPayload?.stickers)
             } else {
-                viewModel.sendVideoMessage(data: data, mediaBatchId: nil, replyTo: replyTo)
+                viewModel.sendVideoMessage(data: data, mediaBatchId: nil, replyTo: replyTo, textOverlays: overlayPayload?.textOverlays, stickers: overlayPayload?.stickers)
             }
         }
 

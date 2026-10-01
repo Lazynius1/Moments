@@ -773,11 +773,18 @@ struct GlassmorphicChatView: View {
         }
     }
 
+    private func refreshedChatMedia(_ media: SharedMedia) -> SharedMedia {
+        guard var message = viewModel.messages.first(where: { $0.id == media.id }) else { return media }
+        if message.stickers?.isEmpty != false { message.stickers = media.sourceMessage?.stickers }
+        if message.textOverlays?.isEmpty != false { message.textOverlays = media.sourceMessage?.textOverlays }
+        return sharedMedia(from: message) ?? media
+    }
+
     @ViewBuilder
     func selectedChatMediaCover(presentation: ChatMediaViewerPresentation) -> some View {
         FullScreenMediaView(
-            media: presentation.media,
-            mediaItems: presentation.mediaItems,
+            media: refreshedChatMedia(presentation.media),
+            mediaItems: presentation.mediaItems.map(refreshedChatMedia),
             currentUserId: viewModel.currentUserId,
             otherParticipantName: otherParticipantDisplayName,
             displayReactions: { messageId in

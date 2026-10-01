@@ -4690,3 +4690,36 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "maps.chrome.nearby" = "Yakınında";
 "maps.chrome.chooseCity" = "Bir şehir seç";
 "maps.chrome.recenter" = "Konumum";
+
+// Story music
+"story.music.title" = "Müzik";
+"story.music.done" = "Bitti";
+"story.music.search" = "Şarkı veya sanatçı ara";
+"story.music.unavailable" = "Müzik kullanılamıyor";
+"story.music.unavailable.detail" = "Müzik yüklenemedi. Daha sonra tekrar dene.";
+"story.music.retry" = "Tekrar dene";
+"story.music.more" = "Daha fazla şarkı";
+"story.music.empty" = "Şarkı bulunamadı";
+"story.music.color" = "Metin rengi";
+"story.music.lyrics" = "Şarkı sözleri";
+"story.music.preview" = "Önizleme";
+"story.music.remove" = "Müziği kaldır";
+"story.music.fragment" = "Seçilen bölüm";
+"story.music.style.hidden" = "Yalnızca müzik";
+"story.music.style.title" = "Başlık";
+"story.music.style.card" = "Kart";
+"story.music.style.cover" = "Kapak";
+"story.music.style.lyrics" = "Şarkı sözleri";
+
+"story.music.style.record" = "Plak";
+
+// Music discovery and explicit bookmarks
+"story.music.tab.songs" = "Şarkılar";
+"story.music.tab.discover" = "Keşfet";
+"story.music.tab.saved" = "Kaydedilenler";
+"story.music.save" = "Şarkıyı kaydet";
+"story.music.unsave" = "Kaydedilenlerden kaldır";
+"story.music.posts" = "Bu şarkıyı kullanan gönderiler";
+"story.music.posts.placeholder" = "Müzikli gönderiler burada görünecek.";
+"story.music.saved.confirmation" = "Şarkı favorilere kaydedildi";
+"story.music.unsaved.confirmation" = "Şarkı favorilerden kaldırıldı";

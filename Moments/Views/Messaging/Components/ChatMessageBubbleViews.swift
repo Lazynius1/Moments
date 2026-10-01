@@ -515,6 +515,7 @@ struct GlassmorphicMessageBubble: View {
                                 progress: progress
                             )
                             .frame(width: photoVideoSize.width, height: photoVideoSize.height)
+                            .overlay { ChatMessageStaticOverlay(message: message) }
                             .clipShape(mediaBubbleShape(cornerRadius: 16))
                         )
                         .onAppear {
@@ -554,6 +555,7 @@ struct GlassmorphicMessageBubble: View {
                                 progress: progress
                             )
                             .frame(width: photoVideoSize.width, height: photoVideoSize.height)
+                            .overlay { ChatMessageStaticOverlay(message: message) }
                             .clipShape(mediaBubbleShape(cornerRadius: 16))
                         )
                         .onAppear {

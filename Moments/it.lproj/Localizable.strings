@@ -4919,3 +4919,36 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "maps.chrome.nearby" = "Vicino a te";
 "maps.chrome.chooseCity" = "Scegli una città";
 "maps.chrome.recenter" = "La mia posizione";
+
+// Story music
+"story.music.title" = "Musica";
+"story.music.done" = "Fine";
+"story.music.search" = "Cerca brani o artisti";
+"story.music.unavailable" = "Musica non disponibile";
+"story.music.unavailable.detail" = "Impossibile caricare la musica. Riprova più tardi.";
+"story.music.retry" = "Riprova";
+"story.music.more" = "Altri brani";
+"story.music.empty" = "Nessun brano trovato";
+"story.music.color" = "Colore del testo";
+"story.music.lyrics" = "Testo della canzone";
+"story.music.preview" = "Anteprima";
+"story.music.remove" = "Rimuovi musica";
+"story.music.fragment" = "Frammento selezionato";
+"story.music.style.hidden" = "Solo musica";
+"story.music.style.title" = "Titolo";
+"story.music.style.card" = "Scheda";
+"story.music.style.cover" = "Copertina";
+"story.music.style.lyrics" = "Testo della canzone";
+
+"story.music.style.record" = "Disco";
+
+// Music discovery and explicit bookmarks
+"story.music.tab.songs" = "Brani";
+"story.music.tab.discover" = "Scopri";
+"story.music.tab.saved" = "Salvati";
+"story.music.save" = "Salva brano";
+"story.music.unsave" = "Rimuovi dai salvati";
+"story.music.posts" = "Post con questo brano";
+"story.music.posts.placeholder" = "I post con musica appariranno qui.";
+"story.music.saved.confirmation" = "Brano salvato nei preferiti";
+"story.music.unsaved.confirmation" = "Brano rimosso dai preferiti";

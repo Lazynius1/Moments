@@ -4690,3 +4690,36 @@
 "maps.chrome.nearby" = "附近";
 "maps.chrome.chooseCity" = "選擇城市";
 "maps.chrome.recenter" = "我的位置";
+
+// Story music
+"story.music.title" = "音樂";
+"story.music.done" = "完成";
+"story.music.search" = "搜尋歌曲或藝人";
+"story.music.unavailable" = "音樂無法使用";
+"story.music.unavailable.detail" = "無法載入音樂，請稍後再試。";
+"story.music.retry" = "重試";
+"story.music.more" = "更多歌曲";
+"story.music.empty" = "找不到歌曲";
+"story.music.color" = "文字顏色";
+"story.music.lyrics" = "歌詞";
+"story.music.preview" = "預覽";
+"story.music.remove" = "移除音樂";
+"story.music.fragment" = "已選片段";
+"story.music.style.hidden" = "僅音樂";
+"story.music.style.title" = "標題";
+"story.music.style.card" = "卡片";
+"story.music.style.cover" = "封面";
+"story.music.style.lyrics" = "歌詞";
+
+"story.music.style.record" = "唱片";
+
+// Music discovery and explicit bookmarks
+"story.music.tab.songs" = "歌曲";
+"story.music.tab.discover" = "探索";
+"story.music.tab.saved" = "已儲存";
+"story.music.save" = "儲存歌曲";
+"story.music.unsave" = "從已儲存移除";
+"story.music.posts" = "使用這首歌的貼文";
+"story.music.posts.placeholder" = "含音樂的貼文將顯示在這裡。";
+"story.music.saved.confirmation" = "歌曲已儲存至最愛";
+"story.music.unsaved.confirmation" = "歌曲已從最愛移除";

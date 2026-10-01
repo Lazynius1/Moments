@@ -4690,3 +4690,36 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "maps.chrome.nearby" = "Di dekatmu";
 "maps.chrome.chooseCity" = "Pilih kota";
 "maps.chrome.recenter" = "Lokasi saya";
+
+// Story music
+"story.music.title" = "Musik";
+"story.music.done" = "Selesai";
+"story.music.search" = "Cari lagu atau artis";
+"story.music.unavailable" = "Musik tidak tersedia";
+"story.music.unavailable.detail" = "Musik tidak dapat dimuat. Coba lagi nanti.";
+"story.music.retry" = "Coba lagi";
+"story.music.more" = "Lagu lainnya";
+"story.music.empty" = "Tidak ada lagu ditemukan";
+"story.music.color" = "Warna teks";
+"story.music.lyrics" = "Lirik";
+"story.music.preview" = "Pratinjau";
+"story.music.remove" = "Hapus musik";
+"story.music.fragment" = "Cuplikan dipilih";
+"story.music.style.hidden" = "Musik saja";
+"story.music.style.title" = "Judul";
+"story.music.style.card" = "Kartu";
+"story.music.style.cover" = "Sampul";
+"story.music.style.lyrics" = "Lirik";
+
+"story.music.style.record" = "Piringan";
+
+// Music discovery and explicit bookmarks
+"story.music.tab.songs" = "Lagu";
+"story.music.tab.discover" = "Jelajahi";
+"story.music.tab.saved" = "Tersimpan";
+"story.music.save" = "Simpan lagu";
+"story.music.unsave" = "Hapus dari tersimpan";
+"story.music.posts" = "Postingan dengan lagu ini";
+"story.music.posts.placeholder" = "Postingan dengan musik akan muncul di sini.";
+"story.music.saved.confirmation" = "Lagu disimpan ke favorit";
+"story.music.unsaved.confirmation" = "Lagu dihapus dari favorit";

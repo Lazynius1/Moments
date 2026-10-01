@@ -17,6 +17,8 @@ struct StickerPickerView: View {
     @Environment(\.displayScale) private var displayScale
     @Binding var selectedStickers: [StickerItem]
     @Binding var activeEditingStickerId: String? // ✅ NUEVO: Edición inline en Canvas
+    var musicDuration: Double = 15
+    var allowsMusic: Bool = true
     let isVideo: Bool
     /// Tamaño del lienzo del editor (no de la pantalla). Los stickers nuevos se centran aquí.
     let canvasSize: CGSize
@@ -69,6 +71,7 @@ struct StickerPickerView: View {
         case frame
         case reveal
         case audio
+        case music
 
         var id: String { rawValue }
 
@@ -90,6 +93,7 @@ struct StickerPickerView: View {
             case .quiz: return NSLocalizedString("stickerview.category.quiz", comment: "Quiz category")
             case .frame: return NSLocalizedString("stickerview.category.frame", comment: "Frame category")
             case .reveal: return NSLocalizedString("stickerview.category.reveal", comment: "Reveal category")
+            case .music: return NSLocalizedString("story.music.title", comment: "Music")
             case .audio: return NSLocalizedString("stickerview.category.audio", comment: "Audio category")
             }
         }
@@ -112,6 +116,7 @@ struct StickerPickerView: View {
             case .quiz: return "list.bullet.clipboard.fill"
             case .frame: return "photo.artframe"
             case .reveal: return "eye.slash.fill"
+            case .music: return "music.note"
             case .audio: return "mic.fill"
             }
         }
@@ -144,6 +149,7 @@ struct StickerPickerView: View {
             case .quiz: return .orange
             case .frame: return Color(red: 0.42, green: 0.45, blue: 1.00)
             case .reveal: return .purple
+            case .music: return .pink
             case .audio: return Color(red: 1.0, green: 0.4, blue: 0.3) // Coral/Orange
             }
         }
@@ -151,11 +157,16 @@ struct StickerPickerView: View {
     }
 
     private var catalogCategories: [StickerCategory] {
-        [.location, .mention, .trending, .emoji, .link, .question, .poll, .quiz, .reveal, .audio, .frame, .emojiSlider, .hashtag, .countdown, .weather, .time, .selfie]
+        var categories: [StickerCategory] = [.location, .mention, .trending, .emoji, .link, .question, .poll, .quiz, .reveal, .audio, .frame, .emojiSlider, .hashtag, .countdown, .weather, .time, .selfie]
+        #if DEBUG
+        categories.insert(.music, at: 9)
+        #endif
+        return categories
     }
 
     private var filteredCatalogCategories: [StickerCategory] {
         var baseCategories = catalogCategories
+        if !allowsMusic { baseCategories.removeAll { $0 == .music } }
 
         // ✨ Reveal limit: only one allowed per story
         if selectedStickers.contains(where: { $0.type == .reveal }) {
@@ -267,20 +278,24 @@ struct StickerPickerView: View {
                     GifSearchBar()
                 }
 
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 22) {
-                        if mode == .catalog {
-                            StickerCatalogMosaic()
-                        } else {
-                            stickerContent
+                if mode == .detail(.music) {
+                    stickerContent
+                } else {
+                    ScrollView(showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 22) {
+                            if mode == .catalog {
+                                StickerCatalogMosaic()
+                            } else {
+                                stickerContent
+                            }
                         }
+                        .padding(.horizontal, 18)
+                        .padding(.bottom, 28)
                     }
-                    .padding(.horizontal, 18)
-                    .padding(.bottom, 28)
-                }
-                .refreshable {
-                    if selectedCategory == .trending {
-                        loadTrendingStickers()
+                    .refreshable {
+                        if selectedCategory == .trending {
+                            loadTrendingStickers()
+                        }
                     }
                 }
             }
@@ -751,6 +766,13 @@ struct StickerPickerView: View {
         case .weather, .time, .selfie:
             EmptyView()
 
+        case .music:
+            StoryMusicPicker(
+                existing: selectedStickers.first(where: { $0.interactionData?.music != nil })?.interactionData?.music,
+                storyDuration: musicDuration,
+                onApply: { selection, artwork in applyMusic(selection, artwork: artwork) },
+                onRemove: { selectedStickers.removeAll { $0.interactionData?.music != nil }; dismiss() }
+            )
         case .audio:
             AudioStickerRecordingView(onAdd: { data, duration in
                 createAudioSticker(audioData: data, duration: duration)
@@ -893,6 +915,28 @@ struct StickerPickerView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 44)
+    }
+
+    @MainActor
+    private func applyMusic(_ selection: StoryMusicSelection, artwork: UIImage?) {
+        let previous = selectedStickers.first { $0.interactionData?.music != nil }
+        guard let image = StoryMusicStickerRenderer.image(selection, artwork: artwork, colorScheme: colorScheme) else { return }
+        var value = selection
+        value.rasterScale = Double(StoryMusicStickerRenderer.rasterScale)
+        value.track.waveform = nil
+        value.track.previewURL = nil
+        var sticker = StickerItem(id: previous?.id ?? UUID().uuidString, image: image,
+                                  position: previous?.position ?? defaultStickerCenter,
+                                  scale: previous?.scale ?? 1, rotation: previous?.rotation ?? .zero,
+                                  zIndex: previous?.zIndex ?? ((selectedStickers.map(\.zIndex).max() ?? -1) + 1),
+                                  gifURL: nil, isAnimated: false,
+                                  type: .generic, interactionData: .init(music: value))
+        sticker.scale = previous?.scale ?? 1
+        sticker.rotation = previous?.rotation ?? .zero
+        selectedStickers.removeAll { $0.interactionData?.music != nil }
+        selectedStickers.append(sticker)
+        activeEditingStickerId = sticker.id
+        dismiss()
     }
 
     private func handleCatalogSelection(_ category: StickerCategory) {

@@ -4938,3 +4938,36 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "maps.chrome.nearby" = "A prop teu";
 "maps.chrome.chooseCity" = "Tria una ciutat";
 "maps.chrome.recenter" = "La meva ubicació";
+
+// Story music
+"story.music.title" = "Música";
+"story.music.done" = "Fet";
+"story.music.search" = "Cerca cançons o artistes";
+"story.music.unavailable" = "Música no disponible";
+"story.music.unavailable.detail" = "No s’ha pogut carregar la música. Torna-ho a provar més tard.";
+"story.music.retry" = "Torna-ho a provar";
+"story.music.more" = "Més cançons";
+"story.music.empty" = "No s’han trobat cançons";
+"story.music.color" = "Color del text";
+"story.music.lyrics" = "Lletra";
+"story.music.preview" = "Previsualitza";
+"story.music.remove" = "Elimina la música";
+"story.music.fragment" = "Fragment seleccionat";
+"story.music.style.hidden" = "Només música";
+"story.music.style.title" = "Títol";
+"story.music.style.card" = "Targeta";
+"story.music.style.cover" = "Portada";
+"story.music.style.lyrics" = "Lletra";
+
+"story.music.style.record" = "Disc";
+
+// Music discovery and explicit bookmarks
+"story.music.tab.songs" = "Cançons";
+"story.music.tab.discover" = "Descobreix";
+"story.music.tab.saved" = "Desades";
+"story.music.save" = "Desar la cançó";
+"story.music.unsave" = "Treure de Desades";
+"story.music.posts" = "Publicacions amb aquesta cançó";
+"story.music.posts.placeholder" = "Les publicacions amb música apareixeran aquí.";
+"story.music.saved.confirmation" = "Cançó desada als preferits";
+"story.music.unsaved.confirmation" = "Cançó eliminada dels preferits";

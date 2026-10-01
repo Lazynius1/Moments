@@ -212,7 +212,12 @@ extension FirestoreService {
                     chainId: chainId,
                     expirationHours: resolvedExpirationHours
                 )
-                let duration = duration ?? (mediaItem.type == .video ? 60.0 : 15.0)
+                let musicDuration = stickers?.compactMap(\.music).first?.duration
+                let photoDuration = musicDuration.flatMap { value -> Double? in
+                    guard value.isFinite else { return nil }
+                    return min(max(value, 15), 60)
+                } ?? 15.0
+                let duration = duration ?? (mediaItem.type == .video ? 60.0 : photoDuration)
                 let storyId = storyId ?? UUID().uuidString
                 let resolvedTextOverlays = (textOverlays?.isEmpty == false ? textOverlays : nil)
                     ?? textOverlay.map { [$0] }
@@ -515,6 +520,9 @@ extension FirestoreService {
         }
         if let audioDuration = sticker.audioDuration {
             stickerData["audioDuration"] = audioDuration
+        }
+        if let music = sticker.music, let encoded = try? Firestore.Encoder().encode(music) {
+            stickerData["music"] = encoded
         }
 
         if sticker.isAnimated {

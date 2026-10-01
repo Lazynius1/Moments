@@ -4690,3 +4690,36 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "maps.chrome.nearby" = "W pobliżu";
 "maps.chrome.chooseCity" = "Wybierz miasto";
 "maps.chrome.recenter" = "Moja lokalizacja";
+
+// Story music
+"story.music.title" = "Muzyka";
+"story.music.done" = "Gotowe";
+"story.music.search" = "Szukaj utworów lub wykonawców";
+"story.music.unavailable" = "Muzyka niedostępna";
+"story.music.unavailable.detail" = "Nie udało się wczytać muzyki. Spróbuj ponownie później.";
+"story.music.retry" = "Spróbuj ponownie";
+"story.music.more" = "Więcej utworów";
+"story.music.empty" = "Nie znaleziono utworów";
+"story.music.color" = "Kolor tekstu";
+"story.music.lyrics" = "Tekst piosenki";
+"story.music.preview" = "Podgląd";
+"story.music.remove" = "Usuń muzykę";
+"story.music.fragment" = "Wybrany fragment";
+"story.music.style.hidden" = "Tylko muzyka";
+"story.music.style.title" = "Tytuł";
+"story.music.style.card" = "Karta";
+"story.music.style.cover" = "Okładka";
+"story.music.style.lyrics" = "Tekst piosenki";
+
+"story.music.style.record" = "Płyta";
+
+// Music discovery and explicit bookmarks
+"story.music.tab.songs" = "Utwory";
+"story.music.tab.discover" = "Odkrywaj";
+"story.music.tab.saved" = "Zapisane";
+"story.music.save" = "Zapisz utwór";
+"story.music.unsave" = "Usuń z zapisanych";
+"story.music.posts" = "Posty z tym utworem";
+"story.music.posts.placeholder" = "Tutaj pojawią się posty z muzyką.";
+"story.music.saved.confirmation" = "Utwór dodany do ulubionych";
+"story.music.unsaved.confirmation" = "Utwór usunięty z ulubionych";

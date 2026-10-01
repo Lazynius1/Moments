@@ -89,7 +89,8 @@ struct StoryOverlaysView: View {
             Color.clear
                 .frame(width: canvasSize.width, height: canvasSize.height)
                 .contentShape(Rectangle())
-                .allowsHitTesting(selectedStickerId != nil || activeEditingStickerId != nil)
+                // Selection alone must not intercept gestures on the media below.
+                .allowsHitTesting(activeEditingStickerId != nil)
                 .onTapGesture {
                     selectedStickerId = nil
                 }
@@ -548,8 +549,15 @@ struct StoryOverlaysView: View {
             }
         }
         .onChange(of: activeEditingStickerId) { oldValue, newValue in
+            if let newValue, focusedInlineStickerTransform?.id != newValue,
+               let music = stickers.first(where: { $0.id == newValue }), music.interactionData?.music != nil {
+                focusInlineEditableSticker(newValue)
+            }
             if oldValue != newValue, let oldValue, oldValue != editingPolaroidId {
                 restoreInlineEditableStickerIfNeeded(for: oldValue)
+                if newValue == nil, selectedStickerId == oldValue {
+                    selectedStickerId = nil
+                }
             }
 
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -995,6 +1003,7 @@ struct StoryOverlaysView: View {
     }
 
     private func isInlineEditableSticker(_ sticker: StickerItem) -> Bool {
+        if sticker.interactionData?.music != nil { return true }
         switch sticker.type {
         case .poll, .question, .quiz, .countdown, .emojiSlider:
             return true

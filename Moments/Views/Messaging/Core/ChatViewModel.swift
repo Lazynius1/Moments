@@ -2390,11 +2390,11 @@ class EnhancedChatViewModel: ObservableObject {
         sendVideoMessage(data: data, mediaBatchId: mediaBatchId, replyTo: nil)
     }
 
-    func sendVideoMessage(data: Data, mediaBatchId: String?, replyTo: String?) {
+    func sendVideoMessage(data: Data, mediaBatchId: String?, replyTo: String?, textOverlays: [StoryTextOverlayMetadata]? = nil, stickers: [StickerData]? = nil) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             ensureConversationExists { [weak self] id in
                 guard let self, let id, !id.isEmpty else { return }
-                self.sendVideoMessage(data: data, mediaBatchId: mediaBatchId, replyTo: replyTo)
+                self.sendVideoMessage(data: data, mediaBatchId: mediaBatchId, replyTo: replyTo, textOverlays: textOverlays, stickers: stickers)
             }
             return
         }
@@ -2416,6 +2416,7 @@ class EnhancedChatViewModel: ObservableObject {
             status: .sending,
             replyTo: replyTo,
             mediaBatchId: mediaBatchId,
+            textOverlays: textOverlays, stickers: stickers,
             isVanishModeMessage: vanishModeActive ? true : nil,
             vanishExpiresAt: nil
         )
@@ -2432,7 +2433,8 @@ class EnhancedChatViewModel: ObservableObject {
             mediaBatchId: mediaBatchId,
             isVanishModeMessage: vanishModeActive,
             vanishExpiresAt: nil,
-            replyTo: replyTo
+            replyTo: replyTo,
+            textOverlays: textOverlays, stickers: stickers
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {

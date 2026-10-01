@@ -273,6 +273,7 @@ class OfflineSyncService: ObservableObject {
                                 isVanishModeMessage: payload.isVanishModeMessage,
                                 vanishExpiresAt: payload.vanishExpiresAt,
                                 replyTo: payload.replyTo,
+                                textOverlays: payload.textOverlays, stickers: payload.stickers,
                                 completion: handleResult
                             )
                         }

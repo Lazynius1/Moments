@@ -61,6 +61,8 @@ struct MediaMessagePayload: Codable {
     let isVanishModeMessage: Bool
     let vanishExpiresAt: Date?
     let replyTo: String?
+    var textOverlays: [StoryTextOverlayMetadata]? = nil
+    var stickers: [StickerData]? = nil
 }
 
 /// Payload for persisting follow/unfollow actions

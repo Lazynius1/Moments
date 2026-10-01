@@ -729,7 +729,7 @@ class ChatService: ObservableObject {
         }
     }
     
-    func sendMediaMessage(conversationId: String, senderId: String, type: MessageType, mediaData: Data, fileName: String? = nil, messageId: String? = nil, mediaBatchId: String? = nil, isVanishModeMessage: Bool = false, vanishExpiresAt: Date? = nil, replyTo: String? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
+    func sendMediaMessage(conversationId: String, senderId: String, type: MessageType, mediaData: Data, fileName: String? = nil, messageId: String? = nil, mediaBatchId: String? = nil, isVanishModeMessage: Bool = false, vanishExpiresAt: Date? = nil, replyTo: String? = nil, textOverlays: [StoryTextOverlayMetadata]? = nil, stickers: [StickerData]? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
         let finalMessageId = messageId ?? UUID().uuidString
 
         if !NetworkMonitor.shared.isConnected {
@@ -744,7 +744,8 @@ class ChatService: ObservableObject {
                 mediaBatchId: mediaBatchId,
                 isVanishModeMessage: isVanishModeMessage,
                 vanishExpiresAt: vanishExpiresAt,
-                replyTo: replyTo
+                replyTo: replyTo,
+                textOverlays: textOverlays, stickers: stickers
             )
             completion(.success(pending))
             return
@@ -782,6 +783,7 @@ class ChatService: ObservableObject {
                     expirationDate: nil,
                     isViewed: false,
                     mediaBatchId: mediaBatchId,
+                    textOverlays: textOverlays, stickers: stickers,
                     isVanishModeMessage: isVanishModeMessage ? true : nil,
                     vanishExpiresAt: vanishExpiresAt
                 )
@@ -1079,7 +1081,8 @@ class ChatService: ObservableObject {
         mediaBatchId: String?,
         isVanishModeMessage: Bool,
         vanishExpiresAt: Date?,
-        replyTo: String?
+        replyTo: String?,
+        textOverlays: [StoryTextOverlayMetadata]? = nil, stickers: [StickerData]? = nil
     ) -> EnhancedMessage {
         let fileExtension = getFileExtension(for: type)
         let localURL = try? ChatCacheStore.writeDecryptedMedia(
@@ -1102,7 +1105,8 @@ class ChatService: ObservableObject {
             mediaBatchId: mediaBatchId,
             isVanishModeMessage: isVanishModeMessage,
             vanishExpiresAt: vanishExpiresAt,
-            replyTo: replyTo
+            replyTo: replyTo,
+            textOverlays: textOverlays, stickers: stickers
         )
         if let data = try? JSONEncoder().encode(payload) {
             let action = CachedAction(
@@ -1130,6 +1134,7 @@ class ChatService: ObservableObject {
             replyTo: replyTo,
             isViewed: false,
             mediaBatchId: mediaBatchId,
+            textOverlays: textOverlays, stickers: stickers,
             isVanishModeMessage: isVanishModeMessage ? true : nil,
             vanishExpiresAt: vanishExpiresAt
         )

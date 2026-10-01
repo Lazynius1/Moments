@@ -882,6 +882,10 @@ struct SharedMediaThumbnail: View {
                     .aspectRatio(contentMode: .fill)
             }
             .clipped()
+            .overlay {
+                if let message = media.sourceMessage { ChatMessageStaticOverlay(message: message) }
+            }
+            .clipped()
             .task { await resolveVideoThumbnailIfNeeded() }
             .overlay(alignment: .bottomLeading) {
                 if media.type == .video {
@@ -909,6 +913,10 @@ struct SharedMediaThumbnail: View {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
             )
+            .overlay {
+                if let message = media.sourceMessage { ChatMessageStaticOverlay(message: message) }
+            }
+            .clipped()
             .task { await resolveVideoThumbnailIfNeeded() }
             .overlay(alignment: .bottomLeading) {
                 if media.type == .video {
@@ -2272,7 +2280,6 @@ struct FullScreenMediaView: View {
     @State private var isMuted = false
     @State private var expandedVideoURL: URL?
     @State private var showExpandedVideo = false
-    @State private var dragOffset: CGFloat = 0
     @State private var selectedMediaId: String
     @State private var showingReactionBarForMessageId: String? = nil
     @State private var ephemeralRemaining: TimeInterval = 0
@@ -2418,9 +2425,7 @@ struct FullScreenMediaView: View {
                 .padding(.vertical, 8)
         }
         .contentShape(Rectangle())
-        .offset(y: dragOffset)
-        .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.84), value: dragOffset)
-        .simultaneousGesture(dismissDragGesture)
+        .statusBar(hidden: false)
         .alert("conversationSettings.mediaSave.title", isPresented: $showSaveResult) {
             Button("common.ok") { }
         } message: {
@@ -2540,10 +2545,24 @@ struct FullScreenMediaView: View {
         }
 
         Group {
-            if isScreenshotProtectedMedia(item) {
-                ScreenshotProtectedView(isProtected: true, fillsContainer: true) {
-                    mediaBody
+            if let message = item.sourceMessage,
+               !(message.stickers?.isEmpty ?? true) || !message.resolvedTextOverlays.isEmpty {
+                GeometryReader { geometry in
+                    let canvasWidth = min(geometry.size.width, geometry.size.height * 9 / 16)
+                    let canvasHeight = canvasWidth * 16 / 9
+                    ZStack {
+                        mediaBody
+                            .frame(width: canvasWidth, height: canvasHeight)
+                        ChatMessageStaticOverlay(message: message, interactiveReveal: true, animates: isActive)
+                            .frame(width: canvasWidth, height: canvasHeight)
+                            .zIndex(3)
+                    }
+                    .clipShape(mediaClipShape)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .modifier(ChatMediaScreenshotProtection(isProtected: isScreenshotProtectedMedia(item)))
+            } else if isScreenshotProtectedMedia(item) {
+                ScreenshotProtectedView(isProtected: true, fillsContainer: true) { mediaBody }
             } else {
                 mediaBody
             }
@@ -2602,15 +2621,26 @@ struct FullScreenMediaView: View {
 
             Spacer(minLength: 0)
 
-            if currentMedia.allowsSaving {
-                ProfileChromeIconButton(
-                    systemName: "arrow.down",
-                    foregroundColor: primaryOverlayColor,
-                    preset: .toolbarAction,
-                    action: { photosSaveGate.requestAccess { saveMedia() } }
-                )
-                .accessibilityLabel(Text("conversationSettings.mediaSave.action"))
+            HStack(spacing: 0) {
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 17, weight: .semibold))
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityLabel(Text("common.close"))
+                if currentMedia.allowsSaving {
+                    Button { photosSaveGate.requestAccess { saveMedia() } } label: {
+                        Image(systemName: "arrow.down")
+                            .font(.system(size: 17, weight: .semibold))
+                            .frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel(Text("conversationSettings.mediaSave.action"))
+                }
             }
+            .foregroundStyle(primaryOverlayColor)
+            .buttonStyle(.plain)
+            .momentsChromeGlass(in: Capsule(), interactive: true, style: .tinted)
+
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -2743,21 +2773,6 @@ struct FullScreenMediaView: View {
                 .padding(.bottom, 16)
             }
         }
-    }
-
-    private var dismissDragGesture: some Gesture {
-        DragGesture()
-            .onChanged { value in
-                guard value.translation.height > 0 else { return }
-                dragOffset = value.translation.height
-            }
-            .onEnded { value in
-                if value.translation.height > 120 {
-                    onClose()
-                } else {
-                    dragOffset = 0
-                }
-            }
     }
 
     @ViewBuilder
@@ -3347,5 +3362,15 @@ private struct ConversationSettingsCompactChromeModifier: ViewModifier {
         } else {
             content.momentsScrollEdgeChrome()
         }
+    }
+}
+
+private struct ChatMediaScreenshotProtection: ViewModifier {
+    let isProtected: Bool
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if isProtected {
+            ScreenshotProtectedView(isProtected: true, fillsContainer: true) { content }
+        } else { content }
     }
 }
