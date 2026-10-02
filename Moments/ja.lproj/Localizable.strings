@@ -4769,3 +4769,15 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "chat.wallpaper.preset.citrus" = "柑橘";
 
 "chat.wallpaper.current" = "現在のスタイル";
+
+"chat.wallpaper.preset.pearl" = "ネオン";
+"chat.wallpaper.preset.paper" = "紙";
+"chat.wallpaper.preset.ink" = "インク";
+"chat.wallpaper.preset.ripple" = "波紋";
+"chat.wallpaper.preset.prism" = "プリズム";
+"chat.wallpaper.preset.orbit" = "軌道";
+
+"chat.wallpaper.preset.brush" = "筆跡";
+"chat.wallpaper.preset.watercolor" = "水彩";
+"chat.wallpaper.preset.sketch" = "スケッチ";
+"chat.wallpaper.preset.canvas" = "キャンバス";

@@ -4998,3 +4998,15 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "chat.wallpaper.preset.citrus" = "Zitrus";
 
 "chat.wallpaper.current" = "Aktueller Stil";
+
+"chat.wallpaper.preset.pearl" = "Neon";
+"chat.wallpaper.preset.paper" = "Papier";
+"chat.wallpaper.preset.ink" = "Tinte";
+"chat.wallpaper.preset.ripple" = "Wellen";
+"chat.wallpaper.preset.prism" = "Prisma";
+"chat.wallpaper.preset.orbit" = "Orbit";
+
+"chat.wallpaper.preset.brush" = "Pinselstriche";
+"chat.wallpaper.preset.watercolor" = "Aquarell";
+"chat.wallpaper.preset.sketch" = "Skizze";
+"chat.wallpaper.preset.canvas" = "Leinwand";

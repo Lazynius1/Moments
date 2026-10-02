@@ -4998,3 +4998,15 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "chat.wallpaper.preset.citrus" = "Agrumi";
 
 "chat.wallpaper.current" = "Stile attuale";
+
+"chat.wallpaper.preset.pearl" = "Neon";
+"chat.wallpaper.preset.paper" = "Carta";
+"chat.wallpaper.preset.ink" = "Inchiostro";
+"chat.wallpaper.preset.ripple" = "Onde";
+"chat.wallpaper.preset.prism" = "Prisma";
+"chat.wallpaper.preset.orbit" = "Orbita";
+
+"chat.wallpaper.preset.brush" = "Pennellate";
+"chat.wallpaper.preset.watercolor" = "Acquerello";
+"chat.wallpaper.preset.sketch" = "Schizzo";
+"chat.wallpaper.preset.canvas" = "Tela";

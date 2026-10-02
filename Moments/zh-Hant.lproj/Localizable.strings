@@ -4769,3 +4769,15 @@
 "chat.wallpaper.preset.citrus" = "柑橘";
 
 "chat.wallpaper.current" = "目前風格";
+
+"chat.wallpaper.preset.pearl" = "霓虹";
+"chat.wallpaper.preset.paper" = "紙藝";
+"chat.wallpaper.preset.ink" = "墨韻";
+"chat.wallpaper.preset.ripple" = "波紋";
+"chat.wallpaper.preset.prism" = "稜鏡";
+"chat.wallpaper.preset.orbit" = "軌道";
+
+"chat.wallpaper.preset.brush" = "筆觸";
+"chat.wallpaper.preset.watercolor" = "水彩";
+"chat.wallpaper.preset.sketch" = "線稿";
+"chat.wallpaper.preset.canvas" = "畫布";

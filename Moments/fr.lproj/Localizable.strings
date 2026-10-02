@@ -4998,3 +4998,15 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "chat.wallpaper.preset.citrus" = "Agrumes";
 
 "chat.wallpaper.current" = "Style actuel";
+
+"chat.wallpaper.preset.pearl" = "Néon";
+"chat.wallpaper.preset.paper" = "Papier";
+"chat.wallpaper.preset.ink" = "Encre";
+"chat.wallpaper.preset.ripple" = "Ondes";
+"chat.wallpaper.preset.prism" = "Prisme";
+"chat.wallpaper.preset.orbit" = "Orbite";
+
+"chat.wallpaper.preset.brush" = "Coups de pinceau";
+"chat.wallpaper.preset.watercolor" = "Aquarelle";
+"chat.wallpaper.preset.sketch" = "Esquisse";
+"chat.wallpaper.preset.canvas" = "Toile";

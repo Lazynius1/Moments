@@ -409,11 +409,13 @@ struct ChatMessageContextMenuOverlay: View {
     private let menuRowHeight: CGFloat = 36
     private let menuCornerRadius: CGFloat = ChatAttachmentSheetMetrics.cornerRadius
     private let stackGap: CGFloat = 10
-    private let reactionsBarHeight: CGFloat = 54
+    private let reactionsBarHeight: CGFloat = 64
     private let expandedReactionsHeight: CGFloat = 232
     private let horizontalInset: CGFloat = 16
 
-    private let reactionsBarEstimatedWidth: CGFloat = 300
+    private var reactionRailWidth: CGFloat {
+        min(max(containerSize.width - horizontalInset * 2, 0), 400)
+    }
     private let menuEstimatedWidth: CGFloat = 240
     /// Lift extra cuando hay hueco (el mensaje no solo se escala, también se eleva).
     private let extraMessageLift: CGFloat = 18
@@ -453,10 +455,6 @@ struct ChatMessageContextMenuOverlay: View {
                 let layout = menuLayout(for: selection, rowCount: rowCount)
                 let anchor = localAnchorFrame(selection.anchorFrame)
                 let presentedOffsetY = isPresented ? layout.messageOffsetY : 0
-                let restReactionsCenter = CGPoint(
-                    x: layout.reactionsCenter.x,
-                    y: layout.reactionsCenter.y - layout.messageOffsetY
-                )
                 let restMenuCenter = CGPoint(
                     x: layout.menuCenter.x,
                     y: layout.menuCenter.y - layout.messageOffsetY
@@ -478,14 +476,10 @@ struct ChatMessageContextMenuOverlay: View {
                     .offset(overlayOffset(for: CGPoint(x: anchor.midX, y: anchor.midY + presentedOffsetY)))
                     .zIndex(1)
 
-                reactionsRail(for: selection, isAboveMessage: layout.reactionsAreAbove)
+                reactionsRail(for: selection, isAboveMessage: layout.reactionsAreAbove, centerX: layout.reactionsCenter.x)
                     .fixedSize()
-                    .offset(overlayOffset(for: isPresented ? layout.reactionsCenter : restReactionsCenter))
-                    .scaleEffect(
-                        isPresented ? 1 : 0.86,
-                        anchor: layout.reactionsAreAbove ? .bottom : .top
-                    )
-                    .opacity(isPresented ? 1 : 0)
+                    .offset(overlayOffset(for: layout.reactionsCenter))
+                    .allowsHitTesting(isPresented)
                     .zIndex(3)
 
                 actionsMenu(for: selection.message, isCurrentUser: selection.message.senderId == currentUserId)
@@ -552,43 +546,24 @@ struct ChatMessageContextMenuOverlay: View {
     }
 
     @ViewBuilder
-    private func reactionsRail(for selection: ChatMessageMenuSelection, isAboveMessage: Bool) -> some View {
+    private func reactionsRail(for selection: ChatMessageMenuSelection, isAboveMessage: Bool, centerX: CGFloat) -> some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                ForEach(emojiUsageTracker.orderedEmojis(from: EmojiReactionDefaults.chat), id: \.self) { emoji in
-                    reactionButton(
-                        emoji,
-                        for: selection.message,
-                        size: 28,
-                        anchorKey: "quick:\(emoji)"
-                    )
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 0) {
+                    ForEach(railReactionEmojis, id: \.self) { emoji in
+                        reactionButton(
+                            emoji,
+                            for: selection.message,
+                            size: 28,
+                            anchorKey: "quick:\(emoji)"
+                        )
+                        .frame(width: 48, height: reactionsBarHeight)
+                    }
                 }
-
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(primaryTextColor)
-                    .rotationEffect(.degrees(areReactionsExpanded ? 180 : 0))
-                    .frame(width: 36, height: 36)
-                    .background {
-                        Color.clear
-                            .momentsChromeGlass(in: Circle(), interactive: false)
-                    }
-                    .overlay(
-                        Circle()
-                            .stroke(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08), lineWidth: 1)
-                    )
-                    .contentShape(Circle())
-                    .onTapGesture {
-                        HapticManager.shared.lightImpact()
-                        skinToneSelection = nil
-                        withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.4, dampingFraction: 0.86)) {
-                            areReactionsExpanded.toggle()
-                        }
-                    }
-                    .accessibilityAddTraits(.isButton)
             }
-            .frame(height: 46)
-            .padding(.horizontal, 10)
+            .contentMargins(.horizontal, 14, for: .scrollContent)
+            .scrollIndicators(.hidden)
+            .frame(height: reactionsBarHeight)
 
             if areReactionsExpanded {
                 Divider()
@@ -613,37 +588,35 @@ struct ChatMessageContextMenuOverlay: View {
                     .padding(10)
                 }
                 .scrollIndicators(.hidden)
-                .frame(height: expandedReactionsHeight - 47)
+                .frame(height: expandedReactionsHeight - reactionsBarHeight - 1)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .frame(width: areReactionsExpanded ? min(containerSize.width - 24, 350) : nil)
-        .momentsChromeGlass(
-            in: RoundedRectangle(cornerRadius: 23, style: .continuous),
-            interactive: false
+        .frame(width: reactionRailWidth)
+        .modifier(ChatReactionRailFormation(
+            progress: isPresented ? 1 : 0,
+            sourceX: reactionConnectorX(for: selection, centerX: centerX),
+            pointsDown: isAboveMessage,
+            bendsTrailing: !selection.isOutgoing,
+            reduceMotion: UIAccessibility.isReduceMotionEnabled,
+            isExpanded: areReactionsExpanded,
+            onToggleExpanded: {
+                HapticManager.shared.lightImpact()
+                skinToneSelection = nil
+                withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.4, dampingFraction: 0.86)) {
+                    areReactionsExpanded.toggle()
+                }
+            }
+        ))
+        .animation(
+            // Preserve the reference phases with a slightly quicker entry.
+            // Each phase supplies its own easing; the shared clock stays linear.
+            UIAccessibility.isReduceMotionEnabled ? nil : .linear(duration: isPresented ? 0.42 : 0.30),
+            value: isPresented
         )
-        .clipShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
         .coordinateSpace(name: "chatReactionRail")
         .onPreferenceChange(ChatReactionEmojiFramePreference.self) { frames in
             reactionEmojiFrames = frames
-        }
-        .overlay(
-            alignment: reactionConnectorAlignment(
-                isOutgoing: selection.isOutgoing,
-                isAboveMessage: isAboveMessage
-            )
-        ) {
-            ChatReactionRailConnector(
-                pointsDown: isAboveMessage,
-                bendsTrailing: !selection.isOutgoing,
-                colorScheme: colorScheme
-            )
-            .offset(
-                x: selection.isOutgoing ? -23 : 23,
-                y: isAboveMessage ? 20 : -20
-            )
-            .allowsHitTesting(false)
         }
         .overlay {
             skinToneOverlay(
@@ -651,6 +624,23 @@ struct ChatMessageContextMenuOverlay: View {
                 isAboveMessage: isAboveMessage
             )
         }
+    }
+
+    private func reactionConnectorX(for selection: ChatMessageMenuSelection, centerX: CGFloat) -> CGFloat {
+        let anchor = scaledAnchorFrame(for: selection.anchorFrame)
+        let railLeft = centerX - reactionRailWidth / 2
+        let sourceX = selection.isOutgoing ? anchor.minX - 22 : anchor.maxX + 22
+        let inset: CGFloat = 34
+        return min(max(sourceX - railLeft, inset), max(inset, reactionRailWidth - inset))
+    }
+
+    private var railReactionEmojis: [String] {
+        var seen = Set<String>()
+        let recent = emojiUsageTracker.recentlyUsed(limit: 20)
+        let candidates = (EmojiReactionDefaults.chat + recent + Array(inlineReactionEmojis.prefix(32)))
+            .filter { seen.insert($0).inserted }
+        // Keep the quick rail focused; the smile opens the complete picker.
+        return emojiUsageTracker.orderedEmojis(from: candidates, limit: 20)
     }
 
     private var inlineReactionEmojis: [String] {
@@ -755,7 +745,8 @@ struct ChatMessageContextMenuOverlay: View {
                 .padding(.vertical, 6)
                 .momentsChromeGlass(
                     in: RoundedRectangle(cornerRadius: 19, style: .continuous),
-                    interactive: true
+                    interactive: true,
+                    style: .tinted
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
                 .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.18), radius: 18, y: 8)
@@ -802,14 +793,6 @@ struct ChatMessageContextMenuOverlay: View {
         }
     }
 
-    private func reactionConnectorAlignment(isOutgoing: Bool, isAboveMessage: Bool) -> Alignment {
-        switch (isOutgoing, isAboveMessage) {
-        case (true, true): return .bottomTrailing
-        case (true, false): return .topTrailing
-        case (false, true): return .bottomLeading
-        case (false, false): return .topLeading
-        }
-    }
 
     @ViewBuilder
     private func actionsMenu(for message: EnhancedMessage, isCurrentUser: Bool) -> some View {
@@ -879,7 +862,7 @@ struct ChatMessageContextMenuOverlay: View {
         .frame(minWidth: 240)
         .padding(.vertical, 8)
         .padding(.horizontal, 8)
-        .momentsChromeGlass(in: menuCardShape, interactive: true)
+        .momentsChromeGlass(in: menuCardShape, interactive: true, style: .tinted)
         .clipShape(menuCardShape)
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
     }
@@ -1047,14 +1030,13 @@ struct ChatMessageContextMenuOverlay: View {
             includesGroupReaders: includesGroupReaders
         )
         let reactionPanelHeight = areReactionsExpanded ? expandedReactionsHeight : reactionsBarHeight
-        let reactionPanelWidth = areReactionsExpanded
-            ? min(containerSize.width - 24, 350)
-            : reactionsBarEstimatedWidth
+        let reactionMessageGap: CGFloat = 6
+        let reactionPanelWidth = reactionRailWidth
         let centerX = clampedCenterX(scaled.midX, itemWidth: max(reactionPanelWidth, menuEstimatedWidth))
 
         // Reubica el mensaje elevado para que reacciones + mensaje + acciones
         // formen un bloque visible. El rail queda arriba y las acciones debajo.
-        let minimumMessageTop = layoutTopMargin + reactionPanelHeight + stackGap
+        let minimumMessageTop = layoutTopMargin + reactionPanelHeight + reactionMessageGap
         let maximumMessageTop = containerSize.height
             - layoutBottomMargin
             - menuHeight
@@ -1071,7 +1053,7 @@ struct ChatMessageContextMenuOverlay: View {
         }
         let messageOffsetY = targetMessageTop - scaled.minY
         let shiftedMessage = scaled.offsetBy(dx: 0, dy: messageOffsetY)
-        let reactionsCenterY = shiftedMessage.minY - stackGap - reactionPanelHeight / 2
+        let reactionsCenterY = shiftedMessage.minY - reactionMessageGap - reactionPanelHeight / 2
         let menuCenterY = shiftedMessage.maxY + stackGap + menuHeight / 2
 
         return ChatMessageMenuLayout(
@@ -1138,7 +1120,7 @@ struct ChatMessageContextMenuOverlay: View {
             isPresented = false
         }
 
-        let delay = UIAccessibility.isReduceMotionEnabled ? 0 : 0.26
+        let delay = UIAccessibility.isReduceMotionEnabled ? 0 : 0.32
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             guard generation == dismissGeneration else { return }
             selection?.extractSource.putBack()
@@ -1148,29 +1130,153 @@ struct ChatMessageContextMenuOverlay: View {
     }
 }
 
-private struct ChatReactionRailConnector: View {
-    let pointsDown: Bool
-    let bendsTrailing: Bool
-    let colorScheme: ColorScheme
+private struct ChatReactionGlassGroup<Content: View>: View {
+    @ViewBuilder let content: () -> Content
 
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(.ultraThinMaterial)
-                .frame(width: 16, height: 16)
-                .position(x: 12, y: pointsDown ? 8 : 20)
-
-            Circle()
-                .fill(.ultraThinMaterial)
-                .frame(width: 8, height: 8)
-                .position(
-                    x: bendsTrailing ? 21 : 3,
-                    y: pointsDown ? 22 : 6
-                )
+        if #available(iOS 26.0, *) {
+            // The first two connector circles touch and merge with the rail;
+            // the final dot keeps a visible gap.
+            GlassEffectContainer(spacing: 1) {
+                content()
+            }
+        } else {
+            content()
         }
-        .frame(width: 24, height: 28)
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0.28 : 0.16), radius: 15)
-        .accessibilityHidden(true)
+    }
+}
+
+// The rail, its glyphs and its tails share presentation geometry and progress.
+// Apply native glass to each surface's content after layout and visual modifiers.
+private struct ChatReactionRailFormation: AnimatableModifier {
+    var progress: CGFloat
+    let sourceX: CGFloat
+    let pointsDown: Bool
+    let bendsTrailing: Bool
+    let reduceMotion: Bool
+    let isExpanded: Bool
+    let onToggleExpanded: () -> Void
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    private func phase(_ start: CGFloat, _ end: CGFloat) -> CGFloat {
+        let value = min(max((progress - start) / (end - start), 0), 1)
+        return value * value * (3 - 2 * value)
+    }
+
+    func body(content: Content) -> some View {
+        let round = reduceMotion ? 1 : phase(0, 0.26)
+        let spread = reduceMotion ? 1 : phase(0.20, 0.78)
+        let visible = reduceMotion ? progress : phase(0.30, 0.82)
+        let tail = reduceMotion ? 1 : phase(0.50, 0.89)
+        let faceOpacity = reduceMotion ? progress : phase(0.60, 1)
+        let medium = reduceMotion ? 1 : phase(0.58, 0.94)
+        let small = reduceMotion ? 1 : phase(0.65, 0.98)
+
+        content.hidden()
+            .overlay {
+                GeometryReader { geometry in
+                    let diameter = 0.01 + 39.99 * round
+                    let width = diameter + (geometry.size.width - 40) * spread
+                    let height = diameter + (geometry.size.height - 40) * spread
+                    let centerX = sourceX + (geometry.size.width / 2 - sourceX) * spread
+                    // Form at the final rail height; the message lift must not
+                    // transport the seed or the completed glass surface.
+                    let centerY = geometry.size.height / 2
+                    let direction: CGFloat = pointsDown ? 1 : -1
+                    let edgeY = centerY + direction * height / 2
+                    // Grow out of the moving rail edge, keeping the large and
+                    // medium surfaces touching while native glass joins them.
+                    let faceY = edgeY + direction * (-8 + 18 * tail)
+                    let mediumY = faceY + direction * (12 + 8 * medium)
+                    let smallY = mediumY + direction * (6 + 5 * small)
+
+                    ChatReactionGlassGroup {
+                        ZStack {
+                            // Content and material use exactly the same surface,
+                            // so no independent foreground trajectory can escape it.
+                            content
+                                .frame(width: geometry.size.width, height: geometry.size.height)
+                                .blur(radius: reduceMotion ? 0 : 2 * (1 - visible))
+                                .opacity(Double(visible))
+                                .frame(width: width, height: height)
+                                .clipShape(RoundedRectangle(cornerRadius: isExpanded ? min(23, height / 2) : height / 2, style: .continuous))
+                                .momentsChromeGlass(
+                                    in: RoundedRectangle(cornerRadius: isExpanded ? min(23, height / 2) : height / 2, style: .continuous),
+                                    interactive: false,
+                                    style: .tinted
+                                )
+                                .opacity(Double(reduceMotion ? progress : phase(0, 0.08)))
+                                .position(x: centerX, y: centerY)
+
+                            ChatReactionRailConnector(
+                                isExpanded: isExpanded,
+                                formation: tail,
+                                glyphOpacity: faceOpacity,
+                                surfaceOpacity: reduceMotion ? progress : tail,
+                                reduceMotion: reduceMotion,
+                                onToggleExpanded: onToggleExpanded
+                            )
+                            .position(x: sourceX, y: faceY)
+
+                            tailBubble(size: 12, formation: medium)
+                                .position(
+                                    x: sourceX + (bendsTrailing ? 14 : -14) * medium,
+                                    y: mediumY
+                                )
+                            tailBubble(size: 8, formation: small)
+                                .position(
+                                    x: sourceX + (bendsTrailing ? 1 : -1) * (14 * medium + 5 * small),
+                                    y: smallY
+                                )
+                        }
+                    }
+                    .transaction { transaction in transaction.animation = nil }
+                }
+            }
+    }
+
+    private func tailBubble(size: CGFloat, formation: CGFloat) -> some View {
+        Color.clear
+            .frame(width: max(0.01, size * formation), height: max(0.01, size * formation))
+            .momentsChromeGlass(in: Circle(), interactive: false, style: .tinted)
+            .opacity(Double(reduceMotion ? progress : formation))
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct ChatReactionRailConnector: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let isExpanded: Bool
+    let formation: CGFloat
+    let glyphOpacity: CGFloat
+    let surfaceOpacity: CGFloat
+    let reduceMotion: Bool
+    let onToggleExpanded: () -> Void
+
+    var body: some View {
+        Button(action: onToggleExpanded) {
+            Image("ChatReactionSmileIcon")
+                .resizable()
+                .renderingMode(.template)
+                .scaledToFit()
+                .foregroundStyle(MomentsChromeGlass.contentColor(for: colorScheme).opacity(0.65))
+                .frame(width: 22, height: 22)
+                .blur(radius: reduceMotion ? 0 : 2.5 * (1 - glyphOpacity))
+                .opacity(Double(glyphOpacity))
+                .frame(width: max(0.01, 40 * formation), height: max(0.01, 40 * formation))
+                .clipShape(Circle())
+                .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
+                .opacity(Double(surfaceOpacity))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("reactions.title"))
+        .accessibilityHint(isExpanded ? Text("momentDetail.showLess") : Text("momentDetail.showMore"))
     }
 }
 
@@ -1248,7 +1354,7 @@ struct GlassActionButton: View {
             .foregroundStyle(isDestructive ? Color.red : MomentsChromeGlass.contentColor(for: colorScheme))
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .momentsChromeGlass(in: actionShape, interactive: true)
+            .momentsChromeGlass(in: actionShape, interactive: true, style: .tinted)
             .clipShape(actionShape)
         }
         .buttonStyle(.plain)

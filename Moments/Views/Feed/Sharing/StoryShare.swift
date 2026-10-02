@@ -721,6 +721,7 @@ private struct SharedStoryUnavailablePreview: View {
 
     var body: some View {
         ZStack {
+            Color(red: 48 / 255, green: 54 / 255, blue: 61 / 255)
             Group {
                 if let previewImageURL,
                    !previewImageURL.isEmpty,

@@ -5018,3 +5018,15 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "chat.wallpaper.preset.citrus" = "Cítricos";
 
 "chat.wallpaper.current" = "Estilo actual";
+
+"chat.wallpaper.preset.pearl" = "Neón";
+"chat.wallpaper.preset.paper" = "Papel";
+"chat.wallpaper.preset.ink" = "Tinta";
+"chat.wallpaper.preset.ripple" = "Ondas";
+"chat.wallpaper.preset.prism" = "Prisma";
+"chat.wallpaper.preset.orbit" = "Órbita";
+
+"chat.wallpaper.preset.brush" = "Pinceladas";
+"chat.wallpaper.preset.watercolor" = "Acuarela";
+"chat.wallpaper.preset.sketch" = "Trazo";
+"chat.wallpaper.preset.canvas" = "Lienzo";

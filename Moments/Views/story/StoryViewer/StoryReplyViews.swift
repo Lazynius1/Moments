@@ -302,6 +302,7 @@ private struct StoryReplyUnavailableThumbnail: View {
         let shape = RoundedRectangle(cornerRadius: StoryReplyPreviewMetrics.cornerRadius, style: .continuous)
 
         ZStack {
+            Color(red: 48 / 255, green: 54 / 255, blue: 61 / 255)
             Group {
                 if let previewURL,
                    let url = URL(string: previewURL) {

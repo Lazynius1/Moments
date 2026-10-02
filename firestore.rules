@@ -2373,7 +2373,7 @@ service cloud.firestore {
         && request.resource.data.get('bubbleColorHex', '3F6F8F').matches('^[0-9A-Fa-f]{6}$')
         && request.resource.data.kind in ['default', 'color', 'photo', 'preset']
         && request.resource.data.get('presetId', '') is string
-        && request.resource.data.get('presetId', '') in ['', 'aurora', 'coast', 'dune', 'forest', 'bloom', 'midnight', 'lagoon', 'clay', 'cloud', 'citrus']
+        && request.resource.data.get('presetId', '') in ['', 'aurora', 'coast', 'dune', 'forest', 'bloom', 'midnight', 'lagoon', 'clay', 'cloud', 'citrus', 'pearl', 'paper', 'ink', 'ripple', 'prism', 'orbit', 'brush', 'watercolor', 'sketch', 'canvas']
         && (request.resource.data.kind != 'preset' || request.resource.data.get('presetId', '') != '')
         && request.resource.data.colorHex is string
         && request.resource.data.colorHex.matches('^[0-9A-Fa-f]{6}$')

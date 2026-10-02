@@ -5017,3 +5017,15 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "chat.wallpaper.preset.citrus" = "Cítrics";
 
 "chat.wallpaper.current" = "Estil actual";
+
+"chat.wallpaper.preset.pearl" = "Neó";
+"chat.wallpaper.preset.paper" = "Paper";
+"chat.wallpaper.preset.ink" = "Tinta";
+"chat.wallpaper.preset.ripple" = "Ones";
+"chat.wallpaper.preset.prism" = "Prisma";
+"chat.wallpaper.preset.orbit" = "Òrbita";
+
+"chat.wallpaper.preset.brush" = "Pinzellades";
+"chat.wallpaper.preset.watercolor" = "Aquarel·la";
+"chat.wallpaper.preset.sketch" = "Traç";
+"chat.wallpaper.preset.canvas" = "Tela";

@@ -4769,3 +4769,15 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "chat.wallpaper.preset.citrus" = "Cytrusy";
 
 "chat.wallpaper.current" = "Obecny styl";
+
+"chat.wallpaper.preset.pearl" = "Neon";
+"chat.wallpaper.preset.paper" = "Papier";
+"chat.wallpaper.preset.ink" = "Atrament";
+"chat.wallpaper.preset.ripple" = "Fale";
+"chat.wallpaper.preset.prism" = "Pryzmat";
+"chat.wallpaper.preset.orbit" = "Orbita";
+
+"chat.wallpaper.preset.brush" = "Pociągnięcia pędzla";
+"chat.wallpaper.preset.watercolor" = "Akwarela";
+"chat.wallpaper.preset.sketch" = "Szkic";
+"chat.wallpaper.preset.canvas" = "Płótno";

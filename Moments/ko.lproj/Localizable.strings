@@ -4769,3 +4769,15 @@
 "chat.wallpaper.preset.citrus" = "시트러스";
 
 "chat.wallpaper.current" = "현재 스타일";
+
+"chat.wallpaper.preset.pearl" = "네온";
+"chat.wallpaper.preset.paper" = "종이";
+"chat.wallpaper.preset.ink" = "잉크";
+"chat.wallpaper.preset.ripple" = "물결";
+"chat.wallpaper.preset.prism" = "프리즘";
+"chat.wallpaper.preset.orbit" = "궤도";
+
+"chat.wallpaper.preset.brush" = "붓터치";
+"chat.wallpaper.preset.watercolor" = "수채화";
+"chat.wallpaper.preset.sketch" = "스케치";
+"chat.wallpaper.preset.canvas" = "캔버스";

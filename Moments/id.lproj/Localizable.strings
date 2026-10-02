@@ -4769,3 +4769,15 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "chat.wallpaper.preset.citrus" = "Jeruk";
 
 "chat.wallpaper.current" = "Gaya saat ini";
+
+"chat.wallpaper.preset.pearl" = "Neon";
+"chat.wallpaper.preset.paper" = "Kertas";
+"chat.wallpaper.preset.ink" = "Tinta";
+"chat.wallpaper.preset.ripple" = "Riak";
+"chat.wallpaper.preset.prism" = "Prisma";
+"chat.wallpaper.preset.orbit" = "Orbit";
+
+"chat.wallpaper.preset.brush" = "Sapuan kuas";
+"chat.wallpaper.preset.watercolor" = "Cat air";
+"chat.wallpaper.preset.sketch" = "Sketsa";
+"chat.wallpaper.preset.canvas" = "Kanvas";

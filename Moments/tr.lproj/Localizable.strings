@@ -4769,3 +4769,15 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "chat.wallpaper.preset.citrus" = "Narenciye";
 
 "chat.wallpaper.current" = "Mevcut stil";
+
+"chat.wallpaper.preset.pearl" = "Neon";
+"chat.wallpaper.preset.paper" = "Kâğıt";
+"chat.wallpaper.preset.ink" = "Mürekkep";
+"chat.wallpaper.preset.ripple" = "Dalgalar";
+"chat.wallpaper.preset.prism" = "Prizma";
+"chat.wallpaper.preset.orbit" = "Yörünge";
+
+"chat.wallpaper.preset.brush" = "Fırça darbeleri";
+"chat.wallpaper.preset.watercolor" = "Suluboya";
+"chat.wallpaper.preset.sketch" = "Eskiz";
+"chat.wallpaper.preset.canvas" = "Tuval";

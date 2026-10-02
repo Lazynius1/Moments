@@ -179,7 +179,9 @@ struct ChatWallpaperPreset: Identifiable {
                       Self(id: "dune", bubble: "A44732"), Self(id: "forest", bubble: "35624C"),
                       Self(id: "bloom", bubble: "B04A78"), Self(id: "midnight", bubble: "263F63"),
                       Self(id: "lagoon", bubble: "397487"), Self(id: "clay", bubble: "705239"),
-                      Self(id: "cloud", bubble: "3F6F8F"), Self(id: "citrus", bubble: "746133")]
+                      Self(id: "cloud", bubble: "D3E4EF"), Self(id: "citrus", bubble: "E0B616"),
+                      Self(id: "pearl", bubble: "EA2D70"), Self(id: "paper", bubble: "9D6A43"), Self(id: "ink", bubble: "3C3F45"), Self(id: "ripple", bubble: "BFA88A"), Self(id: "prism", bubble: "098DDC"), Self(id: "orbit", bubble: "C256D8"),
+                      Self(id: "brush", bubble: "3F6F8F"), Self(id: "watercolor", bubble: "76A529"), Self(id: "sketch", bubble: "00AB8C"), Self(id: "canvas", bubble: "8F394C")]
 }
 
 let chatBubblePalette = [

@@ -4769,3 +4769,15 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "chat.wallpaper.preset.citrus" = "Citrus";
 
 "chat.wallpaper.current" = "Huidige stijl";
+
+"chat.wallpaper.preset.pearl" = "Neon";
+"chat.wallpaper.preset.paper" = "Papier";
+"chat.wallpaper.preset.ink" = "Inkt";
+"chat.wallpaper.preset.ripple" = "Golven";
+"chat.wallpaper.preset.prism" = "Prisma";
+"chat.wallpaper.preset.orbit" = "Baan";
+
+"chat.wallpaper.preset.brush" = "Penseelstreken";
+"chat.wallpaper.preset.watercolor" = "Aquarel";
+"chat.wallpaper.preset.sketch" = "Schets";
+"chat.wallpaper.preset.canvas" = "Doek";
