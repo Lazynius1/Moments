@@ -582,7 +582,7 @@ struct GlassmorphicAudioMessage: View {
     /// Tuyos: mismo color sólido saliente que el texto. Del otro: glass como el resto.
     private var contentColor: Color {
         if isCurrentUser {
-            return .white
+            return chatBubbleTextColor(for: chatOutgoingBubbleColor)
         }
         return adaptiveColors.messageTextColor
     }

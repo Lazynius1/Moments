@@ -4723,7 +4723,7 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "story.music.posts.placeholder" = "音楽付きの投稿がここに表示されます。";
 "story.music.saved.confirmation" = "曲をお気に入りに保存しました";
 "story.music.unsaved.confirmation" = "曲をお気に入りから削除しました";
-"chat.wallpaper.title" = "チャットの背景";
+"chat.wallpaper.title" = "チャットのスタイル";
 "chat.wallpaper.private" = "この背景は自分にだけ表示されます。この会話用に保存され、アカウントと同期されます。";
 "chat.wallpaper.photo" = "写真を選択";
 "chat.wallpaper.color" = "色";
@@ -4732,6 +4732,40 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "chat.wallpaper.save" = "保存";
 "chat.wallpaper.preview" = "メッセージはこのように表示されます";
 "chat.wallpaper.error" = "背景を保存または読み込めませんでした。もう一度お試しください。";
-"chat.wallpaper.crop" = "写真をドラッグして位置を調整し、スライダーで拡大できます。";
+"chat.wallpaper.crop" = "ドラッグとピンチで写真の位置と大きさを調整します。";
 "chat.wallpaper.back" = "戻る";
-"chat.wallpaper.saved" = "チャットの背景を保存しました";
+"chat.wallpaper.saved" = "チャットのスタイルを保存しました";
+"chat.wallpaper.frame" = "写真の位置を調整";
+"chat.wallpaper.bubbleColor" = "送信メッセージの色";
+
+"chat.wallpaper.styles" = "スタイル";
+
+"chat.wallpaper.stylesHint" = "背景と送信メッセージの色を変更します。";
+
+"chat.wallpaper.customize" = "カスタマイズ";
+
+"chat.wallpaper.background" = "背景";
+
+"chat.wallpaper.previewTitle" = "プレビュー";
+
+"chat.wallpaper.preset.aurora" = "オーロラ";
+
+"chat.wallpaper.preset.coast" = "海岸";
+
+"chat.wallpaper.preset.dune" = "砂丘";
+
+"chat.wallpaper.preset.forest" = "森";
+
+"chat.wallpaper.preset.bloom" = "花";
+
+"chat.wallpaper.preset.midnight" = "真夜中";
+
+"chat.wallpaper.preset.lagoon" = "ラグーン";
+
+"chat.wallpaper.preset.clay" = "粘土";
+
+"chat.wallpaper.preset.cloud" = "雲";
+
+"chat.wallpaper.preset.citrus" = "柑橘";
+
+"chat.wallpaper.current" = "現在のスタイル";

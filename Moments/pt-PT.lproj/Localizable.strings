@@ -5726,7 +5726,7 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "story.music.posts.placeholder" = "As publicações com música aparecerão aqui.";
 "story.music.saved.confirmation" = "Música guardada nos favoritos";
 "story.music.unsaved.confirmation" = "Música removida dos favoritos";
-"chat.wallpaper.title" = "Fundo da conversa";
+"chat.wallpaper.title" = "Estilo da conversa";
 "chat.wallpaper.private" = "Só tu vês este fundo. É guardado para esta conversa e sincronizado com a tua conta.";
 "chat.wallpaper.photo" = "Escolher fotografia";
 "chat.wallpaper.color" = "Cor";
@@ -5735,6 +5735,40 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "chat.wallpaper.save" = "Guardar";
 "chat.wallpaper.preview" = "Assim vão aparecer as tuas mensagens";
 "chat.wallpaper.error" = "Não foi possível guardar ou carregar o fundo. Tenta novamente.";
-"chat.wallpaper.crop" = "Arrasta a fotografia para a enquadrar e usa o controlo para ampliar.";
+"chat.wallpaper.crop" = "Arraste e use dois dedos para enquadrar a fotografia.";
 "chat.wallpaper.back" = "Voltar";
-"chat.wallpaper.saved" = "Fundo da conversa guardado";
+"chat.wallpaper.saved" = "Estilo da conversa guardado";
+"chat.wallpaper.frame" = "Enquadrar fotografia";
+"chat.wallpaper.bubbleColor" = "Cor das mensagens enviadas";
+
+"chat.wallpaper.styles" = "Estilos";
+
+"chat.wallpaper.stylesHint" = "Alteram o fundo e a cor das mensagens que envias.";
+
+"chat.wallpaper.customize" = "Personalizar";
+
+"chat.wallpaper.background" = "Fundo";
+
+"chat.wallpaper.previewTitle" = "Pré-visualização";
+
+"chat.wallpaper.preset.aurora" = "Aurora";
+
+"chat.wallpaper.preset.coast" = "Costa";
+
+"chat.wallpaper.preset.dune" = "Dunas";
+
+"chat.wallpaper.preset.forest" = "Floresta";
+
+"chat.wallpaper.preset.bloom" = "Flores";
+
+"chat.wallpaper.preset.midnight" = "Meia-noite";
+
+"chat.wallpaper.preset.lagoon" = "Lagoa";
+
+"chat.wallpaper.preset.clay" = "Argila";
+
+"chat.wallpaper.preset.cloud" = "Nuvens";
+
+"chat.wallpaper.preset.citrus" = "Cítricos";
+
+"chat.wallpaper.current" = "Estilo atual";

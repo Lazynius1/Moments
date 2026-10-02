@@ -4723,7 +4723,7 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "story.music.posts.placeholder" = "Postingan dengan musik akan muncul di sini.";
 "story.music.saved.confirmation" = "Lagu disimpan ke favorit";
 "story.music.unsaved.confirmation" = "Lagu dihapus dari favorit";
-"chat.wallpaper.title" = "Latar chat";
+"chat.wallpaper.title" = "Gaya chat";
 "chat.wallpaper.private" = "Hanya kamu yang melihat latar ini. Latar disimpan untuk percakapan ini dan disinkronkan dengan akunmu.";
 "chat.wallpaper.photo" = "Pilih foto";
 "chat.wallpaper.color" = "Warna";
@@ -4732,6 +4732,40 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "chat.wallpaper.save" = "Simpan";
 "chat.wallpaper.preview" = "Seperti ini tampilan pesanmu";
 "chat.wallpaper.error" = "Latar tidak dapat disimpan atau dimuat. Coba lagi.";
-"chat.wallpaper.crop" = "Geser foto untuk mengatur bingkai dan gunakan penggeser untuk memperbesar.";
+"chat.wallpaper.crop" = "Geser dan cubit untuk mengatur bingkai foto.";
 "chat.wallpaper.back" = "Kembali";
-"chat.wallpaper.saved" = "Latar chat disimpan";
+"chat.wallpaper.saved" = "Gaya chat disimpan";
+"chat.wallpaper.frame" = "Atur bingkai foto";
+"chat.wallpaper.bubbleColor" = "Warna pesan terkirim";
+
+"chat.wallpaper.styles" = "Gaya";
+
+"chat.wallpaper.stylesHint" = "Mengubah wallpaper dan warna pesan yang Anda kirim.";
+
+"chat.wallpaper.customize" = "Sesuaikan";
+
+"chat.wallpaper.background" = "Wallpaper";
+
+"chat.wallpaper.previewTitle" = "Pratinjau";
+
+"chat.wallpaper.preset.aurora" = "Aurora";
+
+"chat.wallpaper.preset.coast" = "Pantai";
+
+"chat.wallpaper.preset.dune" = "Bukit pasir";
+
+"chat.wallpaper.preset.forest" = "Hutan";
+
+"chat.wallpaper.preset.bloom" = "Bunga";
+
+"chat.wallpaper.preset.midnight" = "Tengah malam";
+
+"chat.wallpaper.preset.lagoon" = "Laguna";
+
+"chat.wallpaper.preset.clay" = "Tanah liat";
+
+"chat.wallpaper.preset.cloud" = "Awan";
+
+"chat.wallpaper.preset.citrus" = "Jeruk";
+
+"chat.wallpaper.current" = "Gaya saat ini";

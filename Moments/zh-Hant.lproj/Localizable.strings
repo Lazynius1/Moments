@@ -4723,7 +4723,7 @@
 "story.music.posts.placeholder" = "含音樂的貼文將顯示在這裡。";
 "story.music.saved.confirmation" = "歌曲已儲存至最愛";
 "story.music.unsaved.confirmation" = "歌曲已從最愛移除";
-"chat.wallpaper.title" = "聊天背景";
+"chat.wallpaper.title" = "聊天風格";
 "chat.wallpaper.private" = "只有你能看到這個背景。它會為這段對話儲存，並與你的帳號同步。";
 "chat.wallpaper.photo" = "選擇照片";
 "chat.wallpaper.color" = "顏色";
@@ -4732,6 +4732,40 @@
 "chat.wallpaper.save" = "儲存";
 "chat.wallpaper.preview" = "你的訊息會像這樣顯示";
 "chat.wallpaper.error" = "無法儲存或載入背景，請再試一次。";
-"chat.wallpaper.crop" = "拖曳照片調整構圖，並使用滑桿放大。";
+"chat.wallpaper.crop" = "拖曳並以雙指縮放來調整照片構圖。";
 "chat.wallpaper.back" = "返回";
-"chat.wallpaper.saved" = "聊天背景已儲存";
+"chat.wallpaper.saved" = "已儲存聊天風格";
+"chat.wallpaper.frame" = "調整照片構圖";
+"chat.wallpaper.bubbleColor" = "已傳送訊息的顏色";
+
+"chat.wallpaper.styles" = "風格";
+
+"chat.wallpaper.stylesHint" = "更改背景和你傳送的訊息顏色。";
+
+"chat.wallpaper.customize" = "自訂";
+
+"chat.wallpaper.background" = "背景";
+
+"chat.wallpaper.previewTitle" = "預覽";
+
+"chat.wallpaper.preset.aurora" = "極光";
+
+"chat.wallpaper.preset.coast" = "海岸";
+
+"chat.wallpaper.preset.dune" = "沙丘";
+
+"chat.wallpaper.preset.forest" = "森林";
+
+"chat.wallpaper.preset.bloom" = "花朵";
+
+"chat.wallpaper.preset.midnight" = "午夜";
+
+"chat.wallpaper.preset.lagoon" = "潟湖";
+
+"chat.wallpaper.preset.clay" = "陶土";
+
+"chat.wallpaper.preset.cloud" = "雲朵";
+
+"chat.wallpaper.preset.citrus" = "柑橘";
+
+"chat.wallpaper.current" = "目前風格";

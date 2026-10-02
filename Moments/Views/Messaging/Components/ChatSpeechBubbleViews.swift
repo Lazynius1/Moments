@@ -318,7 +318,7 @@ struct ChatTextBubbleView: View {
     }
 
     private var textColor: Color {
-        isOutgoing ? .white : adaptiveColors.messageTextColor
+        isOutgoing ? chatBubbleTextColor(for: chatOutgoingBubbleColor) : adaptiveColors.messageTextColor
     }
 
     private var hasReactions: Bool {
@@ -360,7 +360,7 @@ struct ChatTextBubbleView: View {
     }
 
     private var linkColor: Color {
-        isOutgoing ? Color.white.opacity(0.92) : .blue
+        isOutgoing ? chatBubbleTextColor(for: chatOutgoingBubbleColor).opacity(0.92) : .blue
     }
 
     private func formattedAttributedString(for rawText: String) -> AttributedString {
@@ -483,7 +483,7 @@ struct ChatTextBubbleView: View {
                 if block.isQuote {
                     HStack(alignment: .top, spacing: 8) {
                         Capsule()
-                            .fill(isOutgoing ? Color.white.opacity(0.78) : adaptiveColors.receivedAccentColor)
+                            .fill(isOutgoing ? chatBubbleTextColor(for: chatOutgoingBubbleColor).opacity(0.78) : adaptiveColors.receivedAccentColor)
                             .frame(width: 3)
 
                         formattedText(block.text)

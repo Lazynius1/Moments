@@ -174,7 +174,7 @@ extension GlassmorphicChatView {
             ZStack {
                 adaptiveColors.chatBackground[0]
                     .ignoresSafeArea()
-                ChatWallpaperBackground(conversationId: conversationId, adaptiveColors: adaptiveColors)
+                ChatWallpaperCanvas(wallpaper: wallpaperStore.wallpaper, image: wallpaperStore.image, fallback: adaptiveColors.chatBackground[0]).ignoresSafeArea().allowsHitTesting(false)
                 mainChatStack()
                     .modifier(ChatBuzzShakeEffect(
                         progress: buzzShakeProgress,
@@ -259,7 +259,8 @@ extension GlassmorphicChatView {
             .overlay(alignment: .bottom) {
                 ChatBottomWallpaperEdgeFade(
                     color: adaptiveColors.chatBackground[0],
-                    composerChromeHeight: max(lastComposerHeight, 0)
+                    composerChromeHeight: max(lastComposerHeight, 0),
+                    bottomExtension: keyboardScrollCoordinator.keyboardHeight
                 )
             }
             .chatBottomBarInset {

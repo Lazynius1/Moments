@@ -4952,7 +4952,7 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "story.music.posts.placeholder" = "Beiträge mit Musik erscheinen hier.";
 "story.music.saved.confirmation" = "Song zu Favoriten hinzugefügt";
 "story.music.unsaved.confirmation" = "Song aus Favoriten entfernt";
-"chat.wallpaper.title" = "Chat-Hintergrund";
+"chat.wallpaper.title" = "Chatstil";
 "chat.wallpaper.private" = "Nur du siehst diesen Hintergrund. Er wird für diesen Chat gespeichert und mit deinem Konto synchronisiert.";
 "chat.wallpaper.photo" = "Foto auswählen";
 "chat.wallpaper.color" = "Farbe";
@@ -4961,6 +4961,40 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "chat.wallpaper.save" = "Speichern";
 "chat.wallpaper.preview" = "So sehen deine Nachrichten aus";
 "chat.wallpaper.error" = "Der Hintergrund konnte nicht gespeichert oder geladen werden. Versuche es erneut.";
-"chat.wallpaper.crop" = "Ziehe das Foto zum Zuschneiden und verwende den Regler zum Vergrößern.";
+"chat.wallpaper.crop" = "Verschiebe und zoome mit zwei Fingern, um das Foto zuzuschneiden.";
 "chat.wallpaper.back" = "Zurück";
-"chat.wallpaper.saved" = "Chat-Hintergrund gespeichert";
+"chat.wallpaper.saved" = "Chatstil gespeichert";
+"chat.wallpaper.frame" = "Foto zuschneiden";
+"chat.wallpaper.bubbleColor" = "Farbe gesendeter Nachrichten";
+
+"chat.wallpaper.styles" = "Stile";
+
+"chat.wallpaper.stylesHint" = "Ändert das Hintergrundbild und die Farbe deiner gesendeten Nachrichten.";
+
+"chat.wallpaper.customize" = "Anpassen";
+
+"chat.wallpaper.background" = "Hintergrund";
+
+"chat.wallpaper.previewTitle" = "Vorschau";
+
+"chat.wallpaper.preset.aurora" = "Aurora";
+
+"chat.wallpaper.preset.coast" = "Küste";
+
+"chat.wallpaper.preset.dune" = "Dünen";
+
+"chat.wallpaper.preset.forest" = "Wald";
+
+"chat.wallpaper.preset.bloom" = "Blüten";
+
+"chat.wallpaper.preset.midnight" = "Mitternacht";
+
+"chat.wallpaper.preset.lagoon" = "Lagune";
+
+"chat.wallpaper.preset.clay" = "Ton";
+
+"chat.wallpaper.preset.cloud" = "Wolken";
+
+"chat.wallpaper.preset.citrus" = "Zitrus";
+
+"chat.wallpaper.current" = "Aktueller Stil";

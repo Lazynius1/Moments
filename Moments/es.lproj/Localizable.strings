@@ -4972,7 +4972,7 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "story.music.posts.placeholder" = "Los posts con música aparecerán aquí.";
 "story.music.saved.confirmation" = "Canción guardada en favoritos";
 "story.music.unsaved.confirmation" = "Canción eliminada de favoritos";
-"chat.wallpaper.title" = "Fondo del chat";
+"chat.wallpaper.title" = "Estilo del chat";
 "chat.wallpaper.private" = "Solo tú ves este fondo. Se guarda para esta conversación y se sincroniza con tu cuenta.";
 "chat.wallpaper.photo" = "Elegir foto";
 "chat.wallpaper.color" = "Color";
@@ -4981,6 +4981,40 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "chat.wallpaper.save" = "Guardar";
 "chat.wallpaper.preview" = "Así se verán tus mensajes";
 "chat.wallpaper.error" = "No se pudo guardar o cargar el fondo. Inténtalo de nuevo.";
-"chat.wallpaper.crop" = "Arrastra la foto para encuadrarla y usa el control para ampliarla.";
+"chat.wallpaper.crop" = "Arrastra y pellizca para encuadrar la foto.";
 "chat.wallpaper.back" = "Volver";
-"chat.wallpaper.saved" = "Fondo del chat guardado";
+"chat.wallpaper.saved" = "Estilo del chat guardado";
+"chat.wallpaper.frame" = "Encuadrar foto";
+"chat.wallpaper.bubbleColor" = "Color de los mensajes enviados";
+
+"chat.wallpaper.styles" = "Estilos";
+
+"chat.wallpaper.stylesHint" = "Cambian el fondo y el color de tus mensajes enviados.";
+
+"chat.wallpaper.customize" = "Personalizar";
+
+"chat.wallpaper.background" = "Fondo";
+
+"chat.wallpaper.previewTitle" = "Previsualización";
+
+"chat.wallpaper.preset.aurora" = "Aurora";
+
+"chat.wallpaper.preset.coast" = "Costa";
+
+"chat.wallpaper.preset.dune" = "Dunas";
+
+"chat.wallpaper.preset.forest" = "Bosque";
+
+"chat.wallpaper.preset.bloom" = "Flores";
+
+"chat.wallpaper.preset.midnight" = "Medianoche";
+
+"chat.wallpaper.preset.lagoon" = "Laguna";
+
+"chat.wallpaper.preset.clay" = "Arcilla";
+
+"chat.wallpaper.preset.cloud" = "Nubes";
+
+"chat.wallpaper.preset.citrus" = "Cítricos";
+
+"chat.wallpaper.current" = "Estilo actual";

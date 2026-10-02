@@ -584,7 +584,12 @@ struct ConversationSettingsView: View {
             }
             Button { showWallpaper = true } label: {
                 HStack(spacing: 14) {
-                    Image(systemName: "photo.on.rectangle").frame(width: 24).foregroundStyle(adaptiveColors.secondary)
+                    Image("ChatStyleIcon")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
+                        .foregroundStyle(adaptiveColors.secondary)
                     Text("chat.wallpaper.title").font(.system(size: legacyPoppinsSize(16), weight: .medium)).foregroundStyle(adaptiveColors.primary)
                     Spacer()
                     Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(adaptiveColors.tertiary)
@@ -2560,7 +2565,7 @@ struct FullScreenMediaView: View {
             }
         }
 
-        Group {
+        let renderedMedia = Group {
             if let message = item.sourceMessage,
                !(message.stickers?.isEmpty ?? true) || !message.resolvedTextOverlays.isEmpty {
                 GeometryReader { geometry in
@@ -2581,6 +2586,14 @@ struct FullScreenMediaView: View {
                 ScreenshotProtectedView(isProtected: true, fillsContainer: true) { mediaBody }
             } else {
                 mediaBody
+            }
+        }
+        Group {
+            if item.type == .image {
+                ChatZoomableMedia(isActive: isActive) { renderedMedia }
+                    .id(item.id)
+            } else {
+                renderedMedia
             }
         }
         .messageReactionOverlay(

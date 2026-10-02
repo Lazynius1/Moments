@@ -2368,8 +2368,13 @@ service cloud.firestore {
     match /users/{userId}/chatWallpapers/{conversationId} {
       allow read, delete: if request.auth != null && request.auth.uid == userId;
       allow create, update: if request.auth != null && request.auth.uid == userId
-        && request.resource.data.keys().hasOnly(['kind', 'colorHex', 'storagePath', 'dimming', 'updatedAt'])
-        && request.resource.data.kind in ['default', 'color', 'photo']
+        && request.resource.data.keys().hasOnly(['kind', 'colorHex', 'storagePath', 'dimming', 'updatedAt', 'bubbleColorHex', 'presetId'])
+        && request.resource.data.get('bubbleColorHex', '3F6F8F') is string
+        && request.resource.data.get('bubbleColorHex', '3F6F8F').matches('^[0-9A-Fa-f]{6}$')
+        && request.resource.data.kind in ['default', 'color', 'photo', 'preset']
+        && request.resource.data.get('presetId', '') is string
+        && request.resource.data.get('presetId', '') in ['', 'aurora', 'coast', 'dune', 'forest', 'bloom', 'midnight', 'lagoon', 'clay', 'cloud', 'citrus']
+        && (request.resource.data.kind != 'preset' || request.resource.data.get('presetId', '') != '')
         && request.resource.data.colorHex is string
         && request.resource.data.colorHex.matches('^[0-9A-Fa-f]{6}$')
         && request.resource.data.dimming is number

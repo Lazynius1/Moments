@@ -75,6 +75,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
     init(userId: String) {
         self.userId = userId
+        self.canViewContent = userId == Auth.auth().currentUser?.uid
         followStateObserver = NotificationCenter.default.addObserver(
             forName: FollowStateStore.didChangeNotification,
             object: nil,
@@ -108,7 +109,9 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
         // ✅ Restaurar de inmediato la última decisión de privacidad conocida, para no
         // caer en "cuenta privada" por defecto si la red tarda o falla.
-        if let cachedCanView = cachedCanViewContent(currentUserId: currentUserId) {
+        if currentUserId == userId {
+            self.canViewContent = true
+        } else if let cachedCanView = cachedCanViewContent(currentUserId: currentUserId) {
             self.canViewContent = cachedCanView
         }
 
@@ -1210,6 +1213,12 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
     func checkIfBlocked() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        guard currentUserId != userId else {
+            isBlockedByCurrentUser = false
+            isCurrentUserBlocked = false
+            canViewContent = true
+            return
+        }
         firestoreService.checkIfBlocked(currentUserId: currentUserId, targetUserId: userId) { [weak self] isBlockedByCurrentUser, isCurrentUserBlocked, error in
             guard let self = self else { return }
             if error != nil {
@@ -1218,8 +1227,10 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             DispatchQueue.main.async {
                 self.isBlockedByCurrentUser = isBlockedByCurrentUser
                 self.isCurrentUserBlocked = isCurrentUserBlocked
-                self.canViewContent = false
-                self.isProfileUnavailable = isCurrentUserBlocked
+                if isBlockedByCurrentUser || isCurrentUserBlocked {
+                    self.canViewContent = false
+                    self.isProfileUnavailable = isCurrentUserBlocked
+                }
             }
         }
     }

@@ -309,7 +309,7 @@ extension GlassmorphicChatView {
                 prefetchMediaForRows(rows)
             },
             rowContent: { row in
-                AnyView(chatMessageListRowContent(row))
+                AnyView(ChatWallpaperRowAppearance(store: wallpaperStore) { chatMessageListRowContent(row) })
             }
         )
         .ignoresSafeArea(.container, edges: .top)

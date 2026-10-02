@@ -392,6 +392,7 @@ enum ChatComposerChromeMetrics {
 struct ChatBottomWallpaperEdgeFade: View {
     let color: Color
     var composerChromeHeight: CGFloat
+    var bottomExtension: CGFloat = 0
     var extendAbovePanel: CGFloat = ChatComposerChromeMetrics.fadeExtendAbovePanel
     var edgeSize: CGFloat = ChatComposerChromeMetrics.fadeEdgeSize
     var alpha: CGFloat = ChatComposerChromeMetrics.fadeAlphaSolid
@@ -410,6 +411,13 @@ struct ChatBottomWallpaperEdgeFade: View {
             endPoint: .bottom
         )
         .frame(height: fadeHeight)
+        .overlay(alignment: .bottom) {
+            // Continue the final tint under the floating keyboard without
+            // changing the composer's frame or the gradient above it.
+            color.opacity(alpha)
+                .frame(height: max(bottomExtension, 0))
+                .offset(y: max(bottomExtension, 0))
+        }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
@@ -1087,8 +1095,7 @@ struct GlassmorphicDateHeader: View {
             .foregroundStyle(adaptiveColors.dateHeaderColor)
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
-            .glassmorphicChat()
-            .clipShape(Capsule())
+            .background(adaptiveColors.messageBubbleBackground, in: Capsule())
             // La celda del listado clava `alignment: .leading` para las burbujas;
             // sin esto la pastilla del día se queda a la izquierda.
             .frame(maxWidth: .infinity)

@@ -4723,7 +4723,7 @@
 "story.music.posts.placeholder" = "संगीत वाले पोस्ट यहाँ दिखाई देंगे।";
 "story.music.saved.confirmation" = "गाना पसंदीदा में सहेजा गया";
 "story.music.unsaved.confirmation" = "गाना पसंदीदा से हटा दिया गया";
-"chat.wallpaper.title" = "चैट का बैकग्राउंड";
+"chat.wallpaper.title" = "चैट की शैली";
 "chat.wallpaper.private" = "यह बैकग्राउंड केवल आपको दिखता है। यह इस बातचीत के लिए सहेजा जाता है और आपके खाते से सिंक होता है।";
 "chat.wallpaper.photo" = "फ़ोटो चुनें";
 "chat.wallpaper.color" = "रंग";
@@ -4732,6 +4732,40 @@
 "chat.wallpaper.save" = "सहेजें";
 "chat.wallpaper.preview" = "आपके संदेश ऐसे दिखेंगे";
 "chat.wallpaper.error" = "बैकग्राउंड सहेजा या लोड नहीं किया जा सका। फिर कोशिश करें।";
-"chat.wallpaper.crop" = "फ़ोटो को खींचकर फ़्रेम करें और स्लाइडर से ज़ूम करें।";
+"chat.wallpaper.crop" = "फ़ोटो का फ़्रेम चुनने के लिए खींचें और दो उँगलियों से ज़ूम करें।";
 "chat.wallpaper.back" = "वापस";
-"chat.wallpaper.saved" = "चैट का बैकग्राउंड सहेजा गया";
+"chat.wallpaper.saved" = "चैट की शैली सहेजी गई";
+"chat.wallpaper.frame" = "फ़ोटो का फ़्रेम चुनें";
+"chat.wallpaper.bubbleColor" = "भेजे गए संदेशों का रंग";
+
+"chat.wallpaper.styles" = "शैलियाँ";
+
+"chat.wallpaper.stylesHint" = "वॉलपेपर और आपके भेजे गए संदेशों का रंग बदलता है।";
+
+"chat.wallpaper.customize" = "कस्टमाइज़ करें";
+
+"chat.wallpaper.background" = "वॉलपेपर";
+
+"chat.wallpaper.previewTitle" = "प्रीव्यू";
+
+"chat.wallpaper.preset.aurora" = "ऑरोरा";
+
+"chat.wallpaper.preset.coast" = "तट";
+
+"chat.wallpaper.preset.dune" = "रेत के टीले";
+
+"chat.wallpaper.preset.forest" = "जंगल";
+
+"chat.wallpaper.preset.bloom" = "फूल";
+
+"chat.wallpaper.preset.midnight" = "आधी रात";
+
+"chat.wallpaper.preset.lagoon" = "लैगून";
+
+"chat.wallpaper.preset.clay" = "मिट्टी";
+
+"chat.wallpaper.preset.cloud" = "बादल";
+
+"chat.wallpaper.preset.citrus" = "साइट्रस";
+
+"chat.wallpaper.current" = "मौजूदा शैली";

@@ -4723,7 +4723,7 @@
 "story.music.posts.placeholder" = "음악이 포함된 게시물이 여기에 표시됩니다.";
 "story.music.saved.confirmation" = "노래를 즐겨찾기에 저장했어요";
 "story.music.unsaved.confirmation" = "노래를 즐겨찾기에서 삭제했어요";
-"chat.wallpaper.title" = "채팅 배경";
+"chat.wallpaper.title" = "채팅 스타일";
 "chat.wallpaper.private" = "이 배경은 나에게만 보여요. 이 대화에 저장되고 계정과 동기화돼요.";
 "chat.wallpaper.photo" = "사진 선택";
 "chat.wallpaper.color" = "색상";
@@ -4732,6 +4732,40 @@
 "chat.wallpaper.save" = "저장";
 "chat.wallpaper.preview" = "메시지가 이렇게 보여요";
 "chat.wallpaper.error" = "배경을 저장하거나 불러올 수 없어요. 다시 시도해 주세요.";
-"chat.wallpaper.crop" = "사진을 드래그해 위치를 조절하고 슬라이더로 확대하세요.";
+"chat.wallpaper.crop" = "드래그하고 두 손가락으로 확대 또는 축소하여 사진 구도를 조정하세요.";
 "chat.wallpaper.back" = "뒤로";
-"chat.wallpaper.saved" = "채팅 배경이 저장됐어요";
+"chat.wallpaper.saved" = "채팅 스타일이 저장되었습니다";
+"chat.wallpaper.frame" = "사진 구도 조정";
+"chat.wallpaper.bubbleColor" = "보낸 메시지 색상";
+
+"chat.wallpaper.styles" = "스타일";
+
+"chat.wallpaper.stylesHint" = "배경과 보낸 메시지의 색상을 변경합니다.";
+
+"chat.wallpaper.customize" = "맞춤 설정";
+
+"chat.wallpaper.background" = "배경";
+
+"chat.wallpaper.previewTitle" = "미리보기";
+
+"chat.wallpaper.preset.aurora" = "오로라";
+
+"chat.wallpaper.preset.coast" = "해안";
+
+"chat.wallpaper.preset.dune" = "모래 언덕";
+
+"chat.wallpaper.preset.forest" = "숲";
+
+"chat.wallpaper.preset.bloom" = "꽃";
+
+"chat.wallpaper.preset.midnight" = "한밤중";
+
+"chat.wallpaper.preset.lagoon" = "라군";
+
+"chat.wallpaper.preset.clay" = "점토";
+
+"chat.wallpaper.preset.cloud" = "구름";
+
+"chat.wallpaper.preset.citrus" = "시트러스";
+
+"chat.wallpaper.current" = "현재 스타일";

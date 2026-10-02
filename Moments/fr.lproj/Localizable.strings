@@ -4952,7 +4952,7 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "story.music.posts.placeholder" = "Les publications avec de la musique apparaîtront ici.";
 "story.music.saved.confirmation" = "Chanson ajoutée aux favoris";
 "story.music.unsaved.confirmation" = "Chanson retirée des favoris";
-"chat.wallpaper.title" = "Fond de discussion";
+"chat.wallpaper.title" = "Style du chat";
 "chat.wallpaper.private" = "Toi seul vois ce fond. Il est enregistré pour cette discussion et synchronisé avec ton compte.";
 "chat.wallpaper.photo" = "Choisir une photo";
 "chat.wallpaper.color" = "Couleur";
@@ -4961,6 +4961,40 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "chat.wallpaper.save" = "Enregistrer";
 "chat.wallpaper.preview" = "Voici comment apparaîtront tes messages";
 "chat.wallpaper.error" = "Impossible d’enregistrer ou de charger le fond. Réessaie.";
-"chat.wallpaper.crop" = "Déplace la photo pour la cadrer et utilise le curseur pour zoomer.";
+"chat.wallpaper.crop" = "Faites glisser et pincez pour cadrer la photo.";
 "chat.wallpaper.back" = "Retour";
-"chat.wallpaper.saved" = "Fond de discussion enregistré";
+"chat.wallpaper.saved" = "Style du chat enregistré";
+"chat.wallpaper.frame" = "Cadrer la photo";
+"chat.wallpaper.bubbleColor" = "Couleur des messages envoyés";
+
+"chat.wallpaper.styles" = "Styles";
+
+"chat.wallpaper.stylesHint" = "Modifie le fond et la couleur de vos messages envoyés.";
+
+"chat.wallpaper.customize" = "Personnaliser";
+
+"chat.wallpaper.background" = "Fond";
+
+"chat.wallpaper.previewTitle" = "Aperçu";
+
+"chat.wallpaper.preset.aurora" = "Aurore";
+
+"chat.wallpaper.preset.coast" = "Côte";
+
+"chat.wallpaper.preset.dune" = "Dunes";
+
+"chat.wallpaper.preset.forest" = "Forêt";
+
+"chat.wallpaper.preset.bloom" = "Fleurs";
+
+"chat.wallpaper.preset.midnight" = "Minuit";
+
+"chat.wallpaper.preset.lagoon" = "Lagune";
+
+"chat.wallpaper.preset.clay" = "Argile";
+
+"chat.wallpaper.preset.cloud" = "Nuages";
+
+"chat.wallpaper.preset.citrus" = "Agrumes";
+
+"chat.wallpaper.current" = "Style actuel";

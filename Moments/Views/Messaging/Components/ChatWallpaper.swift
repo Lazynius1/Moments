@@ -10,9 +10,13 @@ struct ChatWallpaper: Codable, Equatable {
     var colorHex = "DCE8E4"
     var storagePath = ""
     var dimming = 0.2
+    var bubbleColorHex = "3F6F8F"
+    var presetId = ""
 
     init() {}
     init(data: [String: Any]) {
+        presetId = data["presetId"] as? String ?? ""
+        bubbleColorHex = data["bubbleColorHex"] as? String ?? "3F6F8F"
         kind = data["kind"] as? String ?? "default"
         colorHex = data["colorHex"] as? String ?? "DCE8E4"
         storagePath = data["storagePath"] as? String ?? ""
@@ -20,7 +24,7 @@ struct ChatWallpaper: Codable, Equatable {
     }
     var fields: [String: Any] {
         ["kind": kind, "colorHex": colorHex, "storagePath": storagePath,
-         "dimming": dimming, "updatedAt": FieldValue.serverTimestamp()]
+         "dimming": dimming, "bubbleColorHex": bubbleColorHex, "presetId": presetId, "updatedAt": FieldValue.serverTimestamp()]
     }
 }
 
@@ -43,8 +47,8 @@ final class ChatWallpaperStore: ObservableObject {
         loadedPath = ""
         image = nil
         wallpaper = ChatWallpaper()
-        if let data = UserDefaults.standard.data(forKey: key), let cached = try? JSONDecoder().decode(ChatWallpaper.self, from: data) {
-            apply(cached)
+        if let data = UserDefaults.standard.data(forKey: key), let cached = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+            apply(ChatWallpaper(data: cached))
         }
         listener = Firestore.firestore().collection("users").document(uid)
             .collection("chatWallpapers").document(conversationId).addSnapshotListener { [weak self] snapshot, _ in
@@ -153,6 +157,9 @@ struct ChatWallpaperCanvas: View {
             ZStack {
                 fallback
                 if wallpaper.kind == "color" { Color(hex: wallpaper.colorHex) }
+                if wallpaper.kind == "preset", let preset = ChatWallpaperPreset.all.first(where: { $0.id == wallpaper.presetId }) {
+                    Image(preset.asset).resizable().scaledToFill().frame(width: proxy.size.width, height: proxy.size.height)
+                }
                 if wallpaper.kind == "photo", let image {
                     Image(uiImage: image).resizable().scaledToFill()
                         .frame(width: proxy.size.width, height: proxy.size.height)
@@ -164,156 +171,191 @@ struct ChatWallpaperCanvas: View {
     }
 }
 
+struct ChatWallpaperPreset: Identifiable {
+    let id: String
+    let bubble: String
+    var asset: String { "ChatWallpaper" + id.capitalized }
+    static let all = [Self(id: "aurora", bubble: "6746A3"), Self(id: "coast", bubble: "007D77"),
+                      Self(id: "dune", bubble: "A44732"), Self(id: "forest", bubble: "35624C"),
+                      Self(id: "bloom", bubble: "B04A78"), Self(id: "midnight", bubble: "263F63"),
+                      Self(id: "lagoon", bubble: "397487"), Self(id: "clay", bubble: "705239"),
+                      Self(id: "cloud", bubble: "3F6F8F"), Self(id: "citrus", bubble: "746133")]
+}
+
+let chatBubblePalette = [
+    "3F6F8F", "D3E4EF", "263F63", "D5DFF0",
+    "6746A3", "E5D9F5", "35624C", "D8EDD7",
+    "007D77", "CEF0EA", "8F394C", "F8D6DF",
+    "A44732", "F9DECF", "705239", "EDE2D0",
+    "3C3F45", "E2E3E5", "B04A78", "F8DCEC",
+    "746133", "F1E8B7", "397487", "D3EDF3",
+    "16A466", "D6FCCF", "6044DA", "E6DFFB",
+    "C256D8", "EFD8F3", "E46B50", "FBE1D6",
+    "2961EB", "D1E6FB", "098DDC", "D0E1EB",
+    "00AB8C", "CFFCEC", "CFC300", "FBF8A9",
+    "76A529", "E3FEB9", "EA2D70", "FBD9E5",
+    "EE003C", "FAD8DE", "EB351B", "FFDCCB",
+    "E0B616", "FCF0D6", "9D6A43", "F2DDD0",
+    "BFA88A", "EDE8DD", "004F7A", "D0E2E9"
+]
+let chatBackgroundPalette = ["DCE8E4", "C8E7E4", "D9EBF3", "E7DFEE", "F2E3D5", "F3D9DE",
+                             "E6E6E6", "F5EDCB", "C1D6C1", "A7C3CF", "253A40", "282033",
+                             "171717", "314939", "60413F", "4A5365", "84705B", "E4D9CD"]
+
 struct ConversationWallpaperView: View {
     let conversationId: String
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var store = ChatWallpaperStore()
     @State private var draft = ChatWallpaper()
     @State private var selection: PhotosPickerItem?
     @State private var photo: UIImage?
-    @State private var zoom: CGFloat = 1
-    @State private var pinchStart: CGFloat?
-    @State private var drag: CGSize = .zero
-    @State private var dragStart: CGSize = .zero
     @State private var busy = false
     @State private var edited = false
-    private let previewSize = CGSize(width: 198, height: 352)
-    private let colors = ["DCE8E4", "E7DFEE", "DAE7F1", "F2E3D5", "E6E6E6", "253A40", "282033", "171717"]
+    @State private var showPreview = false
+    @State private var showBubbles = false
+    @State private var showBackgrounds = false
+    @State private var showColors = false
+    @State private var pendingColors = false
 
     var body: some View {
         Form {
             Section {
-                Text("chat.wallpaper.private").font(.footnote).foregroundStyle(.secondary)
-                preview.frame(maxWidth: .infinity)
-            }
+                ScrollView(.horizontal) {
+                    LazyHGrid(rows: [GridItem(.fixed(160)), GridItem(.fixed(160))], spacing: 12) {
+                        Button { showPreview = true } label: {
+                            styleCard(draft, image: photo ?? store.image, selected: true)
+                        }.buttonStyle(.plain).accessibilityLabel(Text("chat.wallpaper.current")).accessibilityAddTraits(.isSelected)
+                        Button { edited = true; draft = ChatWallpaper(); photo = nil; showPreview = true } label: {
+                            styleCard(ChatWallpaper(), image: nil, selected: false)
+                        }.buttonStyle(.plain).accessibilityLabel(Text("chat.wallpaper.default"))
+                        ForEach(ChatWallpaperPreset.all) { preset in
+                            Button {
+                                edited = true; photo = nil; draft.kind = "preset"; draft.presetId = preset.id
+                                draft.bubbleColorHex = preset.bubble; draft.dimming = 0.12; showPreview = true
+                            } label: {
+                                styleCard(ChatWallpaper(data: ["kind": "preset", "presetId": preset.id, "bubbleColorHex": preset.bubble, "dimming": 0.0]),
+                                    image: nil, selected: false)
+                            }.buttonStyle(.plain).accessibilityLabel(Text(LocalizedStringKey("chat.wallpaper.preset." + preset.id)))
+                        }
+                    }.scrollTargetLayout().padding(.vertical, 4)
+                }
+                .contentMargins(.horizontal, 16, for: .scrollContent)
+                .scrollIndicators(.hidden)
+                .scrollTargetBehavior(.viewAligned)
+                .listRowInsets(EdgeInsets(top: 16, leading: 0, bottom: 16, trailing: 0))
+            } header: { Text("chat.wallpaper.styles") } footer: { Text("chat.wallpaper.stylesHint") }
             Section {
-                Button("chat.wallpaper.default") { edited = true; draft.kind = "default"; photo = nil; drag = .zero; zoom = 1 }
-                HStack {
-                    Text("chat.wallpaper.color")
-                    Spacer()
-                    ColorPicker("chat.wallpaper.color", selection: colorBinding, supportsOpacity: false).labelsHidden()
+                Button { showBubbles = true } label: {
+                    HStack {
+                        Label("chat.wallpaper.bubbleColor", systemImage: "bubble")
+                        Spacer(); Circle().fill(Color(hex: draft.bubbleColorHex)).frame(width: 26, height: 26)
+                        Image(systemName: "chevron.right").foregroundStyle(.secondary)
+                    }.foregroundStyle(.primary)
                 }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 32))], spacing: 12) {
-                    ForEach(colors, id: \.self) { hex in
-                        Button { edited = true; draft.kind = "color"; draft.colorHex = hex } label: {
-                            Circle().fill(Color(hex: hex)).frame(width: 28, height: 28)
-                                .overlay(Circle().stroke(draft.kind == "color" && draft.colorHex == hex ? Color.primary : .clear, lineWidth: 2))
-                        }.buttonStyle(.plain).accessibilityLabel(Text("chat.wallpaper.color"))
-                    }
+                Button { showBackgrounds = true } label: {
+                    HStack {
+                        Label("chat.wallpaper.background", systemImage: "photo")
+                        Spacer(); ChatWallpaperCanvas(wallpaper: draft, image: photo ?? store.image, fallback: Color(uiColor: .systemBackground))
+                            .frame(width: 26, height: 36).clipShape(.rect(cornerRadius: 5))
+                        Image(systemName: "chevron.right").foregroundStyle(.secondary)
+                    }.foregroundStyle(.primary)
                 }
-                PhotosPicker(selection: $selection, matching: .images) { Label("chat.wallpaper.photo", systemImage: "photo") }.disabled(busy)
-            }
-            if draft.kind == "photo", (photo ?? store.image) != nil {
-                Section {
-                    Text("chat.wallpaper.crop").font(.footnote).foregroundStyle(.secondary)
-                    Slider(value: Binding(get: { zoom }, set: { value in
-                        edited = true; zoom = value; clampDrag(); dragStart = drag
-                    }), in: 1...3)
-                }
-            }
-            if draft.kind != "default" {
-                Section("chat.wallpaper.dimming") { Slider(value: Binding(get: { draft.dimming }, set: { edited = true; draft.dimming = $0 }), in: 0...0.75) }
-            }
+                Button { showPreview = true } label: { Label("chat.wallpaper.previewTitle", systemImage: "eye") }
+            } header: { Text("chat.wallpaper.customize") } footer: { Text("chat.wallpaper.private") }
         }
-        .navigationTitle(Text("chat.wallpaper.title"))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button { save() } label: {
-                    if busy { ProgressView() } else { Text("chat.wallpaper.save") }
-                }.disabled(busy || conversationId.isEmpty || (draft.kind == "photo" && photo == nil && store.image == nil))
-            }
+        .modifier(ChatWallpaperScrollEdgeModifier())
+        .navigationTitle(Text("chat.wallpaper.title")).navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button { save() } label: {
+            if busy { ProgressView() } else { Text("chat.wallpaper.save") }
+        }.disabled(busy || conversationId.isEmpty || (draft.kind == "photo" && photo == nil && store.image == nil)) } }
+        .sheet(isPresented: $showBubbles) {
+            ChatWallpaperColorPicker(colors: chatBubblePalette, selected: draft.bubbleColorHex, title: "chat.wallpaper.bubbleColor") { hex in
+                edited = true; draft.bubbleColorHex = hex
+            }.presentationDetents([.large])
+        }
+        .sheet(isPresented: $showBackgrounds, onDismiss: { if pendingColors { pendingColors = false; showColors = true } }) { backgroundPicker.presentationDetents([.large]) }
+        .sheet(isPresented: $showColors) {
+            ChatWallpaperColorPicker(colors: chatBackgroundPalette, selected: draft.colorHex, title: "chat.wallpaper.color") { hex in
+                edited = true; draft.kind = "color"; draft.colorHex = hex; photo = nil
+            }.presentationDetents([.large])
+        }
+        .sheet(isPresented: $showPreview) {
+            ChatWallpaperPreviewEditor(wallpaper: draft, image: photo ?? store.image) { value, cropped in
+                edited = true; draft = value; if let cropped { photo = cropped }; showPreview = false; save()
+            }.presentationDetents([.large]).presentationDragIndicator(.hidden).interactiveDismissDisabled(busy)
         }
         .task { store.start(conversationId: conversationId) }
-        .onReceive(store.$wallpaper) { value in
-            if !edited { draft = value }
-        }
+        .onReceive(store.$wallpaper) { if !edited { draft = $0 } }
         .onChange(of: selection) { _, item in
-            guard let item else { return }
-            busy = true
+            guard let item else { return }; busy = true
             Task {
                 defer { busy = false }
                 do {
                     guard let data = try await item.loadTransferable(type: Data.self),
                           let image = await Task.detached(priority: .utility, operation: { ChatWallpaperStore.decode(data) }).value else { throw URLError(.cannotDecodeContentData) }
-                    edited = true; photo = image; draft.kind = "photo"; zoom = 1; drag = .zero; dragStart = .zero
-                } catch { showErrorBanner() }
+                    edited = true; photo = image; draft.kind = "photo"; showBackgrounds = false
+                    // Wait until the picker sheet has dismissed before showing the preview.
+                    try await Task.sleep(for: .milliseconds(350)); showPreview = true
+                } catch is CancellationError {} catch { showError() }
             }
         }
     }
-
-    private var preview: some View {
-        ZStack {
-            ChatWallpaperCanvas(wallpaper: draft, image: photo ?? store.image,
-                fallback: AdaptiveColors(colorScheme: colorScheme).chatBackground[0], zoom: zoom, offset: drag)
-            VStack(alignment: .leading, spacing: 12) {
-                Text("chat.wallpaper.preview").font(.system(size: 16)).padding(12)
-                    .background(Color(uiColor: .secondarySystemBackground), in: .rect(cornerRadius: 20))
-                HStack { Spacer(); Text("Moments").font(.system(size: 16)).foregroundStyle(.white).padding(12).background(Color(hex: "3E718D"), in: .rect(cornerRadius: 20)) }
-                Spacer()
-            }.padding(12).allowsHitTesting(false)
+    private var backgroundPicker: some View {
+        NavigationStack {
+            List {
+                Section {
+                    PhotosPicker(selection: $selection, matching: .images) { Label("chat.wallpaper.photo", systemImage: "photo.on.rectangle") }.disabled(busy)
+                    Button { pendingColors = true; showBackgrounds = false } label: { Label("chat.wallpaper.color", systemImage: "paintpalette") }
+                    Button { edited = true; draft.kind = "default"; photo = nil; showBackgrounds = false } label: { Text("chat.wallpaper.default") }
+                }
+                Section {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 90))], spacing: 12) {
+                        ForEach(ChatWallpaperPreset.all) { preset in
+                            Button { edited = true; draft.kind = "preset"; draft.presetId = preset.id; photo = nil; showBackgrounds = false } label: {
+                                GeometryReader { proxy in
+                                    Image(preset.asset).resizable().scaledToFill().frame(width: proxy.size.width, height: proxy.size.height).clipped()
+                                }.aspectRatio(9.0 / 16.0, contentMode: .fit).clipShape(.rect(cornerRadius: 16))
+                            }.buttonStyle(.plain).accessibilityLabel(Text(LocalizedStringKey("chat.wallpaper.preset." + preset.id)))
+                        }
+                    }
+                }
+            }.modifier(ChatWallpaperScrollEdgeModifier())
+                .navigationTitle(Text("chat.wallpaper.background")).navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("chat.wallpaper.back") { showBackgrounds = false } } }
         }
-        .frame(width: previewSize.width, height: previewSize.height)
-        .clipShape(.rect(cornerRadius: 20))
-        .gesture(DragGesture().onChanged { value in
-            guard (photo ?? store.image) != nil, draft.kind == "photo" else { return }
-            edited = true
-            drag = CGSize(width: dragStart.width + value.translation.width, height: dragStart.height + value.translation.height); clampDrag()
-        }.onEnded { _ in dragStart = drag })
-        .simultaneousGesture(MagnifyGesture().onChanged { value in
-            guard draft.kind == "photo", (photo ?? store.image) != nil else { return }
-            edited = true
-            if pinchStart == nil { pinchStart = zoom }
-            zoom = min(3, max(1, (pinchStart ?? zoom) * value.magnification))
-            clampDrag()
-        }.onEnded { _ in pinchStart = nil; dragStart = drag })
     }
-    private var colorBinding: Binding<Color> {
-        Binding(get: { Color(hex: draft.colorHex) }, set: { value in
-            var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
-            UIColor(value).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-            edited = true
-            draft.kind = "color"
-            draft.colorHex = String(format: "%02X%02X%02X", Int(red * 255), Int(green * 255), Int(blue * 255))
-        })
+    private func styleCard(_ value: ChatWallpaper, image: UIImage?, selected: Bool) -> some View {
+        ZStack {
+            ChatWallpaperCanvas(wallpaper: value, image: image, fallback: Color(uiColor: .systemBackground))
+            VStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: 10).fill(.white).frame(width: 48, height: 24).frame(maxWidth: .infinity, alignment: .leading)
+                RoundedRectangle(cornerRadius: 10).fill(Color(hex: value.bubbleColorHex)).frame(width: 48, height: 24).frame(maxWidth: .infinity, alignment: .trailing)
+            }.padding(12)
+            if selected { Image(systemName: "checkmark.circle.fill").symbolRenderingMode(.palette).foregroundStyle(.white, .black).frame(maxHeight: .infinity, alignment: .bottom).padding(.bottom, 12) }
+        }.containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+            .frame(height: 160).clipShape(.rect(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(selected ? Color.primary : .clear, lineWidth: 2))
     }
-    private func clampDrag() {
-        guard let photo = photo ?? store.image else { return }
-        let fill = max(previewSize.width / photo.size.width, previewSize.height / photo.size.height)
-        let x = max(0, (photo.size.width * fill * zoom - previewSize.width) / 2)
-        let y = max(0, (photo.size.height * fill * zoom - previewSize.height) / 2)
-        drag.width = min(x, max(-x, drag.width)); drag.height = min(y, max(-y, drag.height))
-    }
-    private func showErrorBanner() {
-        InAppNotificationService.shared.showActionToast(InAppActionToast(systemImage: "exclamationmark.triangle", prefix: NSLocalizedString("chat.wallpaper.error", comment: "Wallpaper error")))
+    private func showError() {
+        InAppNotificationService.shared.showActionToast(InAppActionToast(systemImage: "exclamationmark.triangle", prefix: NSLocalizedString("chat.wallpaper.error", comment: "")))
     }
     private func save() {
-        busy = true
-        let value = draft
-        let image = photo ?? ((zoom != 1 || drag != .zero) ? store.image : nil)
-        let cropZoom = zoom
-        let cropDrag = drag
+        busy = true; let value = draft; let image = value.kind == "photo" ? photo : nil
         Task {
             defer { busy = false }
             do {
-                let bytes = await Task.detached(priority: .userInitiated) { () -> Data? in
-                    guard let image, value.kind == "photo" else { return nil }
-                    let size = CGSize(width: 1080, height: 1920)
-                    let fill = max(size.width / image.size.width, size.height / image.size.height) * cropZoom
-                    let drawn = CGSize(width: image.size.width * fill, height: image.size.height * fill)
-                    let factor = size.width / 198
-                    let format = UIGraphicsImageRendererFormat(); format.scale = 1; format.opaque = true
-                    return UIGraphicsImageRenderer(size: size, format: format).jpegData(withCompressionQuality: 0.85) { _ in
-                        image.draw(in: CGRect(x: (size.width - drawn.width) / 2 + cropDrag.width * factor,
-                            y: (size.height - drawn.height) / 2 + cropDrag.height * factor, width: drawn.width, height: drawn.height))
-                    }
-                }.value
-                if image != nil && value.kind == "photo" && bytes == nil { throw URLError(.cannotDecodeContentData) }
+                let bytes = await Task.detached(priority: .utility) { image?.jpegData(compressionQuality: 0.85) }.value
+                if image != nil && bytes == nil { throw URLError(.cannotDecodeContentData) }
                 try await store.save(value, photo: bytes, conversationId: conversationId)
-                InAppNotificationService.shared.showActionToast(InAppActionToast(systemImage: "checkmark", prefix: NSLocalizedString("chat.wallpaper.saved", comment: "Wallpaper saved")))
+                InAppNotificationService.shared.showActionToast(InAppActionToast(systemImage: "checkmark", prefix: NSLocalizedString("chat.wallpaper.saved", comment: "")))
                 dismiss()
-            } catch { showErrorBanner() }
+            } catch { showError() }
         }
     }
+}
+
+struct ChatWallpaperRowAppearance<Content: View>: View {
+    @ObservedObject var store: ChatWallpaperStore
+    @ViewBuilder let content: () -> Content
+    var body: some View { content().environment(\.chatOutgoingBubbleColor, Color(hex: store.wallpaper.bubbleColorHex)) }
 }

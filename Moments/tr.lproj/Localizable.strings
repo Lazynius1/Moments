@@ -4723,7 +4723,7 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "story.music.posts.placeholder" = "Müzikli gönderiler burada görünecek.";
 "story.music.saved.confirmation" = "Şarkı favorilere kaydedildi";
 "story.music.unsaved.confirmation" = "Şarkı favorilerden kaldırıldı";
-"chat.wallpaper.title" = "Sohbet arka planı";
+"chat.wallpaper.title" = "Sohbet stili";
 "chat.wallpaper.private" = "Bu arka planı yalnızca sen görürsün. Bu sohbet için kaydedilir ve hesabınla eşitlenir.";
 "chat.wallpaper.photo" = "Fotoğraf seç";
 "chat.wallpaper.color" = "Renk";
@@ -4732,6 +4732,40 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "chat.wallpaper.save" = "Kaydet";
 "chat.wallpaper.preview" = "Mesajların böyle görünecek";
 "chat.wallpaper.error" = "Arka plan kaydedilemedi veya yüklenemedi. Tekrar dene.";
-"chat.wallpaper.crop" = "Fotoğrafı sürükleyerek kadrajı ayarla ve kaydırıcıyla yakınlaştır.";
+"chat.wallpaper.crop" = "Fotoğrafı çerçevelemek için sürükleyin ve iki parmakla yakınlaştırın.";
 "chat.wallpaper.back" = "Geri";
-"chat.wallpaper.saved" = "Sohbet arka planı kaydedildi";
+"chat.wallpaper.saved" = "Sohbet stili kaydedildi";
+"chat.wallpaper.frame" = "Fotoğrafı çerçevele";
+"chat.wallpaper.bubbleColor" = "Gönderilen mesaj rengi";
+
+"chat.wallpaper.styles" = "Stiller";
+
+"chat.wallpaper.stylesHint" = "Duvar kâğıdını ve gönderdiğin mesajların rengini değiştirir.";
+
+"chat.wallpaper.customize" = "Özelleştir";
+
+"chat.wallpaper.background" = "Duvar kâğıdı";
+
+"chat.wallpaper.previewTitle" = "Önizleme";
+
+"chat.wallpaper.preset.aurora" = "Aurora";
+
+"chat.wallpaper.preset.coast" = "Kıyı";
+
+"chat.wallpaper.preset.dune" = "Kumullar";
+
+"chat.wallpaper.preset.forest" = "Orman";
+
+"chat.wallpaper.preset.bloom" = "Çiçekler";
+
+"chat.wallpaper.preset.midnight" = "Gece yarısı";
+
+"chat.wallpaper.preset.lagoon" = "Lagün";
+
+"chat.wallpaper.preset.clay" = "Kil";
+
+"chat.wallpaper.preset.cloud" = "Bulutlar";
+
+"chat.wallpaper.preset.citrus" = "Narenciye";
+
+"chat.wallpaper.current" = "Mevcut stil";

@@ -56,6 +56,7 @@ struct ChatMediaViewerPresentation: Identifiable {
 // Actualizar GlassmorphicChatView para incluir navegación
 struct GlassmorphicChatView: View {
     @ObservedObject var session: ConversationChatSession
+    @StateObject var wallpaperStore = ChatWallpaperStore()
     @StateObject var onlineStatusService = OnlineStatusService()
     @StateObject var keyboardScrollCoordinator = ChatKeyboardScrollCoordinator()
     @StateObject var pendingMessageRequestService = MessageRequestService()
@@ -306,6 +307,8 @@ struct GlassmorphicChatView: View {
     // ✅ REFACTOR: Dividido en variables separadas para evitar el error del compilador (timeout AST)
     var baseChatView: some View {
         chatRootContent
+            .environment(\.chatOutgoingBubbleColor, Color(hex: wallpaperStore.wallpaper.bubbleColorHex))
+            .task(id: "\(Auth.auth().currentUser?.uid ?? ""):\(conversationId)") { wallpaperStore.start(conversationId: conversationId) }
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .onReceive(GroupDirectory.shared.$groups) { groups in

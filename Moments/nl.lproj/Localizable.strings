@@ -4723,7 +4723,7 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "story.music.posts.placeholder" = "Posts met muziek verschijnen hier.";
 "story.music.saved.confirmation" = "Nummer opgeslagen in favorieten";
 "story.music.unsaved.confirmation" = "Nummer verwijderd uit favorieten";
-"chat.wallpaper.title" = "Chatachtergrond";
+"chat.wallpaper.title" = "Chatstijl";
 "chat.wallpaper.private" = "Alleen jij ziet deze achtergrond. Hij wordt voor dit gesprek opgeslagen en met je account gesynchroniseerd.";
 "chat.wallpaper.photo" = "Foto kiezen";
 "chat.wallpaper.color" = "Kleur";
@@ -4732,6 +4732,40 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "chat.wallpaper.save" = "Opslaan";
 "chat.wallpaper.preview" = "Zo zien je berichten eruit";
 "chat.wallpaper.error" = "De achtergrond kon niet worden opgeslagen of geladen. Probeer het opnieuw.";
-"chat.wallpaper.crop" = "Sleep de foto om het kader aan te passen en gebruik de schuifregelaar om in te zoomen.";
+"chat.wallpaper.crop" = "Sleep en knijp om de foto bij te snijden.";
 "chat.wallpaper.back" = "Terug";
-"chat.wallpaper.saved" = "Chatachtergrond opgeslagen";
+"chat.wallpaper.saved" = "Chatstijl opgeslagen";
+"chat.wallpaper.frame" = "Foto bijsnijden";
+"chat.wallpaper.bubbleColor" = "Kleur van verzonden berichten";
+
+"chat.wallpaper.styles" = "Stijlen";
+
+"chat.wallpaper.stylesHint" = "Wijzigt de achtergrond en de kleur van je verzonden berichten.";
+
+"chat.wallpaper.customize" = "Aanpassen";
+
+"chat.wallpaper.background" = "Achtergrond";
+
+"chat.wallpaper.previewTitle" = "Voorbeeld";
+
+"chat.wallpaper.preset.aurora" = "Aurora";
+
+"chat.wallpaper.preset.coast" = "Kust";
+
+"chat.wallpaper.preset.dune" = "Duinen";
+
+"chat.wallpaper.preset.forest" = "Bos";
+
+"chat.wallpaper.preset.bloom" = "Bloesem";
+
+"chat.wallpaper.preset.midnight" = "Middernacht";
+
+"chat.wallpaper.preset.lagoon" = "Lagune";
+
+"chat.wallpaper.preset.clay" = "Klei";
+
+"chat.wallpaper.preset.cloud" = "Wolken";
+
+"chat.wallpaper.preset.citrus" = "Citrus";
+
+"chat.wallpaper.current" = "Huidige stijl";

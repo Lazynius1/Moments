@@ -146,3 +146,15 @@ extension AdaptiveColors {
         ]
     }
 }
+
+// Pick the stronger black/white contrast for dark and pastel outgoing colors.
+func chatBubbleTextColor(for color: Color) -> Color {
+    var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+    UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
+    func linear(_ channel: CGFloat) -> Double {
+        let value = Double(channel)
+        return value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+    }
+    let luminance = 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
+    return luminance > 0.179 ? .black : .white
+}

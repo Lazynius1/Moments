@@ -4971,7 +4971,7 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "story.music.posts.placeholder" = "Les publicacions amb música apareixeran aquí.";
 "story.music.saved.confirmation" = "Cançó desada als preferits";
 "story.music.unsaved.confirmation" = "Cançó eliminada dels preferits";
-"chat.wallpaper.title" = "Fons del xat";
+"chat.wallpaper.title" = "Estil del xat";
 "chat.wallpaper.private" = "Només tu veus aquest fons. Es desa per a aquesta conversa i se sincronitza amb el teu compte.";
 "chat.wallpaper.photo" = "Tria una foto";
 "chat.wallpaper.color" = "Color";
@@ -4980,6 +4980,40 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "chat.wallpaper.save" = "Desa";
 "chat.wallpaper.preview" = "Així es veuran els teus missatges";
 "chat.wallpaper.error" = "No s’ha pogut desar o carregar el fons. Torna-ho a provar.";
-"chat.wallpaper.crop" = "Arrossega la foto per enquadrar-la i utilitza el control per ampliar-la.";
+"chat.wallpaper.crop" = "Arrossega i pessiga per enquadrar la foto.";
 "chat.wallpaper.back" = "Enrere";
-"chat.wallpaper.saved" = "Fons del xat desat";
+"chat.wallpaper.saved" = "Estil del xat desat";
+"chat.wallpaper.frame" = "Enquadra la foto";
+"chat.wallpaper.bubbleColor" = "Color dels missatges enviats";
+
+"chat.wallpaper.styles" = "Estils";
+
+"chat.wallpaper.stylesHint" = "Canvien el fons i el color dels missatges que envies.";
+
+"chat.wallpaper.customize" = "Personalitzar";
+
+"chat.wallpaper.background" = "Fons";
+
+"chat.wallpaper.previewTitle" = "Previsualització";
+
+"chat.wallpaper.preset.aurora" = "Aurora";
+
+"chat.wallpaper.preset.coast" = "Costa";
+
+"chat.wallpaper.preset.dune" = "Dunes";
+
+"chat.wallpaper.preset.forest" = "Bosc";
+
+"chat.wallpaper.preset.bloom" = "Flors";
+
+"chat.wallpaper.preset.midnight" = "Mitjanit";
+
+"chat.wallpaper.preset.lagoon" = "Llacuna";
+
+"chat.wallpaper.preset.clay" = "Argila";
+
+"chat.wallpaper.preset.cloud" = "Núvols";
+
+"chat.wallpaper.preset.citrus" = "Cítrics";
+
+"chat.wallpaper.current" = "Estil actual";

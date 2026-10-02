@@ -4952,7 +4952,7 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "story.music.posts.placeholder" = "I post con musica appariranno qui.";
 "story.music.saved.confirmation" = "Brano salvato nei preferiti";
 "story.music.unsaved.confirmation" = "Brano rimosso dai preferiti";
-"chat.wallpaper.title" = "Sfondo della chat";
+"chat.wallpaper.title" = "Stile della chat";
 "chat.wallpaper.private" = "Solo tu vedi questo sfondo. Viene salvato per questa conversazione e sincronizzato con il tuo account.";
 "chat.wallpaper.photo" = "Scegli una foto";
 "chat.wallpaper.color" = "Colore";
@@ -4961,6 +4961,40 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "chat.wallpaper.save" = "Salva";
 "chat.wallpaper.preview" = "Ecco come appariranno i tuoi messaggi";
 "chat.wallpaper.error" = "Impossibile salvare o caricare lo sfondo. Riprova.";
-"chat.wallpaper.crop" = "Trascina la foto per inquadrarla e usa il cursore per ingrandirla.";
+"chat.wallpaper.crop" = "Trascina e pizzica per inquadrare la foto.";
 "chat.wallpaper.back" = "Indietro";
-"chat.wallpaper.saved" = "Sfondo della chat salvato";
+"chat.wallpaper.saved" = "Stile della chat salvato";
+"chat.wallpaper.frame" = "Inquadra la foto";
+"chat.wallpaper.bubbleColor" = "Colore dei messaggi inviati";
+
+"chat.wallpaper.styles" = "Stili";
+
+"chat.wallpaper.stylesHint" = "Cambiano lo sfondo e il colore dei messaggi inviati.";
+
+"chat.wallpaper.customize" = "Personalizza";
+
+"chat.wallpaper.background" = "Sfondo";
+
+"chat.wallpaper.previewTitle" = "Anteprima";
+
+"chat.wallpaper.preset.aurora" = "Aurora";
+
+"chat.wallpaper.preset.coast" = "Costa";
+
+"chat.wallpaper.preset.dune" = "Dune";
+
+"chat.wallpaper.preset.forest" = "Foresta";
+
+"chat.wallpaper.preset.bloom" = "Fiori";
+
+"chat.wallpaper.preset.midnight" = "Mezzanotte";
+
+"chat.wallpaper.preset.lagoon" = "Laguna";
+
+"chat.wallpaper.preset.clay" = "Argilla";
+
+"chat.wallpaper.preset.cloud" = "Nuvole";
+
+"chat.wallpaper.preset.citrus" = "Agrumi";
+
+"chat.wallpaper.current" = "Stile attuale";

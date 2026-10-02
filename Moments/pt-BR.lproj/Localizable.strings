@@ -4952,7 +4952,7 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "story.music.posts.placeholder" = "Os posts com música aparecerão aqui.";
 "story.music.saved.confirmation" = "Música salva nos favoritos";
 "story.music.unsaved.confirmation" = "Música removida dos favoritos";
-"chat.wallpaper.title" = "Fundo da conversa";
+"chat.wallpaper.title" = "Estilo do chat";
 "chat.wallpaper.private" = "Só você vê este fundo. Ele é salvo para esta conversa e sincronizado com sua conta.";
 "chat.wallpaper.photo" = "Escolher foto";
 "chat.wallpaper.color" = "Cor";
@@ -4961,6 +4961,40 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "chat.wallpaper.save" = "Salvar";
 "chat.wallpaper.preview" = "Assim suas mensagens vão aparecer";
 "chat.wallpaper.error" = "Não foi possível salvar ou carregar o fundo. Tente novamente.";
-"chat.wallpaper.crop" = "Arraste a foto para enquadrar e use o controle para ampliar.";
+"chat.wallpaper.crop" = "Arraste e use dois dedos para enquadrar a foto.";
 "chat.wallpaper.back" = "Voltar";
-"chat.wallpaper.saved" = "Fundo da conversa salvo";
+"chat.wallpaper.saved" = "Estilo do chat salvo";
+"chat.wallpaper.frame" = "Enquadrar foto";
+"chat.wallpaper.bubbleColor" = "Cor das mensagens enviadas";
+
+"chat.wallpaper.styles" = "Estilos";
+
+"chat.wallpaper.stylesHint" = "Mudam o fundo e a cor das mensagens que você envia.";
+
+"chat.wallpaper.customize" = "Personalizar";
+
+"chat.wallpaper.background" = "Fundo";
+
+"chat.wallpaper.previewTitle" = "Prévia";
+
+"chat.wallpaper.preset.aurora" = "Aurora";
+
+"chat.wallpaper.preset.coast" = "Costa";
+
+"chat.wallpaper.preset.dune" = "Dunas";
+
+"chat.wallpaper.preset.forest" = "Floresta";
+
+"chat.wallpaper.preset.bloom" = "Flores";
+
+"chat.wallpaper.preset.midnight" = "Meia-noite";
+
+"chat.wallpaper.preset.lagoon" = "Lagoa";
+
+"chat.wallpaper.preset.clay" = "Argila";
+
+"chat.wallpaper.preset.cloud" = "Nuvens";
+
+"chat.wallpaper.preset.citrus" = "Cítricos";
+
+"chat.wallpaper.current" = "Estilo atual";

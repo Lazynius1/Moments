@@ -248,13 +248,8 @@ struct ChatMessageRowChrome<Content: View>: View {
     let colorScheme: ColorScheme
     @ViewBuilder let content: () -> Content
 
-    private var outgoingBubbleColor: Color {
-        Color(hex: "3F6F8F")
-    }
-
     var body: some View {
         content()
-            .environment(\.chatOutgoingBubbleColor, outgoingBubbleColor)
     }
 }
 

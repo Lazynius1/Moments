@@ -4952,7 +4952,7 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "story.music.posts.placeholder" = "Posts with music will appear here.";
 "story.music.saved.confirmation" = "Song saved to favorites";
 "story.music.unsaved.confirmation" = "Song removed from favorites";
-"chat.wallpaper.title" = "Chat wallpaper";
+"chat.wallpaper.title" = "Chat style";
 "chat.wallpaper.private" = "Only you see this wallpaper. It is saved for this conversation and synced with your account.";
 "chat.wallpaper.photo" = "Choose photo";
 "chat.wallpaper.color" = "Color";
@@ -4961,6 +4961,40 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "chat.wallpaper.save" = "Save";
 "chat.wallpaper.preview" = "This is how your messages will look";
 "chat.wallpaper.error" = "Could not save or load the wallpaper. Try again.";
-"chat.wallpaper.crop" = "Drag the photo to frame it and use the slider to zoom.";
+"chat.wallpaper.crop" = "Drag and pinch to frame the photo.";
 "chat.wallpaper.back" = "Back";
-"chat.wallpaper.saved" = "Chat wallpaper saved";
+"chat.wallpaper.saved" = "Chat style saved";
+"chat.wallpaper.frame" = "Frame photo";
+"chat.wallpaper.bubbleColor" = "Sent message color";
+
+"chat.wallpaper.styles" = "Styles";
+
+"chat.wallpaper.stylesHint" = "Changes the wallpaper and the color of your sent messages.";
+
+"chat.wallpaper.customize" = "Customize";
+
+"chat.wallpaper.background" = "Wallpaper";
+
+"chat.wallpaper.previewTitle" = "Preview";
+
+"chat.wallpaper.preset.aurora" = "Aurora";
+
+"chat.wallpaper.preset.coast" = "Coast";
+
+"chat.wallpaper.preset.dune" = "Dunes";
+
+"chat.wallpaper.preset.forest" = "Forest";
+
+"chat.wallpaper.preset.bloom" = "Blossom";
+
+"chat.wallpaper.preset.midnight" = "Midnight";
+
+"chat.wallpaper.preset.lagoon" = "Lagoon";
+
+"chat.wallpaper.preset.clay" = "Clay";
+
+"chat.wallpaper.preset.cloud" = "Clouds";
+
+"chat.wallpaper.preset.citrus" = "Citrus";
+
+"chat.wallpaper.current" = "Current style";

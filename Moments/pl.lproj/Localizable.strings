@@ -4723,7 +4723,7 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "story.music.posts.placeholder" = "Tutaj pojawią się posty z muzyką.";
 "story.music.saved.confirmation" = "Utwór dodany do ulubionych";
 "story.music.unsaved.confirmation" = "Utwór usunięty z ulubionych";
-"chat.wallpaper.title" = "Tło czatu";
+"chat.wallpaper.title" = "Styl czatu";
 "chat.wallpaper.private" = "Tylko Ty widzisz to tło. Jest zapisywane dla tej rozmowy i synchronizowane z Twoim kontem.";
 "chat.wallpaper.photo" = "Wybierz zdjęcie";
 "chat.wallpaper.color" = "Kolor";
@@ -4732,6 +4732,40 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "chat.wallpaper.save" = "Zapisz";
 "chat.wallpaper.preview" = "Tak będą wyglądać Twoje wiadomości";
 "chat.wallpaper.error" = "Nie udało się zapisać lub wczytać tła. Spróbuj ponownie.";
-"chat.wallpaper.crop" = "Przeciągnij zdjęcie, aby je wykadrować, i użyj suwaka, aby je powiększyć.";
+"chat.wallpaper.crop" = "Przeciągnij i powiększ dwoma palcami, aby wykadrować zdjęcie.";
 "chat.wallpaper.back" = "Wstecz";
-"chat.wallpaper.saved" = "Tło czatu zapisane";
+"chat.wallpaper.saved" = "Zapisano styl czatu";
+"chat.wallpaper.frame" = "Kadruj zdjęcie";
+"chat.wallpaper.bubbleColor" = "Kolor wysłanych wiadomości";
+
+"chat.wallpaper.styles" = "Style";
+
+"chat.wallpaper.stylesHint" = "Zmieniają tło i kolor wysyłanych wiadomości.";
+
+"chat.wallpaper.customize" = "Dostosuj";
+
+"chat.wallpaper.background" = "Tło";
+
+"chat.wallpaper.previewTitle" = "Podgląd";
+
+"chat.wallpaper.preset.aurora" = "Zorza";
+
+"chat.wallpaper.preset.coast" = "Wybrzeże";
+
+"chat.wallpaper.preset.dune" = "Wydmy";
+
+"chat.wallpaper.preset.forest" = "Las";
+
+"chat.wallpaper.preset.bloom" = "Kwiaty";
+
+"chat.wallpaper.preset.midnight" = "Północ";
+
+"chat.wallpaper.preset.lagoon" = "Laguna";
+
+"chat.wallpaper.preset.clay" = "Glina";
+
+"chat.wallpaper.preset.cloud" = "Chmury";
+
+"chat.wallpaper.preset.citrus" = "Cytrusy";
+
+"chat.wallpaper.current" = "Obecny styl";
