@@ -106,9 +106,9 @@ struct FeedView: View {
     }
 
     private var feedHeaderHeight: CGFloat { 88 }
-    private var feedSelectorHeight: CGFloat { 35 }
-    private var floatingSelectorTopInset: CGFloat { isFeedHeaderHidden ? 18 : feedHeaderHeight }
-    private var feedContentTopInset: CGFloat { floatingSelectorTopInset + feedSelectorHeight + 40 }
+    private var feedSelectorHeight: CGFloat { 44 }
+    private var floatingSelectorTopInset: CGFloat { feedHeaderHeight }
+    private var feedContentTopInset: CGFloat { isFeedHeaderHidden ? 18 : feedHeaderHeight + feedSelectorHeight + 40 }
     
     var body: some View {
         ZStack {

@@ -214,6 +214,14 @@ service firebase.storage {
     // Nuevo layout: users/{uid}/…
     // -------------------------------------------------------------------------
 
+    // Personal chat wallpapers are only readable by their owner. No moderation pipeline.
+    match /users/{userId}/chatWallpapers/{conversationId}/{fileName} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.contentType == 'image/jpeg'
+        && request.resource.size < 8 * 1024 * 1024;
+    }
+
     match /users/{userId}/profile/avatar/{fileName} {
       allow read: if canReadOwnerProfileMedia(userId);
       allow write: if canWriteAsOwner(userId) && validImageUpload();

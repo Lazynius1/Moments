@@ -136,10 +136,7 @@ private struct ViewOncePillBubble: View {
         .padding(.vertical, 10)
         .fixedSize(horizontal: true, vertical: true)
         .background(
-            ZStack {
-                Capsule().fill(.ultraThinMaterial)
-                Capsule().fill(adaptiveColors.messageBubbleBackground.opacity(0.3))
-            }
+            Capsule().fill(adaptiveColors.messageBubbleBackground)
         )
         .overlay(
             Capsule().stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.8)

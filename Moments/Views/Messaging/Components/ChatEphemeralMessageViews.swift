@@ -349,7 +349,7 @@ struct ChatEphemeralExpiredCard: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous)
-                .fill(Color.white.opacity(0.06))
+                .fill(Color(hex: "272727"))
 
             VStack(spacing: 8) {
                 Image(systemName: "hourglass.bottomhalf.filled")

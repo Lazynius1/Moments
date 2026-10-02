@@ -83,6 +83,8 @@ struct ArchiveView: View {
                 .momentRefresh {
                     await reloadArchivedStories()
                 }
+            } else if viewModel.hasLoadError && viewModel.groupedStories.isEmpty {
+                archiveRetryBanner
             } else if viewModel.groupedStories.isEmpty {
                 ScrollView {
                     VStack(spacing: 20) {
@@ -154,6 +156,11 @@ struct ArchiveView: View {
                         archiveMapView
                     }
                 }
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if viewModel.hasLoadError && !viewModel.groupedStories.isEmpty {
+                archiveRetryBanner
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -442,9 +449,16 @@ struct ArchiveView: View {
         .padding(.bottom, 16)
     }
 
+    private var archiveRetryBanner: some View {
+        AppErrorBanner(message: NSLocalizedString("highlightedStories.loadFailed", comment: "")) {
+            viewModel.retryArchivedStories(fillAll: selectedDisplayMode == .map)
+        }
+        .padding(16)
+    }
+
     @ViewBuilder
     private var archivePagingFooter: some View {
-        if viewModel.canLoadMore {
+        if viewModel.canLoadMore && !viewModel.hasLoadError {
             ProgressView()
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
@@ -1602,15 +1616,22 @@ class ArchiveViewModel: ObservableObject {
     @Published private(set) var isLoadingMore = false
     @Published private(set) var canLoadMore = true
     @Published private(set) var isFillingAll = false
+    @Published private(set) var hasLoadError = false
     
     private let firestoreService = FirestoreService()
     private let pageSize = 36
     private var lastDocument: DocumentSnapshot?
     private var loadTask: Task<Void, Never>?
+    private var fillTask: Task<Void, Never>?
+    private var generation = UUID()
     
     func loadArchivedStories() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         loadTask?.cancel()
+        fillTask?.cancel()
+        generation = UUID()
+        hasLoadError = false
+        isLoadingMore = false
         lastDocument = nil
         canLoadMore = true
         isFillingAll = false
@@ -1622,21 +1643,35 @@ class ArchiveViewModel: ObservableObject {
     }
 
     func loadMoreArchivedStories() {
-        guard let userId = Auth.auth().currentUser?.uid, canLoadMore, !isLoading, !isLoadingMore else { return }
+        guard let userId = Auth.auth().currentUser?.uid, canLoadMore, !hasLoadError, !isLoading, !isLoadingMore else { return }
         loadTask = Task { @MainActor [weak self] in
             await self?.loadPage(userId: userId, reset: false)
         }
     }
 
+    func retryArchivedStories(fillAll: Bool = false) {
+        guard hasLoadError, !isLoading, !isLoadingMore else { return }
+        hasLoadError = false
+        if lastDocument == nil && groupedStories.isEmpty {
+            loadArchivedStories()
+            if fillAll { loadAllArchivedStories() }
+        } else if fillAll {
+            loadAllArchivedStories()
+        } else {
+            loadMoreArchivedStories()
+        }
+    }
+
     func loadAllArchivedStories() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
-        guard !isFillingAll else { return }
+        guard let userId = Auth.auth().currentUser?.uid,
+              !isFillingAll, !hasLoadError else { return }
         isFillingAll = true
-        loadTask = Task { @MainActor [weak self] in
+        let id = generation
+        fillTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            defer { self.isFillingAll = false }
-            while self.canLoadMore && !Task.isCancelled {
-                if self.isLoading {
+            defer { if self.generation == id { self.isFillingAll = false } }
+            while self.canLoadMore && !self.hasLoadError && !Task.isCancelled && self.generation == id {
+                if self.isLoading || self.isLoadingMore {
                     try? await Task.sleep(for: .milliseconds(100))
                 } else {
                     await self.loadPage(userId: userId, reset: false)
@@ -1647,8 +1682,15 @@ class ArchiveViewModel: ObservableObject {
 
     @MainActor
     private func loadPage(userId: String, reset: Bool) async {
-        guard reset || (canLoadMore && !isLoadingMore) else { return }
+        guard !Task.isCancelled, reset || (canLoadMore && !hasLoadError && !isLoadingMore) else { return }
+        let id = generation
         if !reset { isLoadingMore = true }
+        defer {
+            if generation == id {
+                isLoading = false
+                isLoadingMore = false
+            }
+        }
         var query: Query = firestoreService.db.collection("users").document(userId).collection("stories")
             .whereField("expirationDate", isLessThan: Date())
             .order(by: "timestamp", descending: true)
@@ -1656,6 +1698,7 @@ class ArchiveViewModel: ObservableObject {
         if !reset, let lastDocument { query = query.start(afterDocument: lastDocument) }
         do {
             let snapshot = try await query.getDocuments()
+            guard !Task.isCancelled, generation == id else { return }
             let page = snapshot.documents.compactMap { doc -> Story? in
                 var data = doc.data()
                 data["id"] = doc.documentID
@@ -1671,10 +1714,9 @@ class ArchiveViewModel: ObservableObject {
             groupStoriesByDate(byId.values.sorted { $0.timestamp > $1.timestamp })
             prefetchRecentImages(stories: page)
         } catch {
-            canLoadMore = false
+            guard !Task.isCancelled, generation == id else { return }
+            hasLoadError = true
         }
-        isLoading = false
-        isLoadingMore = false
     }
     
     private func groupStoriesByDate(_ stories: [Story]) {

@@ -4723,3 +4723,15 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "story.music.posts.placeholder" = "Postingan dengan musik akan muncul di sini.";
 "story.music.saved.confirmation" = "Lagu disimpan ke favorit";
 "story.music.unsaved.confirmation" = "Lagu dihapus dari favorit";
+"chat.wallpaper.title" = "Latar chat";
+"chat.wallpaper.private" = "Hanya kamu yang melihat latar ini. Latar disimpan untuk percakapan ini dan disinkronkan dengan akunmu.";
+"chat.wallpaper.photo" = "Pilih foto";
+"chat.wallpaper.color" = "Warna";
+"chat.wallpaper.default" = "Gunakan latar default";
+"chat.wallpaper.dimming" = "Gelapkan latar";
+"chat.wallpaper.save" = "Simpan";
+"chat.wallpaper.preview" = "Seperti ini tampilan pesanmu";
+"chat.wallpaper.error" = "Latar tidak dapat disimpan atau dimuat. Coba lagi.";
+"chat.wallpaper.crop" = "Geser foto untuk mengatur bingkai dan gunakan penggeser untuk memperbesar.";
+"chat.wallpaper.back" = "Kembali";
+"chat.wallpaper.saved" = "Latar chat disimpan";

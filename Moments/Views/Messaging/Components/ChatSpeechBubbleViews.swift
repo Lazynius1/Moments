@@ -61,7 +61,7 @@ struct ChatBubbleShape: Shape {
 /// Valores de referencia al tamaño de texto por defecto; escalan con Dynamic Type.
 enum ChatTextBubbleMetrics {
     static let horizontalPadding: CGFloat = 15
-    static let verticalPadding: CGFloat = 10
+    static let verticalPadding: CGFloat = 12
     static let lineSpacing: CGFloat = 2
     static let cornerRadius: CGFloat = 20
     static let joinedRadius: CGFloat = 4
@@ -174,7 +174,7 @@ enum ChatMessageFont {
     static var bubble: Font {
         Font(
             UIFontMetrics(forTextStyle: .body).scaledFont(
-                for: UIFont.systemFont(ofSize: 15, weight: .regular)
+                for: UIFont.systemFont(ofSize: 16, weight: .regular)
             )
         )
     }

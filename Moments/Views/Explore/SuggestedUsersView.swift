@@ -138,6 +138,7 @@ struct SuggestedUsersView: View {
                     }
                     .padding(.bottom, 20)
                 }
+                .momentsScrollEdgeChrome()
                 .refreshable {
                     await viewModel.refreshUsers()
                 }

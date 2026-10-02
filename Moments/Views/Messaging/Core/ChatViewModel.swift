@@ -211,6 +211,7 @@ class EnhancedChatViewModel: ObservableObject {
     static let staleChatWindowSize = 6
     static let staleChatThresholdDays = 45
     private var historyRestorationTask: Task<Void, Never>?
+    private var historyLoadTask: Task<Void, Never>?
     private static let historyPageSize = 50
     private static let navigationWindowRadius = 25
     @Published private(set) var forwardingPreferences: [String: Bool] = [:]
@@ -1295,7 +1296,7 @@ class EnhancedChatViewModel: ObservableObject {
         let pageSize = Self.historyPageSize
         let cursor = MessageSyncCursor(timestamp: oldest.timestamp, messageId: oldest.id)
 
-        Task { @MainActor [weak self] in
+        historyLoadTask = Task { @MainActor [weak self] in
             guard let self else { return }
             await Task.yield()
 
@@ -1306,6 +1307,7 @@ class EnhancedChatViewModel: ObservableObject {
                 limit: pageSize
             )
 
+            guard !Task.isCancelled else { return }
             var remoteCursor = cursor
             if !localPage.isEmpty {
                 let didPrependVisibleMessages = self.prependHistoryPage(localPage)
@@ -1332,7 +1334,7 @@ class EnhancedChatViewModel: ObservableObject {
             }
 
             do {
-                while true {
+                while !Task.isCancelled {
                     let page = try await self.fetchOlderMessagesFromFirestore(
                         conversationId: conversationId,
                         before: remoteCursor,
@@ -1340,6 +1342,7 @@ class EnhancedChatViewModel: ObservableObject {
                         limit: pageSize
                     )
 
+                    try Task.checkCancellation()
                     let existingIds = Set((self.historicalMessages + self.realTimeMessages).map(\.id))
                     let novel = page.messages
                         .filter { !existingIds.contains($0.id) }
@@ -1350,6 +1353,7 @@ class EnhancedChatViewModel: ObservableObject {
                             novel,
                             conversationId: conversationId
                         )
+                        try Task.checkCancellation()
                         if self.prependHistoryPage(novel) {
                             self.finishHistoryLoad(canLoadMore: page.hasMore)
                             return
@@ -1366,6 +1370,7 @@ class EnhancedChatViewModel: ObservableObject {
                     remoteCursor = nextCursor
                 }
             } catch {
+                guard !Task.isCancelled else { return }
                 self.historyLoadNotice = .error
                 self.finishHistoryLoad(canLoadMore: self.canLoadMore)
                 self.endHistoryScrollRestoration()
@@ -2093,6 +2098,10 @@ class EnhancedChatViewModel: ObservableObject {
     }
 
     func stopListening() {
+        historyLoadTask?.cancel()
+        historyLoadTask = nil
+        finishHistoryLoad(canLoadMore: canLoadMore)
+        endHistoryScrollRestoration()
         pauseChatListenersImmediately()
         isChatVisible = false
     }
@@ -2138,6 +2147,7 @@ class EnhancedChatViewModel: ObservableObject {
 
     // ✅ NUEVA: Cleanup cuando se destruye el ViewModel
     deinit {
+        historyLoadTask?.cancel()
         if let messageStatusObserver {
             NotificationCenter.default.removeObserver(messageStatusObserver)
         }

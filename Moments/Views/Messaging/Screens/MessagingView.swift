@@ -506,17 +506,20 @@ struct MessagingView: View {
     }
 
     private func preloadRecentChatSessions() {
-        guard LocalFirstMessagingSettings.isEnabled else { return }
-        let cached = LocalPersistenceService.shared.loadConversations()
-        guard !cached.isEmpty else { return }
-        let userId = Auth.auth().currentUser?.uid ?? ""
-        let sorted = cached.sorted { lhs, rhs in
-            let lhsUnread = !(lhs.readStatus[userId] ?? true)
-            let rhsUnread = !(rhs.readStatus[userId] ?? true)
-            if lhsUnread != rhsUnread { return lhsUnread && !rhsUnread }
-            return lhs.timestamp > rhs.timestamp
+        guard LocalFirstMessagingSettings.isEnabled,
+              let userId = Auth.auth().currentUser?.uid else { return }
+        Task { @MainActor in
+            let cached = await LocalPersistenceService.shared.loadConversationsInBackground()
+                .filter { $0.participants.contains(userId) }
+            guard Auth.auth().currentUser?.uid == userId, !cached.isEmpty else { return }
+            let sorted = cached.sorted { lhs, rhs in
+                let lhsUnread = !(lhs.readStatus[userId] ?? true)
+                let rhsUnread = !(rhs.readStatus[userId] ?? true)
+                if lhsUnread != rhsUnread { return lhsUnread && !rhsUnread }
+                return lhs.timestamp > rhs.timestamp
+            }
+            ChatSessionEngine.shared.preloadRecentSessions(from: sorted, limit: 5)
         }
-        ChatSessionEngine.shared.preloadRecentSessions(from: sorted, limit: 5)
     }
 
     private func navigateToConversation(id: String) {

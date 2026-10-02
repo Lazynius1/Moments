@@ -2365,6 +2365,22 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /users/{userId}/chatWallpapers/{conversationId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['kind', 'colorHex', 'storagePath', 'dimming', 'updatedAt'])
+        && request.resource.data.kind in ['default', 'color', 'photo']
+        && request.resource.data.colorHex is string
+        && request.resource.data.colorHex.matches('^[0-9A-Fa-f]{6}$')
+        && request.resource.data.dimming is number
+        && request.resource.data.dimming >= 0 && request.resource.data.dimming <= 0.75
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.storagePath is string
+        && (request.resource.data.kind == 'photo'
+          ? request.resource.data.storagePath.matches('^users/' + userId + '/chatWallpapers/' + conversationId + '/[^/]+[.]jpg$')
+          : request.resource.data.storagePath == '');
+    }
+
     match /users/{userId}/messageRequestPreferences/{documentId} {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow create, update: if request.auth != null

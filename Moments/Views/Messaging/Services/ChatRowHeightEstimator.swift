@@ -59,7 +59,7 @@ enum ChatRowHeightEstimator {
             if message.hasStoryReplyContext { return true }
             return message.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .conversationIntro, .groupIntro, .requestDisclaimer, .incomingRequestActions,
-             .outgoingRequestControls, .header, .buzz, .typing, .historyStart:
+             .outgoingRequestControls, .header, .buzz, .typing, .historyLoading, .historyStart:
             return true
         }
     }
@@ -90,6 +90,8 @@ enum ChatRowHeightEstimator {
             return buzzHeight
         case .typing:
             return typingHeight
+        case .historyLoading:
+            return 44
         case .historyStart:
             return historyStartHeight
         case .message(let item):

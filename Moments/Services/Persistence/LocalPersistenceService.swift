@@ -18,6 +18,8 @@ final class LocalPersistenceService: ObservableObject {
     private var modelContainer: ModelContainer?
     private var modelContext: ModelContext?
     private var messagePersistenceStore: MessagePersistenceStore?
+    private var conversationStoreTask: Task<ConversationPersistenceStore, Never>?
+    private var conversationWriteTask: Task<Void, Never>?
     
     // MARK: - Configuración
     private let maxFeedMoments = 100      // Máximo moments del feed en caché
@@ -494,36 +496,57 @@ final class LocalPersistenceService: ObservableObject {
     // MARK: - 💬 MESSAGING: Save & Load
     
     /// Guarda una lista de conversaciones en el caché local
-    func saveConversations(_ conversations: [Conversation], sync: Bool = false) {
-        guard let context = modelContext else { return }
-        
-        // ✅ SYNC: Borrar conversaciones antiguas si es sync completo
-        if sync {
-            try? context.delete(model: CachedConversation.self)
+    private func conversationStore() -> Task<ConversationPersistenceStore, Never>? {
+        if let conversationStoreTask { return conversationStoreTask }
+        guard let modelContainer else { return nil }
+        // Create the ModelActor off the main thread so its ModelContext gets a
+        // background executor rather than inheriting the UI's executor.
+        let task = Task.detached(priority: .utility) {
+            ConversationPersistenceStore(modelContainer: modelContainer)
         }
-        
-        let conversationIds = conversations.compactMap { $0.id }
-        let predicate = #Predicate<CachedConversation> { conversationIds.contains($0.id) }
-        let descriptor = FetchDescriptor<CachedConversation>(predicate: predicate)
-        let existingConversations = (try? context.fetch(descriptor)) ?? []
-        let existingMap = Dictionary(uniqueKeysWithValues: existingConversations.map { ($0.id, $0) })
-        
-        for conversation in conversations {
-            guard let conversationId = conversation.id else { continue }
-            
-            let cached = CachedConversation.from(conversation)
-            
-            if let existing = existingMap[conversationId] {
-                updateCachedConversation(existing, from: cached)
-            } else {
-                context.insert(cached)
-            }
-        }
-        
-        saveContext()
-        trimConversations()
+        conversationStoreTask = task
+        return task
     }
-    
+
+    func saveConversations(_ conversations: [Conversation], sync: Bool = false) {
+        guard let store = conversationStore(), let viewerId = Auth.auth().currentUser?.uid else { return }
+        do {
+            let data = try JSONEncoder().encode(conversations)
+            let previous = conversationWriteTask
+            conversationWriteTask = Task {
+                // Preserve snapshot order and optimistic read/pin/archive writes.
+                await previous?.value
+                guard Auth.auth().currentUser?.uid == viewerId else { return }
+                do { try await store.value.save(encodedConversations: data, sync: sync) }
+                catch { AppLog.error("Conversation cache save failed: \(error.localizedDescription)") }
+            }
+        } catch {
+            AppLog.error("Conversation cache encode failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func enqueueConversationCacheDeletion(conversationId: String? = nil) {
+        guard let store = conversationStore() else { return }
+        let previous = conversationWriteTask
+        conversationWriteTask = Task {
+            await previous?.value
+            do { try await store.value.delete(conversationId: conversationId) }
+            catch { AppLog.error("Conversation cache delete failed: \(error.localizedDescription)") }
+        }
+    }
+
+    func loadConversationsInBackground() async -> [Conversation] {
+        guard let store = conversationStore() else { return [] }
+        await conversationWriteTask?.value
+        do {
+            let data = try await store.value.load()
+            return try JSONDecoder().decode([Conversation].self, from: data)
+        } catch {
+            AppLog.error("Conversation cache load failed: \(error.localizedDescription)")
+            return []
+        }
+    }
+
     /// Carga la lista de conversaciones desde el caché local
     func loadConversations() -> [Conversation] {
         guard let context = modelContext else { return [] }
@@ -1202,10 +1225,9 @@ final class LocalPersistenceService: ObservableObject {
         let messageIds = loadMessages(conversationId: conversationId).map(\.id)
         ChatCacheStore.deleteConversation(conversationId, messageIds: messageIds)
 
-        let conversationPredicate = #Predicate<CachedConversation> { $0.id == conversationId }
+        enqueueConversationCacheDeletion(conversationId: conversationId)
         let messagePredicate = #Predicate<CachedMessage> { $0.conversationId == conversationId }
 
-        try? context.delete(model: CachedConversation.self, where: conversationPredicate)
         try? context.delete(model: CachedMessage.self, where: messagePredicate)
         saveContext()
     }
@@ -1330,7 +1352,7 @@ final class LocalPersistenceService: ObservableObject {
     func clearAllChatCache() {
         guard let context = modelContext else { return }
 
-        try? context.delete(model: CachedConversation.self)
+        enqueueConversationCacheDeletion()
         try? context.delete(model: CachedMessage.self)
         saveContext()
         ChatCacheStore.clearAllMedia()

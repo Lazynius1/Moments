@@ -4723,3 +4723,15 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "story.music.posts.placeholder" = "音楽付きの投稿がここに表示されます。";
 "story.music.saved.confirmation" = "曲をお気に入りに保存しました";
 "story.music.unsaved.confirmation" = "曲をお気に入りから削除しました";
+"chat.wallpaper.title" = "チャットの背景";
+"chat.wallpaper.private" = "この背景は自分にだけ表示されます。この会話用に保存され、アカウントと同期されます。";
+"chat.wallpaper.photo" = "写真を選択";
+"chat.wallpaper.color" = "色";
+"chat.wallpaper.default" = "標準の背景を使う";
+"chat.wallpaper.dimming" = "背景を暗くする";
+"chat.wallpaper.save" = "保存";
+"chat.wallpaper.preview" = "メッセージはこのように表示されます";
+"chat.wallpaper.error" = "背景を保存または読み込めませんでした。もう一度お試しください。";
+"chat.wallpaper.crop" = "写真をドラッグして位置を調整し、スライダーで拡大できます。";
+"chat.wallpaper.back" = "戻る";
+"chat.wallpaper.saved" = "チャットの背景を保存しました";

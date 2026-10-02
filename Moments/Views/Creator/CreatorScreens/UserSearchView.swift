@@ -9,6 +9,7 @@ struct UserSearchView: View {
     @State private var searchText = ""
     @State private var searchResults: [AppUser] = []
     @State private var isSearching = false
+    @State private var searchRequestId = UUID()
     @State private var selectedUserIds = Set<String>()
 
     private let firestoreService = FirestoreService()
@@ -24,9 +25,7 @@ struct UserSearchView: View {
                     TextField(NSLocalizedString("creator.tag.search", comment: ""), text: $searchText)
                         .textFieldStyle(PlainTextFieldStyle())
                         .foregroundStyle(.white)
-                        .onChange(of: searchText) { _, newValue in
-                            searchUsers(query: newValue)
-                        }
+
 
                     if !searchText.isEmpty {
                         Button(action: {
@@ -61,7 +60,7 @@ struct UserSearchView: View {
                 }
 
                 // Search results
-                if isSearching {
+                if isSearching && searchResults.isEmpty {
                     HStack {
                         ProgressView()
                             .tint(.white)
@@ -109,37 +108,28 @@ struct UserSearchView: View {
             .toolbarBackground(Color.black, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
         }
-        .onAppear {
-            // Load initial suggestions
-            loadSuggestions()
-        }
-    }
-
-    private func searchUsers(query: String) {
-        guard !query.isEmpty else {
-            loadSuggestions()
-            return
-        }
-
-        isSearching = true
-
-        firestoreService.searchUsers(query: query, limit: 10) { result in
-            DispatchQueue.main.async {
-                self.isSearching = false
-
-                switch result {
-                case .success(let users):
-                    self.searchResults = users
-                case .failure(_):
-                    self.searchResults = []
+        .task(id: searchText) {
+            let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let requestId = UUID()
+            searchRequestId = requestId
+            guard !query.isEmpty else {
+                searchResults = []
+                isSearching = false
+                return
+            }
+            isSearching = true
+            do { try await Task.sleep(for: .milliseconds(300)) }
+            catch { return }
+            guard !Task.isCancelled else { return }
+            let result: Result<[AppUser], Error> = await withCheckedContinuation { continuation in
+                firestoreService.searchUsers(query: query, limit: 10) {
+                    continuation.resume(returning: $0)
                 }
             }
+            guard !Task.isCancelled, searchRequestId == requestId else { return }
+            if case .success(let users) = result { searchResults = users }
+            isSearching = false
         }
-    }
-
-    private func loadSuggestions() {
-        // Load suggested users
-        searchResults = []
     }
 
     private func toggleUserSelection(_ user: AppUser) {

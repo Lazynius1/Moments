@@ -4971,3 +4971,15 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "story.music.posts.placeholder" = "Les publicacions amb música apareixeran aquí.";
 "story.music.saved.confirmation" = "Cançó desada als preferits";
 "story.music.unsaved.confirmation" = "Cançó eliminada dels preferits";
+"chat.wallpaper.title" = "Fons del xat";
+"chat.wallpaper.private" = "Només tu veus aquest fons. Es desa per a aquesta conversa i se sincronitza amb el teu compte.";
+"chat.wallpaper.photo" = "Tria una foto";
+"chat.wallpaper.color" = "Color";
+"chat.wallpaper.default" = "Utilitza el fons predeterminat";
+"chat.wallpaper.dimming" = "Enfosqueix el fons";
+"chat.wallpaper.save" = "Desa";
+"chat.wallpaper.preview" = "Així es veuran els teus missatges";
+"chat.wallpaper.error" = "No s’ha pogut desar o carregar el fons. Torna-ho a provar.";
+"chat.wallpaper.crop" = "Arrossega la foto per enquadrar-la i utilitza el control per ampliar-la.";
+"chat.wallpaper.back" = "Enrere";
+"chat.wallpaper.saved" = "Fons del xat desat";

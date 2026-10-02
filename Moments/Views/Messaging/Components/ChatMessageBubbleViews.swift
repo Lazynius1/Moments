@@ -312,7 +312,7 @@ struct DeletedMessageBubble: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .fixedSize(horizontal: true, vertical: true)
-        .background(adaptiveColors.messageBubbleBackground.opacity(0.5), in: bubbleShape)
+        .background(adaptiveColors.messageBubbleBackground, in: bubbleShape)
         .overlay(
             bubbleShape
                 .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)

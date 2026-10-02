@@ -4723,3 +4723,15 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "story.music.posts.placeholder" = "Tutaj pojawią się posty z muzyką.";
 "story.music.saved.confirmation" = "Utwór dodany do ulubionych";
 "story.music.unsaved.confirmation" = "Utwór usunięty z ulubionych";
+"chat.wallpaper.title" = "Tło czatu";
+"chat.wallpaper.private" = "Tylko Ty widzisz to tło. Jest zapisywane dla tej rozmowy i synchronizowane z Twoim kontem.";
+"chat.wallpaper.photo" = "Wybierz zdjęcie";
+"chat.wallpaper.color" = "Kolor";
+"chat.wallpaper.default" = "Użyj domyślnego tła";
+"chat.wallpaper.dimming" = "Przyciemnij tło";
+"chat.wallpaper.save" = "Zapisz";
+"chat.wallpaper.preview" = "Tak będą wyglądać Twoje wiadomości";
+"chat.wallpaper.error" = "Nie udało się zapisać lub wczytać tła. Spróbuj ponownie.";
+"chat.wallpaper.crop" = "Przeciągnij zdjęcie, aby je wykadrować, i użyj suwaka, aby je powiększyć.";
+"chat.wallpaper.back" = "Wstecz";
+"chat.wallpaper.saved" = "Tło czatu zapisane";

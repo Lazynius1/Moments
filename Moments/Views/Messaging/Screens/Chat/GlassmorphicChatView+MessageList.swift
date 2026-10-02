@@ -97,6 +97,7 @@ extension GlassmorphicChatView {
                 }
             }
         }
+        if viewModel.isLoadingMore { rows.insert(.historyLoading, at: 0) }
         if !viewModel.typingUsers.isEmpty {
             rows.append(.typing)
         }

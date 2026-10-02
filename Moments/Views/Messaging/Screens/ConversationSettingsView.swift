@@ -21,6 +21,7 @@ struct ConversationSettingsView: View {
     @State private var pendingJumpMessageId: String? = nil
     @State private var sharedTab: SharedContentTab = .media
     @State private var showChatPreferences = false
+    @State private var showWallpaper = false
     @State private var showVanishPreferences = false
     @State private var showingUserProfile = false
     @State private var groupManagementId: String?
@@ -247,6 +248,12 @@ struct ConversationSettingsView: View {
         }
         .navigationDestination(item: $groupInviteManageId) { id in
             GroupInviteLinkManageView(groupId: id)
+        }
+        .navigationDestination(isPresented: $showWallpaper) {
+            ConversationWallpaperView(conversationId: conversation.id ?? "")
+                .toolbar(.hidden, for: .tabBar)
+                .momentsFloatingTabBarHidden()
+                .chatInteractivePopEnabled()
         }
         .navigationDestination(isPresented: $showChatPreferences) {
             ConversationChatPreferencesView(viewModel: viewModel)
@@ -575,6 +582,15 @@ struct ConversationSettingsView: View {
             dividerLine.padding(.leading, 38)
 
             }
+            Button { showWallpaper = true } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: "photo.on.rectangle").frame(width: 24).foregroundStyle(adaptiveColors.secondary)
+                    Text("chat.wallpaper.title").font(.system(size: legacyPoppinsSize(16), weight: .medium)).foregroundStyle(adaptiveColors.primary)
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(adaptiveColors.tertiary)
+                }.padding(.vertical, 14).contentShape(Rectangle())
+            }.buttonStyle(.momentsPressSubtle).disabled(conversation.id == nil)
+            dividerLine.padding(.leading, 38)
             // Privacidad y seguridad (1:1 y grupo)
             Button {
                 HapticManager.shared.lightImpact()

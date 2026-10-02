@@ -26,6 +26,7 @@ enum ChatRenderRow: Identifiable {
     case message(MessageItem)
     case buzz(ChatBuzzEvent)
     case typing
+    case historyLoading
     case historyStart
 
     var id: String {
@@ -40,6 +41,7 @@ enum ChatRenderRow: Identifiable {
         case .message(let item): return "row:message:\(item.id)"
         case .buzz(let event): return "row:buzz:\(event.id)"
         case .typing: return "row:synthetic:typing-indicator"
+        case .historyLoading: return "row:synthetic:history-loading"
         case .historyStart: return "row:synthetic:history-start"
         }
     }

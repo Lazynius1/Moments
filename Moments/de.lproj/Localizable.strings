@@ -4952,3 +4952,15 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "story.music.posts.placeholder" = "Beiträge mit Musik erscheinen hier.";
 "story.music.saved.confirmation" = "Song zu Favoriten hinzugefügt";
 "story.music.unsaved.confirmation" = "Song aus Favoriten entfernt";
+"chat.wallpaper.title" = "Chat-Hintergrund";
+"chat.wallpaper.private" = "Nur du siehst diesen Hintergrund. Er wird für diesen Chat gespeichert und mit deinem Konto synchronisiert.";
+"chat.wallpaper.photo" = "Foto auswählen";
+"chat.wallpaper.color" = "Farbe";
+"chat.wallpaper.default" = "Standardhintergrund verwenden";
+"chat.wallpaper.dimming" = "Hintergrund abdunkeln";
+"chat.wallpaper.save" = "Speichern";
+"chat.wallpaper.preview" = "So sehen deine Nachrichten aus";
+"chat.wallpaper.error" = "Der Hintergrund konnte nicht gespeichert oder geladen werden. Versuche es erneut.";
+"chat.wallpaper.crop" = "Ziehe das Foto zum Zuschneiden und verwende den Regler zum Vergrößern.";
+"chat.wallpaper.back" = "Zurück";
+"chat.wallpaper.saved" = "Chat-Hintergrund gespeichert";

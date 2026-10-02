@@ -173,7 +173,7 @@ struct StoryStaticPreviewSurface: View {
             let canvasSize = aspectFillCanvasSize(in: geometry.size)
 
             ZStack {
-                StoryStaticPreviewMedia(story: story)
+                StoryStaticPreviewMedia(story: story, targetSize: canvasSize)
 
                 StoryThumbnailOverlayView(
                     containerSize: canvasSize,
@@ -238,6 +238,17 @@ private struct StoryStaticRevealOverlay: View {
 
 private struct StoryStaticPreviewMedia: View {
     let story: Story
+    let targetSize: CGSize
+    @Environment(\.displayScale) private var displayScale
+
+    // Round up to share processed cache entries across minor layout differences.
+    // Kingfisher applies displayScale to these point dimensions when downsampling.
+    private var thumbnailSize: CGSize {
+        CGSize(
+            width: ceil(max(targetSize.width, 1) / 16) * 16,
+            height: ceil(max(targetSize.height, 1) / 16) * 16
+        )
+    }
 
     var body: some View {
         ZStack {
@@ -245,6 +256,9 @@ private struct StoryStaticPreviewMedia: View {
 
             if let url = previewURL {
                 KFImage(url)
+                    .setProcessor(DownsamplingImageProcessor(size: thumbnailSize))
+                    .scaleFactor(displayScale)
+                    .backgroundDecode()
                     .placeholder {
                         ZStack {
                             Color.white.opacity(0.08)

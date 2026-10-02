@@ -4952,3 +4952,15 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 "story.music.posts.placeholder" = "Os posts com música aparecerão aqui.";
 "story.music.saved.confirmation" = "Música salva nos favoritos";
 "story.music.unsaved.confirmation" = "Música removida dos favoritos";
+"chat.wallpaper.title" = "Fundo da conversa";
+"chat.wallpaper.private" = "Só você vê este fundo. Ele é salvo para esta conversa e sincronizado com sua conta.";
+"chat.wallpaper.photo" = "Escolher foto";
+"chat.wallpaper.color" = "Cor";
+"chat.wallpaper.default" = "Usar fundo padrão";
+"chat.wallpaper.dimming" = "Escurecer fundo";
+"chat.wallpaper.save" = "Salvar";
+"chat.wallpaper.preview" = "Assim suas mensagens vão aparecer";
+"chat.wallpaper.error" = "Não foi possível salvar ou carregar o fundo. Tente novamente.";
+"chat.wallpaper.crop" = "Arraste a foto para enquadrar e use o controle para ampliar.";
+"chat.wallpaper.back" = "Voltar";
+"chat.wallpaper.saved" = "Fundo da conversa salvo";

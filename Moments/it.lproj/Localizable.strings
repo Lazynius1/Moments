@@ -4952,3 +4952,15 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "story.music.posts.placeholder" = "I post con musica appariranno qui.";
 "story.music.saved.confirmation" = "Brano salvato nei preferiti";
 "story.music.unsaved.confirmation" = "Brano rimosso dai preferiti";
+"chat.wallpaper.title" = "Sfondo della chat";
+"chat.wallpaper.private" = "Solo tu vedi questo sfondo. Viene salvato per questa conversazione e sincronizzato con il tuo account.";
+"chat.wallpaper.photo" = "Scegli una foto";
+"chat.wallpaper.color" = "Colore";
+"chat.wallpaper.default" = "Usa lo sfondo predefinito";
+"chat.wallpaper.dimming" = "Scurisci lo sfondo";
+"chat.wallpaper.save" = "Salva";
+"chat.wallpaper.preview" = "Ecco come appariranno i tuoi messaggi";
+"chat.wallpaper.error" = "Impossibile salvare o caricare lo sfondo. Riprova.";
+"chat.wallpaper.crop" = "Trascina la foto per inquadrarla e usa il cursore per ingrandirla.";
+"chat.wallpaper.back" = "Indietro";
+"chat.wallpaper.saved" = "Sfondo della chat salvato";

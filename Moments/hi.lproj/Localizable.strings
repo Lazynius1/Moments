@@ -4723,3 +4723,15 @@
 "story.music.posts.placeholder" = "संगीत वाले पोस्ट यहाँ दिखाई देंगे।";
 "story.music.saved.confirmation" = "गाना पसंदीदा में सहेजा गया";
 "story.music.unsaved.confirmation" = "गाना पसंदीदा से हटा दिया गया";
+"chat.wallpaper.title" = "चैट का बैकग्राउंड";
+"chat.wallpaper.private" = "यह बैकग्राउंड केवल आपको दिखता है। यह इस बातचीत के लिए सहेजा जाता है और आपके खाते से सिंक होता है।";
+"chat.wallpaper.photo" = "फ़ोटो चुनें";
+"chat.wallpaper.color" = "रंग";
+"chat.wallpaper.default" = "डिफ़ॉल्ट बैकग्राउंड इस्तेमाल करें";
+"chat.wallpaper.dimming" = "बैकग्राउंड गहरा करें";
+"chat.wallpaper.save" = "सहेजें";
+"chat.wallpaper.preview" = "आपके संदेश ऐसे दिखेंगे";
+"chat.wallpaper.error" = "बैकग्राउंड सहेजा या लोड नहीं किया जा सका। फिर कोशिश करें।";
+"chat.wallpaper.crop" = "फ़ोटो को खींचकर फ़्रेम करें और स्लाइडर से ज़ूम करें।";
+"chat.wallpaper.back" = "वापस";
+"chat.wallpaper.saved" = "चैट का बैकग्राउंड सहेजा गया";

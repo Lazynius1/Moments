@@ -71,7 +71,8 @@ extension AdaptiveColors {
 
     // MARK: - Colores para mensajes mejorados
     var messageBubbleBackground: Color {
-        colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.14) : Color(hex: "0B1215").opacity(0.07)
+        // Solid surfaces keep text readable over personal chat wallpapers.
+        colorScheme == .dark ? Color(hex: "2C3235") : Color(hex: "E9E9E6")
     }
 
     var messageBubbleStroke: Color {

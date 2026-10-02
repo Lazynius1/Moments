@@ -356,3 +356,71 @@ actor MessagePersistenceStore {
         return FileManager.default.fileExists(atPath: url.path)
     }
 }
+
+/// Dedicated inbox context, created off the main thread. Models never cross its boundary.
+@ModelActor
+actor ConversationPersistenceStore {
+    func save(encodedConversations: Data, sync: Bool) throws {
+        let conversations = try JSONDecoder().decode([Conversation].self, from: encodedConversations)
+        if sync { try modelContext.delete(model: CachedConversation.self) }
+        let ids = conversations.compactMap(\.id)
+        let predicate = #Predicate<CachedConversation> { ids.contains($0.id) }
+        let existing = try modelContext.fetch(FetchDescriptor<CachedConversation>(predicate: predicate))
+        let byId = Dictionary(existing.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for conversation in conversations {
+            guard let id = conversation.id else { continue }
+            let cached = CachedConversation.from(conversation)
+            if let previous = byId[id] { updateCachedConversation(previous, from: cached) }
+            else { modelContext.insert(cached) }
+        }
+        try modelContext.save()
+        var overflowQuery = FetchDescriptor<CachedConversation>(sortBy: [SortDescriptor(\.timestamp, order: .reverse)])
+        overflowQuery.fetchOffset = 50
+        for cached in try modelContext.fetch(overflowQuery) { modelContext.delete(cached) }
+        if modelContext.hasChanges { try modelContext.save() }
+    }
+
+    func delete(conversationId: String?) throws {
+        if let conversationId {
+            let predicate = #Predicate<CachedConversation> { $0.id == conversationId }
+            try modelContext.delete(model: CachedConversation.self, where: predicate)
+        } else {
+            try modelContext.delete(model: CachedConversation.self)
+        }
+        try modelContext.save()
+    }
+
+    func load() throws -> Data {
+        let query = FetchDescriptor<CachedConversation>(sortBy: [SortDescriptor(\.timestamp, order: .reverse)])
+        let conversations = try modelContext.fetch(query).map { $0.toConversation() }
+        return try JSONEncoder().encode(conversations)
+    }
+
+    private func updateCachedConversation(_ existing: CachedConversation, from new: CachedConversation) {
+        existing.participants = new.participants
+        existing.readStatusData = new.readStatusData
+        existing.otherParticipantId = new.otherParticipantId
+        existing.otherParticipantUsername = new.otherParticipantUsername
+        existing.otherParticipantProfileImagePath = new.otherParticipantProfileImagePath
+        existing.isPinned = new.isPinned
+        existing.isMuted = new.isMuted
+        existing.isArchived = new.isArchived
+        existing.readReceiptPreferencesData = new.readReceiptPreferencesData
+        existing.forwardingPreferencesData = new.forwardingPreferencesData
+        existing.lastDeletedAtData = new.lastDeletedAtData
+        existing.lastReadAtData = new.lastReadAtData
+        existing.vanishModeActive = new.vanishModeActive
+        existing.lastMessageSenderId = new.lastMessageSenderId ?? existing.lastMessageSenderId
+        existing.lastMessageSeenAtData = new.lastMessageSeenAtData
+        existing.lastMessageReactionData = new.lastMessageReactionData
+        existing.lastSyncedAt = Date()
+
+        if new.timestamp > existing.timestamp {
+            existing.timestamp = new.timestamp
+            existing.lastMessage = new.lastMessage
+        } else if new.timestamp == existing.timestamp {
+            existing.lastMessage = new.lastMessage
+        }
+    }
+
+}

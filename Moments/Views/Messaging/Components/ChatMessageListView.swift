@@ -609,8 +609,8 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     }
 
     private func updateCanvasBackgroundColor() {
-        let isDark = traitCollection.userInterfaceStyle == .dark
-        view.backgroundColor = UIColor(hex: isDark ? "0B1215" : "FAF9F6")
+        // The SwiftUI chat root owns the default or private wallpaper.
+        view.backgroundColor = .clear
     }
 
     private func configureVanishGesture() {
@@ -1032,6 +1032,13 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
     ) -> ChatListUpdateKind {
         if !hasLoadedInitial || oldIds.isEmpty {
             return .initial
+        }
+
+        let loadingRowId = "row:synthetic:history-loading"
+        if oldIds != newIds,
+           oldIds.filter({ $0 != loadingRowId }) == newIds.filter({ $0 != loadingRowId }) {
+            // Progress chrome is a row change, not a completed history prepend.
+            return .reconfigureRows
         }
 
         // El ViewModel sólo emite este tipo para páginas históricas ya validadas.
@@ -1847,6 +1854,8 @@ private extension ChatRenderRow {
             hasher.combine(event.createdAt.timeIntervalSinceReferenceDate)
         case .typing:
             hasher.combine(3)
+        case .historyLoading:
+            hasher.combine(11)
         case .historyStart:
             hasher.combine(4)
         }

@@ -1373,3 +1373,16 @@ struct ChatInThreadSearchField: View {
         )
     }
 }
+
+/// Inline history progress, without floating chrome or a background capsule.
+struct ChatHistoryLoadingRow: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            ProgressView().controlSize(.small)
+            Text("chat.loadingOlderMessages").font(.caption)
+        }
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .accessibilityElement(children: .combine)
+    }
+}

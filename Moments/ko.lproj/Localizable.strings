@@ -4723,3 +4723,15 @@
 "story.music.posts.placeholder" = "음악이 포함된 게시물이 여기에 표시됩니다.";
 "story.music.saved.confirmation" = "노래를 즐겨찾기에 저장했어요";
 "story.music.unsaved.confirmation" = "노래를 즐겨찾기에서 삭제했어요";
+"chat.wallpaper.title" = "채팅 배경";
+"chat.wallpaper.private" = "이 배경은 나에게만 보여요. 이 대화에 저장되고 계정과 동기화돼요.";
+"chat.wallpaper.photo" = "사진 선택";
+"chat.wallpaper.color" = "색상";
+"chat.wallpaper.default" = "기본 배경 사용";
+"chat.wallpaper.dimming" = "배경 어둡게";
+"chat.wallpaper.save" = "저장";
+"chat.wallpaper.preview" = "메시지가 이렇게 보여요";
+"chat.wallpaper.error" = "배경을 저장하거나 불러올 수 없어요. 다시 시도해 주세요.";
+"chat.wallpaper.crop" = "사진을 드래그해 위치를 조절하고 슬라이더로 확대하세요.";
+"chat.wallpaper.back" = "뒤로";
+"chat.wallpaper.saved" = "채팅 배경이 저장됐어요";

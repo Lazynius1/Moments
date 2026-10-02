@@ -4972,3 +4972,15 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "story.music.posts.placeholder" = "Los posts con música aparecerán aquí.";
 "story.music.saved.confirmation" = "Canción guardada en favoritos";
 "story.music.unsaved.confirmation" = "Canción eliminada de favoritos";
+"chat.wallpaper.title" = "Fondo del chat";
+"chat.wallpaper.private" = "Solo tú ves este fondo. Se guarda para esta conversación y se sincroniza con tu cuenta.";
+"chat.wallpaper.photo" = "Elegir foto";
+"chat.wallpaper.color" = "Color";
+"chat.wallpaper.default" = "Usar fondo predeterminado";
+"chat.wallpaper.dimming" = "Oscurecer fondo";
+"chat.wallpaper.save" = "Guardar";
+"chat.wallpaper.preview" = "Así se verán tus mensajes";
+"chat.wallpaper.error" = "No se pudo guardar o cargar el fondo. Inténtalo de nuevo.";
+"chat.wallpaper.crop" = "Arrastra la foto para encuadrarla y usa el control para ampliarla.";
+"chat.wallpaper.back" = "Volver";
+"chat.wallpaper.saved" = "Fondo del chat guardado";

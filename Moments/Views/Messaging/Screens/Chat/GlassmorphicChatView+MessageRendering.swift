@@ -123,6 +123,8 @@ extension GlassmorphicChatView {
         case .typing:
             ChatIncomingTypingIndicatorRow()
                 .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
+        case .historyLoading:
+            ChatHistoryLoadingRow()
         case .historyStart:
             ChatHistoryStartHeader(textKey: historyStartTextKey, adaptiveColors: adaptiveColors)
                 .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
@@ -172,7 +174,7 @@ extension GlassmorphicChatView {
             ZStack {
                 adaptiveColors.chatBackground[0]
                     .ignoresSafeArea()
-                ChatGlassmorphicBackground(adaptiveColors: adaptiveColors)
+                ChatWallpaperBackground(conversationId: conversationId, adaptiveColors: adaptiveColors)
                 mainChatStack()
                     .modifier(ChatBuzzShakeEffect(
                         progress: buzzShakeProgress,

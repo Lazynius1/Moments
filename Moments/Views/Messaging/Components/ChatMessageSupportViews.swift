@@ -215,7 +215,7 @@ struct GlassmorphicReplyPreview: View {
                 .padding(.horizontal, 10)
             }
             .fixedSize(horizontal: false, vertical: true)
-            .background(adaptiveColors.messageBubbleBackground.opacity(0.4))
+            .background(adaptiveColors.messageBubbleBackground)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .frame(minWidth: 120, maxWidth: 220)
             .overlay(
@@ -309,7 +309,7 @@ struct StackedReplyQuote: View {
         .padding(.horizontal, 9)
         .background(
             RoundedRectangle(cornerRadius: 13, style: .continuous)
-                .fill(adaptiveColors.messageBubbleBackground.opacity(0.55))
+                .fill(adaptiveColors.messageBubbleBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 13, style: .continuous)

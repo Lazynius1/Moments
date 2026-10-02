@@ -4,11 +4,12 @@ import UIKit
 
 // Cachea en memoria y disco los thumbnails generados en cliente para videos
 // legacy sin thumbnailUrl, evitando re-descargar bytes del video por celda.
-final class VideoThumbnailCache {
+final class VideoThumbnailCache: @unchecked Sendable {
     static let shared = VideoThumbnailCache()
 
     private let memoryCache = NSCache<NSString, UIImage>()
     private let directory: URL
+    private let requests = VideoThumbnailRequests()
 
     private init() {
         memoryCache.countLimit = 150
@@ -26,6 +27,13 @@ final class VideoThumbnailCache {
             return hit
         }
 
+        return await requests.thumbnail(for: urlString) { [self] in
+            await generateThumbnail(for: urlString)
+        }
+    }
+
+    private func generateThumbnail(for urlString: String) async -> UIImage? {
+        if let hit = cachedThumbnail(for: urlString) { return hit }
         let file = fileURL(for: urlString)
         if let data = try? Data(contentsOf: file), let image = UIImage(data: data) {
             memoryCache.setObject(image, forKey: urlString as NSString)
@@ -54,5 +62,19 @@ final class VideoThumbnailCache {
         let digest = SHA256.hash(data: Data(urlString.utf8))
         let name = digest.map { String(format: "%02x", $0) }.joined().prefix(40)
         return directory.appendingPathComponent("\(name).jpg")
+    }
+}
+
+// Owns the request map; cell cancellation does not cancel work used by other cells.
+private actor VideoThumbnailRequests {
+    private var inFlight: [String: Task<UIImage?, Never>] = [:]
+
+    func thumbnail(for key: String, generate: @escaping @Sendable () async -> UIImage?) async -> UIImage? {
+        if let task = inFlight[key] { return await task.value }
+        let task = Task.detached(priority: .utility) { await generate() }
+        inFlight[key] = task
+        let image = await task.value
+        inFlight[key] = nil
+        return image
     }
 }

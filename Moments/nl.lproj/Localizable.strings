@@ -4723,3 +4723,15 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "story.music.posts.placeholder" = "Posts met muziek verschijnen hier.";
 "story.music.saved.confirmation" = "Nummer opgeslagen in favorieten";
 "story.music.unsaved.confirmation" = "Nummer verwijderd uit favorieten";
+"chat.wallpaper.title" = "Chatachtergrond";
+"chat.wallpaper.private" = "Alleen jij ziet deze achtergrond. Hij wordt voor dit gesprek opgeslagen en met je account gesynchroniseerd.";
+"chat.wallpaper.photo" = "Foto kiezen";
+"chat.wallpaper.color" = "Kleur";
+"chat.wallpaper.default" = "Standaardachtergrond gebruiken";
+"chat.wallpaper.dimming" = "Achtergrond dimmen";
+"chat.wallpaper.save" = "Opslaan";
+"chat.wallpaper.preview" = "Zo zien je berichten eruit";
+"chat.wallpaper.error" = "De achtergrond kon niet worden opgeslagen of geladen. Probeer het opnieuw.";
+"chat.wallpaper.crop" = "Sleep de foto om het kader aan te passen en gebruik de schuifregelaar om in te zoomen.";
+"chat.wallpaper.back" = "Terug";
+"chat.wallpaper.saved" = "Chatachtergrond opgeslagen";

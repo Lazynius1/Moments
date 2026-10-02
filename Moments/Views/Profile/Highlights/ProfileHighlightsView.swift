@@ -43,7 +43,7 @@ struct ProfileHighlightsView: View {
         }
         .onChange(of: refreshTrigger) { _, _ in
             if !userId.isEmpty {
-                viewModel.loadHighlights(userId: userId)
+                viewModel.loadHighlights(userId: userId, forceRefresh: true)
             }
         }
         .fullScreenCover(item: $presentation.sheet) { sheet in
@@ -56,7 +56,7 @@ struct ProfileHighlightsView: View {
                 }
             }
             .onDisappear {
-                viewModel.loadHighlights(userId: userId)
+                viewModel.loadHighlights(userId: userId, forceRefresh: true)
             }
         }
         .navigationDestination(item: $highlightZoomDestination) { destination in
@@ -263,6 +263,11 @@ class ProfileHighlightsViewModel: ObservableObject {
 
     private let firestoreService = FirestoreService.shared
     private let privacyService = PrivacyService()
+    private var loadTask: Task<Void, Never>?
+    private var loadingKey: String?
+    private var contentKey: String?
+    private var requestId = UUID()
+    private var reloadAfterCurrent = false
 
     private func isPermissionDeniedError(_ error: Error) -> Bool {
         let nsError = error as NSError
@@ -272,47 +277,66 @@ class ProfileHighlightsViewModel: ObservableObject {
             || message.contains("insufficient permissions")
     }
 
-    func loadHighlights(userId: String) {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-
+    func loadHighlights(userId: String, forceRefresh: Bool = false) {
+        guard let viewerId = Auth.auth().currentUser?.uid else { return }
+        let key = "\(viewerId)/\(userId)"
+        if loadingKey == key {
+            reloadAfterCurrent = reloadAfterCurrent || forceRefresh
+            return
+        }
+        loadTask?.cancel()
+        let id = UUID()
+        requestId = id
+        if contentKey != key { highlights = [] }
+        contentKey = key
+        loadingKey = key
+        reloadAfterCurrent = false
         isLoading = true
         errorMessage = nil
 
-        Task { @MainActor [weak self] in
+        loadTask = Task { @MainActor [weak self] in
             guard let self else { return }
-
-            if let result = await BackendFeedService.shared.fetchVisibleHighlights(targetUserId: userId, limit: 30) {
-                self.highlights = result.highlights
-                self.isLoading = false
-                self.errorMessage = nil
-                return
-            }
-
-            firestoreService.fetchHighlights(userId: userId) { [weak self] result in
-                guard let self else { return }
-
-                switch result {
-                case .success(let allHighlights):
-                    if userId == currentUserId {
-                        DispatchQueue.main.async {
-                            self.highlights = allHighlights
-                            self.isLoading = false
+            let result: Result<[HighlightedStory], Error>
+            if let response = await BackendFeedService.shared.fetchVisibleHighlights(targetUserId: userId, limit: 30) {
+                result = .success(response.highlights)
+            } else {
+                guard !Task.isCancelled, self.requestId == id else { return }
+                result = await withCheckedContinuation { continuation in
+                    self.firestoreService.fetchHighlights(userId: userId) { response in
+                        switch response {
+                        case .success(let highlights):
+                            if viewerId == userId {
+                                continuation.resume(returning: .success(highlights))
+                            } else {
+                                self.filterAndResolveHighlights(highlights: highlights, viewerId: viewerId, userId: userId) {
+                                    continuation.resume(returning: .success($0))
+                                }
+                            }
+                        case .failure(let error):
+                            continuation.resume(returning: .failure(error))
                         }
-                    } else {
-                        self.filterAndResolveHighlights(highlights: allHighlights, viewerId: currentUserId, userId: userId)
-                    }
-                case .failure(let error):
-                    DispatchQueue.main.async {
-                        self.highlights = []
-                        self.isLoading = false
-                        self.errorMessage = self.isPermissionDeniedError(error) ? nil : error.localizedDescription
                     }
                 }
+            }
+            guard !Task.isCancelled, self.requestId == id,
+                  Auth.auth().currentUser?.uid == viewerId else { return }
+            switch result {
+            case .success(let highlights): self.highlights = highlights
+            case .failure(let error):
+                if self.isPermissionDeniedError(error) { self.highlights = [] }
+                else { self.errorMessage = error.localizedDescription }
+            }
+            self.isLoading = false
+            self.loadingKey = nil
+            self.loadTask = nil
+            if self.reloadAfterCurrent {
+                self.reloadAfterCurrent = false
+                self.loadHighlights(userId: userId)
             }
         }
     }
 
-    private func filterAndResolveHighlights(highlights: [HighlightedStory], viewerId: String, userId: String) {
+    private func filterAndResolveHighlights(highlights: [HighlightedStory], viewerId: String, userId: String, completion: @escaping ([HighlightedStory]) -> Void) {
         let group = DispatchGroup()
         var resolvedHighlights: [HighlightedStory] = []
         let syncQueue = DispatchQueue(label: "profile.highlights.privacy.sync")
@@ -371,10 +395,8 @@ class ProfileHighlightsViewModel: ObservableObject {
         }
 
         group.notify(queue: .main) {
-            self.highlights = highlights.compactMap { original in
-                resolvedHighlights.first { $0.id == original.id }
-            }
-            self.isLoading = false
+            let resolvedById = Dictionary(resolvedHighlights.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            completion(highlights.compactMap { resolvedById[$0.id] })
         }
     }
 
@@ -387,7 +409,7 @@ class ProfileHighlightsViewModel: ObservableObject {
             } else {
                 DispatchQueue.main.async {
                     InAppNotificationService.shared.showActionToast(.highlightDeleted)
-                    self?.loadHighlights(userId: userId)
+                    self?.loadHighlights(userId: userId, forceRefresh: true)
                 }
             }
         }

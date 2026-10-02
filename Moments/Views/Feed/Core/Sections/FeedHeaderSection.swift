@@ -258,7 +258,9 @@ struct FeedFloatingSelector: View {
             Spacer()
         }
         .padding(.horizontal, 12)
-        .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
+        .offset(y: isFeedHeaderHidden ? -(floatingSelectorTopInset + 20) : 0)
+        .opacity(isFeedHeaderHidden ? 0 : 1)
+        .allowsHitTesting(!isFeedHeaderHidden)
         .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: isFeedHeaderHidden), value: isFeedHeaderHidden)
         .onChange(of: selectedFeedType) { _, newFeedType in
             UserDefaults.standard.selectedFeedType = newFeedType

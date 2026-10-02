@@ -252,19 +252,24 @@ class MessagingViewModel: ObservableObject {
     }
 
     private func restoreCachedConversations(for userId: String) {
-        let cached = LocalPersistenceService.shared.loadConversations()
-            .filter { $0.participants.contains(userId) }
-        let active = reconcilingOptimisticReadState(
-            sortConversationsForInbox(cached.filter { !$0.isArchived(for: userId) }),
-            currentUserId: userId
-        )
-        let archived = reconcilingOptimisticReadState(
-            sortConversationsForInbox(cached.filter { $0.isArchived(for: userId) }),
-            currentUserId: userId
-        )
-        conversations = active
-        archivedConversations = archived
-        hasUnreadMessages = (active + archived).contains { !($0.readStatus[userId] ?? true) }
+        Task { @MainActor [weak self] in
+            let cached = await LocalPersistenceService.shared.loadConversationsInBackground()
+                .filter { $0.participants.contains(userId) }
+            guard let self, Auth.auth().currentUser?.uid == userId,
+                  !self.hasLoadedConversations, self.conversations.isEmpty,
+                  self.archivedConversations.isEmpty, !cached.isEmpty else { return }
+            let active = self.reconcilingOptimisticReadState(
+                self.sortConversationsForInbox(cached.filter { !$0.isArchived(for: userId) }),
+                currentUserId: userId
+            )
+            let archived = self.reconcilingOptimisticReadState(
+                self.sortConversationsForInbox(cached.filter { $0.isArchived(for: userId) }),
+                currentUserId: userId
+            )
+            self.conversations = active
+            self.archivedConversations = archived
+            self.hasUnreadMessages = (active + archived).contains { !($0.readStatus[userId] ?? true) }
+        }
     }
 
     func fetchConversations(for userId: String) {
