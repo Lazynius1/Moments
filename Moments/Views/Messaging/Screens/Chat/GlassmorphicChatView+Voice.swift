@@ -259,7 +259,7 @@ extension GlassmorphicChatView {
         recordingTimer = nil
         recordingTime = 0
         voiceRecordingGestureState.preserveKeyboardElevation = false
-        MomentsAudioSession.deactivate()
+
     }
 
     func resetVoiceRecordingInteraction() {

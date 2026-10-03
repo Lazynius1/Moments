@@ -327,7 +327,6 @@ struct CreatorView: View {
         // ✅ Limpiar los media items seleccionados
         selectedMediaItems.removeAll()
 
-        MomentsAudioSession.deactivate()
 
         // ✅ Notificar limpieza de video
         NotificationCenter.default.post(name: NSNotification.Name("CleanupVideoPlayer"), object: nil)

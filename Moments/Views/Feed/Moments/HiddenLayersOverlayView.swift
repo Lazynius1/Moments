@@ -1094,14 +1094,12 @@ private struct HiddenLayerAudioTagView: View {
     @State private var isPreparing = false
     @State private var progress: Double = 0
     @State private var audioPlayer: AVAudioPlayer?
+    @State private var audioSession = MomentsAudioSessionLease()
+    @State private var audioLoadTask: Task<Void, Never>?
     @State private var timer: Timer?
     @State private var waveTask: Task<Void, Never>?
     @State private var animatedHeights: [CGFloat] = [10, 14, 10]
     @State private var didAppear = false
-    @State private var previousAudioCategory: AVAudioSession.Category?
-    @State private var previousAudioMode: AVAudioSession.Mode?
-    @State private var previousAudioOptions: AVAudioSession.CategoryOptions = []
-    @State private var didConfigureAudioSession = false
 
     var body: some View {
         ZStack {
@@ -1154,6 +1152,9 @@ private struct HiddenLayerAudioTagView: View {
                 startPlayback()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: MomentsAudioSession.interruptionNotification)) { _ in
+            pausePlayback()
+        }
         .onDisappear {
             waveTask?.cancel()
             stopPlayback()
@@ -1177,21 +1178,8 @@ private struct HiddenLayerAudioTagView: View {
         guard let url = URL(string: audioURL) else { return }
         isPreparing = true
 
-        let session = AVAudioSession.sharedInstance()
-
-        if !didConfigureAudioSession {
-            previousAudioCategory = session.category
-            previousAudioMode = session.mode
-            previousAudioOptions = session.categoryOptions
-            didConfigureAudioSession = true
-        }
-
-        Task {
-            // La sesión debe estar activa antes de crear el player.
-            let category: AVAudioSession.Category = userInitiated ? .playback : .ambient
-            let options: AVAudioSession.CategoryOptions = userInitiated ? [.mixWithOthers] : []
-            await MomentsAudioSession.activate(category: category, mode: .default, options: options)
-
+        audioLoadTask?.cancel()
+        audioLoadTask = Task {
             do {
                 let player: AVAudioPlayer
                 if url.scheme == "file" {
@@ -1201,14 +1189,21 @@ private struct HiddenLayerAudioTagView: View {
                     player = try AVAudioPlayer(contentsOf: cachedURL)
                 }
 
+                guard !Task.isCancelled else { return }
+                let activated = await audioSession.activate(category: userInitiated ? .playback : .ambient)
+                guard !Task.isCancelled else { return }
+                guard activated else { await MainActor.run { isPreparing = false }; return }
                 await MainActor.run {
+                    guard !Task.isCancelled else { return }
                     self.audioPlayer = player
-                    self.audioPlayer?.play()
+                    guard player.play() else { self.audioSession.deactivate(); self.isPreparing = false; return }
                     self.isPlaying = true
                     self.isPreparing = false
                     self.startProgressTimer()
                 }
             } catch {
+                guard !Task.isCancelled else { return }
+                audioSession.deactivate()
                 await MainActor.run {
                     self.isPreparing = false
                 }
@@ -1217,6 +1212,8 @@ private struct HiddenLayerAudioTagView: View {
     }
 
     private func stopPlayback() {
+        audioLoadTask?.cancel()
+        audioLoadTask = nil
         audioPlayer?.stop()
         audioPlayer = nil
         isPlaying = false
@@ -1230,6 +1227,9 @@ private struct HiddenLayerAudioTagView: View {
     }
 
     private func pausePlayback() {
+        audioLoadTask?.cancel()
+        audioLoadTask = nil
+        audioSession.deactivate()
         audioPlayer?.pause()
         isPlaying = false
         isPreparing = false
@@ -1239,21 +1239,10 @@ private struct HiddenLayerAudioTagView: View {
 
     private func resumePlayback(promoteToPlayback: Bool) {
         if let audioPlayer {
-            guard promoteToPlayback else {
-                audioPlayer.play()
-                isPlaying = true
-                startProgressTimer()
-                return
-            }
-
-            // Subir a .playback (sonido aunque esté en silencio) antes de reanudar.
-            Task { @MainActor in
-                await MomentsAudioSession.activate(
-                    category: .playback,
-                    mode: .default,
-                    options: [.mixWithOthers]
-                )
-                audioPlayer.play()
+            audioLoadTask?.cancel()
+            audioLoadTask = Task { @MainActor in
+                guard await audioSession.activate(), !Task.isCancelled else { return }
+                guard audioPlayer.play() else { audioSession.deactivate(); return }
                 isPlaying = true
                 startProgressTimer()
             }
@@ -1263,6 +1252,8 @@ private struct HiddenLayerAudioTagView: View {
     }
 
     private func finishPlayback() {
+        audioLoadTask?.cancel()
+        audioLoadTask = nil
         audioPlayer?.stop()
         audioPlayer = nil
         isPlaying = false
@@ -1314,13 +1305,7 @@ private struct HiddenLayerAudioTagView: View {
     }
 
     private func restoreAudioSessionIfNeeded() {
-        guard didConfigureAudioSession else { return }
-        MomentsAudioSession.restore(
-            category: previousAudioCategory,
-            mode: previousAudioMode,
-            options: previousAudioOptions
-        )
-        didConfigureAudioSession = false
+        audioSession.deactivate()
     }
 }
 

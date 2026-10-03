@@ -728,7 +728,6 @@ struct StoryViewerScreen: View {
                 .onDisappear {
                     stopAndCleanupStory()
                     removeKeyboardNotifications()
-                    cleanupAudioSession()
                     if let storyId = story.id {
                         storyViewModel.stopObservingReactions(storyId: storyId)
                     }
@@ -2647,14 +2646,6 @@ struct StoryViewerScreen: View {
         cancelPendingHoldPause()
         isHoldingStory = false
         playbackCoordinator.stopStory()
-
-        // ✅ CLEANUP DE AUDIO
-        cleanupAudioSession()
-    }
-
-    // ✅ NUEVA FUNCIÓN: Limpiar sesión de audio
-    private func cleanupAudioSession() {
-        MomentsAudioSession.deactivate()
     }
 
 

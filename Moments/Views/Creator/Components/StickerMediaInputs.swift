@@ -145,6 +145,8 @@ struct AudioStickerRecordingView: View {
     @State private var timer: Timer?
     @State private var isPlaying = false
     @State private var audioPlayer: AVAudioPlayer?
+    @State private var audioSession = MomentsAudioSessionLease()
+    @State private var audioLoadTask: Task<Void, Never>?
     @State private var playbackTimer: Timer?
     @State private var playbackProgress: Double = 0
     // Stable waveform levels generated once per recording.
@@ -279,6 +281,9 @@ struct AudioStickerRecordingView: View {
                 startPlayback()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: MomentsAudioSession.interruptionNotification)) { _ in
+            stopEverything()
+        }
         .onDisappear {
             stopEverything()
         }
@@ -349,10 +354,11 @@ struct AudioStickerRecordingView: View {
     private func startPlayback() {
         guard let data = recordedData else { return }
 
-        Task { @MainActor in
+        audioLoadTask?.cancel()
+        audioLoadTask = Task { @MainActor in
             // La preview del sheet debe sonar aunque el dispositivo esté en silencio.
             // La sesión debe estar activa antes de crear el player.
-            guard await MomentsAudioSession.activate(category: .playback, mode: .default) else { return }
+            guard await audioSession.activate(category: .playback, mode: .default) else { return }
 
             do {
                 audioPlayer = try AVAudioPlayer(data: data)
@@ -374,13 +380,15 @@ struct AudioStickerRecordingView: View {
     }
 
     private func stopPlayback() {
+        audioLoadTask?.cancel()
+        audioLoadTask = nil
         audioPlayer?.stop()
         audioPlayer = nil
         isPlaying = false
         playbackProgress = 0
         playbackTimer?.invalidate()
         playbackTimer = nil
-        MomentsAudioSession.deactivate()
+        audioSession.deactivate()
     }
 
     private func stopEverything() {

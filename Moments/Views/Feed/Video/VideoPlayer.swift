@@ -55,11 +55,26 @@ class GlobalVideoManager: ObservableObject {
             name: UIApplication.willResignActiveNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(self, selector: #selector(audioInterrupted),
+                                               name: MomentsAudioSession.interruptionNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(appDidBecomeActive),
+                                               name: UIApplication.didBecomeActiveNotification, object: nil)
         startVolumeObservation()
     }
     
     @objc private func appWillResignActive() {
         pauseAllVideos()
+    }
+
+    @objc private func audioInterrupted() {
+        pauseAllVideos()
+        disableSoundForSession()
+    }
+
+    @objc private func appDidBecomeActive() {
+        if AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint {
+            disableSoundForSession()
+        }
     }
 
     private func startVolumeObservation() {
@@ -74,16 +89,13 @@ class GlobalVideoManager: ObservableObject {
             else { return }
 
             DispatchQueue.main.async { [weak self] in
-                guard let self, self.activeVideoId != nil,
+                guard let self, !AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint, self.activeVideoId != nil,
                       !self.userHasEnabledSoundInSession else { return }
                 self.enableSoundForSession()
             }
         }
     }
 
-    private func configurePlaybackAudioSession() async {
-        await MomentsAudioSession.activate(category: .playback, mode: .moviePlayback)
-    }
     
     func registerPlayer(_ playerId: String, manager: VideoPlayerManager) {
         // `allPlayers` owns its managers. A plain subscript assignment may release the
@@ -202,11 +214,8 @@ class GlobalVideoManager: ObservableObject {
     func enableSoundForSession() {
         userHasEnabledSoundInSession = true
         // La sesión debe estar en .playback antes de desmutear, o el primer toque no suena.
-        Task { @MainActor in
-            await configurePlaybackAudioSession()
-            for (_, playerManager) in allPlayers {
-                playerManager.setMuted(false, respectSilentMode: true)
-            }
+        for (_, playerManager) in allPlayers {
+            playerManager.setMuted(false, respectSilentMode: true)
         }
     }
 
@@ -898,6 +907,8 @@ struct ModernVideoPlayer: View {
 
 // ✅ MODIFICADO: VideoPlayerManager con control externo
 class VideoPlayerManager: ObservableObject {
+    private let audioSession = MomentsAudioSessionLease()
+    private var audioActivationTask: Task<Void, Never>?
     @Published var player: AVPlayer?
     @Published private(set) var playbackPhase: VideoPlaybackPhase = .idle
     @Published var isPlaying = false
@@ -1033,6 +1044,8 @@ class VideoPlayerManager: ObservableObject {
     /// Llamado por el pool cuando nuestro slot fue reasignado a otro consumer.
     /// Limpia observers y suelta el player SIN devolverlo al pool (ya no es nuestro).
     private func handlePoolEviction() {
+        audioActivationTask?.cancel()
+        audioSession.deactivate()
         removePlayerObservers()
         adaptiveController = nil
         player = nil
@@ -1143,8 +1156,25 @@ class VideoPlayerManager: ObservableObject {
         guard !hasFinishedPlayback else { return }
         // Solo el vídeo activo bufferiza en red mientras está pausado momentáneamente.
         player.currentItem?.canUseNetworkResourcesForLiveStreamingWhilePaused = true
-        player.play()
         isPlaying = true
+        if isMuted {
+            player.play()
+        } else {
+            activateAudioAndPlay(player)
+        }
+    }
+
+    private func activateAudioAndPlay(_ player: AVPlayer) {
+        player.isMuted = true
+        audioActivationTask?.cancel()
+        audioActivationTask = Task { @MainActor [weak self, weak player] in
+            guard let self, let player,
+                  await self.audioSession.activate(mode: .moviePlayback),
+                  !Task.isCancelled, self.player === player,
+                  self.ownsPoolPlayer, self.isPlaying, !self.isMuted else { return }
+            player.isMuted = false
+            player.play()
+        }
     }
 
     func replayFromBeginning() {
@@ -1159,6 +1189,8 @@ class VideoPlayerManager: ObservableObject {
     
     // ✅ NUEVO: Función para pausar controlada externamente
     func pauseVideo() {
+        audioActivationTask?.cancel()
+        audioSession.deactivate()
         guard let player = player else { return }
         guard ownsPoolPlayer else { return }
         player.pause()
@@ -1169,50 +1201,26 @@ class VideoPlayerManager: ObservableObject {
     
     // ✅ MANTENER: Toggle manual (para cuando el usuario toca play/pause)
     func togglePlayback() {
-        guard let player = player, ownsPoolPlayer else { return }
-        
-        if isPlaying {
-            player.pause()
-            isPlaying = false
-        } else {
-            player.play()
-            isPlaying = true
-        }
+        if isPlaying { pauseVideo() } else { resumeVideo() }
     }
-    
-    // Toggle mute respetando el modo silencioso del iPhone
+
     func toggleMute(respectSilentMode: Bool = false) {
-        guard let player = player, ownsPoolPlayer else { return }
-        
-        if respectSilentMode {
-            // ✅ Verificar si el iPhone está en modo silencioso
-            let volume = AVAudioSession.sharedInstance().outputVolume
-            if volume == 0.0 {
-                // Si está en silencio, no hacer nada (el usuario debe activar el volumen primero)
-                return
-            }
-        }
-        
-        player.isMuted.toggle()
-        isMuted = player.isMuted
+        setMuted(!isMuted, respectSilentMode: respectSilentMode)
     }
-    
-    // ✅ NUEVO: Establecer mute directamente (usado por GlobalVideoManager)
+
     func setMuted(_ muted: Bool, respectSilentMode: Bool = false) {
-        guard let player = player, ownsPoolPlayer else { return }
-        
-        if respectSilentMode {
-            let volume = AVAudioSession.sharedInstance().outputVolume
-            if volume == 0.0 && !muted {
-                // Si está en silencio y queremos activar sonido, no hacer nada
-                return
-            }
-        }
-        
-        player.isMuted = muted
+        guard let player, ownsPoolPlayer else { return }
         isMuted = muted
+        if muted {
+            player.isMuted = true
+            audioActivationTask?.cancel()
+            audioSession.deactivate()
+        } else if isPlaying {
+            // El player permanece silenciado hasta que la sesión esté lista.
+            activateAudioAndPlay(player)
+        }
     }
-    
+
     private func setupLooping(for playerItem: AVPlayerItem) {
         if let endObserver {
             NotificationCenter.default.removeObserver(endObserver)
@@ -1271,6 +1279,8 @@ class VideoPlayerManager: ObservableObject {
     }
     
     func cleanup(releaseFromPool: Bool = true) {
+        audioActivationTask?.cancel()
+        audioSession.deactivate()
         removePlayerObservers()
         adaptiveController = nil
         

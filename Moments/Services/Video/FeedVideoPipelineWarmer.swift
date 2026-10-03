@@ -1,7 +1,7 @@
 import AVFoundation
 import UIKit
 
-/// Precalienta AVAudioSession + AVPlayerLayer una sola vez al entrar al feed.
+/// Precalienta AVPlayerLayer una sola vez al entrar al feed sin activar el audio.
 /// El primer reel en viewport ya no paga ese coste en medio del scroll.
 enum FeedVideoPipelineWarmer {
     private static var didStart = false
@@ -12,10 +12,7 @@ enum FeedVideoPipelineWarmer {
         didStart = true
 
         Task(priority: .utility) {
-            _ = await MomentsAudioSession.activate(
-                category: .playback,
-                mode: .moviePlayback
-            )
+            await MomentsAudioSession.prepareMutedPlayback()
 
             await MainActor.run {
                 // Toca el pool (crea los AVPlayer del pool en cold start).

@@ -5,6 +5,8 @@ import UIKit
 
 // MARK: - Story Camera View
 struct StoryCameraView: View {
+    @State private var audioSession = MomentsAudioSessionLease()
+    @State private var audioActivationTask: Task<Void, Never>?
     @Binding var selectedMediaItems: [CreatorMedia]
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
@@ -255,17 +257,21 @@ struct StoryCameraView: View {
         }
 
         .onAppear {
-            setupAudioSession()
             loadLastGalleryImage()
             orientationManager.startTracking()
             cameraKit.onCapturedPhoto = { image in handleCapturedImage(image) }
             cameraKit.onCapturedVideo = { url in handleCapturedVideo(url) }
             cameraKit.prepareLenses()
         }
+        .onReceive(NotificationCenter.default.publisher(for: MomentsAudioSession.interruptionNotification)) { _ in
+            stopRecording(); audioActivationTask?.cancel(); audioSession.deactivate()
+        }
         .onDisappear {
             stopRecording()
             orientationManager.stopTracking()
             cameraKit.stop()
+            audioActivationTask?.cancel()
+            audioSession.deactivate()
         }
         .onChange(of: isRecording) { _, recording in
             DuoCameraAccessoryCoordinator.shared.updateRecording(
@@ -581,18 +587,26 @@ struct StoryCameraView: View {
     }
 
     private func startRecording() {
-        isRecording = true
-        recordingDuration = 0
-        startRecordingTimer()
-        if usingCameraKit { cameraKit.startRecording() }
+        audioActivationTask?.cancel()
+        audioActivationTask = Task { @MainActor in
+            guard await audioSession.activate(category: .playAndRecord, mode: .videoRecording),
+                  !Task.isCancelled else { return }
+            isRecording = true
+            recordingDuration = 0
+            startRecordingTimer()
+            if usingCameraKit { cameraKit.startRecording() }
+        }
     }
 
     private func stopRecording() {
-        guard isRecording else { return }
-        isRecording = false
-        recordingTimer?.invalidate()
-        recordingTimer = nil
-        if usingCameraKit { cameraKit.stopRecording() }
+        audioActivationTask?.cancel()
+        if isRecording {
+            isRecording = false
+            recordingTimer?.invalidate()
+            recordingTimer = nil
+            if usingCameraKit { cameraKit.stopRecording() }
+        }
+        audioSession.deactivate()
     }
 
     private func startRecordingTimer() {
@@ -610,12 +624,6 @@ struct StoryCameraView: View {
         let minutes = Int(time) / 60
         let seconds = Int(time) % 60
         return String(format: "%d:%02d", minutes, seconds)
-    }
-
-    private func setupAudioSession() {
-        Task {
-            await MomentsAudioSession.activate(category: .playAndRecord, mode: .videoRecording)
-        }
     }
 
     private func handleCapturedImage(_ image: UIImage) {

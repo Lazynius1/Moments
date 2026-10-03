@@ -219,6 +219,9 @@ final class AudioRecordingManager: NSObject, ObservableObject {
 
     private var powerTimer: Timer?
     private var audioRecorder: AVAudioRecorder?
+    private let audioSession = MomentsAudioSessionLease()
+    private var recordingStartTask: Task<Void, Never>?
+    private var recordingGeneration = UUID()
     private var recordingURL: URL?
     private var recordedPowerLevels: [Float] = []
     private var stopCompletion: ((RecordedVoiceNote?) -> Void)?
@@ -229,6 +232,9 @@ final class AudioRecordingManager: NSObject, ObservableObject {
 
     /// Si el micrófono ya está autorizado, `completion(true)` se llama sin mostrar diálogo.
     func startRecording(completion: @escaping (Bool) -> Void) {
+        recordingStartTask?.cancel()
+        recordingGeneration = UUID()
+        let generation = recordingGeneration
         requestMicrophonePermission { [weak self] granted in
             guard let self else {
                 DispatchQueue.main.async { completion(false) }
@@ -238,25 +244,33 @@ final class AudioRecordingManager: NSObject, ObservableObject {
                 DispatchQueue.main.async { completion(false) }
                 return
             }
-            Task {
-                let activated = await MomentsAudioSession.activate(
+            self.recordingStartTask = Task { @MainActor in
+                guard self.recordingGeneration == generation else { completion(false); return }
+                let activated = await self.audioSession.activate(
                     category: .playAndRecord,
                     mode: .default,
                     options: [.defaultToSpeaker, .allowBluetoothHFP]
                 )
                 await MainActor.run {
-                    completion(activated ? self.beginRecording() : false)
+                    guard !Task.isCancelled, self.recordingGeneration == generation else { completion(false); return }
+                    let started = activated && self.beginRecording()
+                    if !started { self.audioSession.deactivate() }
+                    completion(started)
                 }
             }
         }
     }
 
     func stopRecording(completion: @escaping (RecordedVoiceNote?) -> Void) {
+        recordingGeneration = UUID()
+        recordingStartTask?.cancel()
+        recordingStartTask = nil
         powerTimer?.invalidate()
         powerTimer = nil
         audioPower = 0.0
 
         guard let recorder = audioRecorder, recorder.isRecording else {
+            audioSession.deactivate()
             completion(nil)
             return
         }
@@ -330,6 +344,9 @@ final class AudioRecordingManager: NSObject, ObservableObject {
     }
 
     private func deliverRecordingResult(success: Bool) {
+        powerTimer?.invalidate()
+        powerTimer = nil
+        audioSession.deactivate()
         let completion = stopCompletion
         stopCompletion = nil
         audioRecorder = nil
@@ -554,6 +571,8 @@ struct GlassmorphicAudioMessage: View {
     @State private var isPlaying = false
     @State private var currentTime: Double = 0
     @State private var audioPlayer: AVAudioPlayer?
+    @State private var audioSession = MomentsAudioSessionLease()
+    @State private var audioLoadTask: Task<Void, Never>?
     @State private var playbackFileURL: URL?
     @State private var timer: Timer?
     @State private var isAudioAvailable = true
@@ -686,6 +705,9 @@ struct GlassmorphicAudioMessage: View {
         .onChange(of: isSending) { _, _ in
             refreshWaveformLevels()
             checkAudioAvailability()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: MomentsAudioSession.interruptionNotification)) { _ in
+            pausePlayback()
         }
         .onDisappear {
             if ChatAudioPlaybackCenter.shared.activeMessageId == messageId {
@@ -848,46 +870,26 @@ struct GlassmorphicAudioMessage: View {
         }
     }
     
-    private func configurePlaybackSession(speaker: Bool) {
-        let session = AVAudioSession.sharedInstance()
-        do {
-            if speaker {
-                try session.setCategory(.playback, mode: .default, options: [])
-                try session.setActive(true)
-                try session.overrideOutputAudioPort(.speaker)
-            } else {
-                try session.setCategory(.playAndRecord, mode: .voiceChat, options: [])
-                try session.setActive(true)
-                try session.overrideOutputAudioPort(.none)
-            }
-        } catch {
-        }
+    private func configurePlaybackSession(speaker: Bool) async -> Bool {
+        await audioSession.activate(
+            category: speaker ? .playback : .playAndRecord,
+            mode: speaker ? .default : .voiceChat,
+            options: speaker ? [] : [.allowBluetoothHFP]
+        )
     }
 
     /// Cambia altavoz / auricular durante la reproducción (usa el archivo, no `player.data`).
     private func switchAudioRoute(toEarpiece: Bool) {
-        guard let player = audioPlayer, player.isPlaying, let url = playbackFileURL else { return }
-
-        let currentTime = player.currentTime
-        player.stop()
-        audioPlayer = nil
-
-        configurePlaybackSession(speaker: !toEarpiece)
-
-        do {
-            let newPlayer = try AVAudioPlayer(contentsOf: url)
-            newPlayer.enableRate = true
-            newPlayer.rate = playbackRate
-            newPlayer.currentTime = currentTime
-            newPlayer.prepareToPlay()
-            guard newPlayer.play() else { return }
-            audioPlayer = newPlayer
-            isPlaying = true
-        } catch {
-            isAudioAvailable = false
+        guard let player = audioPlayer, isPlaying else { return }
+        player.pause()
+        audioLoadTask?.cancel()
+        audioLoadTask = Task { @MainActor in
+            guard await configurePlaybackSession(speaker: !toEarpiece),
+                  !Task.isCancelled, isPlaying else { return }
+            player.play()
         }
     }
-    
+
     private func getPlayButtonIcon() -> String {
         if !isAudioAvailable {
             return "exclamationmark.triangle.fill"
@@ -958,90 +960,48 @@ struct GlassmorphicAudioMessage: View {
     }
 
     private func startPlayback() {
-        if let player = audioPlayer, playbackFileURL != nil {
-            ChatAudioPlaybackCenter.shared.activate(messageId: messageId) {
-                self.pausePlayback(notifyCenter: false)
-            }
-            player.enableRate = true
-            player.rate = playbackRate
-            player.currentTime = currentTime
-            guard player.play() else {
-                isAudioAvailable = false
-                return
-            }
-            isPlaying = true
-            proximityManager.startMonitoring()
-            startProgressTimer()
-            return
-        }
-
-        guard let audioUrl = audioUrl, let url = URL(string: audioUrl) else {
+        guard let audioUrl, let url = URL(string: audioUrl) else {
             isAudioAvailable = false
             return
         }
-
-        Task {
+        audioLoadTask?.cancel()
+        isPlaying = true
+        ChatAudioPlaybackCenter.shared.activate(messageId: messageId) {
+            self.pausePlayback(notifyCenter: false)
+        }
+        audioLoadTask = Task { @MainActor in
             do {
                 let playbackURL: URL
-                if url.isFileURL {
-                    playbackURL = url
-                } else {
-                    playbackURL = try await PersistentAudioCache.shared.localURL(for: url)
+                if let playbackFileURL { playbackURL = playbackFileURL }
+                else if url.isFileURL { playbackURL = url }
+                else { playbackURL = try await PersistentAudioCache.shared.localURL(for: url) }
+                guard !Task.isCancelled,
+                      await configurePlaybackSession(speaker: !proximityManager.isNearEar),
+                      !Task.isCancelled, isPlaying else { return }
+                let player = try audioPlayer ?? AVAudioPlayer(contentsOf: playbackURL)
+                player.enableRate = true
+                player.rate = playbackRate
+                player.currentTime = currentTime
+                guard player.prepareToPlay(), player.play() else {
+                    stopPlayback(resetTime: false)
+                    return
                 }
-
-                await MainActor.run {
-                    do {
-                        self.playbackFileURL = playbackURL
-                        self.configurePlaybackSession(speaker: true)
-
-                        let player = try AVAudioPlayer(contentsOf: playbackURL)
-                        player.enableRate = true
-                        player.rate = self.playbackRate
-                        if self.currentTime > 0 && self.currentTime < self.duration {
-                            player.currentTime = self.currentTime
-                        }
-                        player.prepareToPlay()
-                        guard player.play() else {
-                            self.isAudioAvailable = false
-                            return
-                        }
-                        self.audioPlayer = player
-                        self.isPlaying = true
-                        self.proximityManager.startMonitoring()
-                        ChatAudioPlaybackCenter.shared.activate(messageId: self.messageId) {
-                            self.pausePlayback(notifyCenter: false)
-                        }
-                        self.startProgressTimer()
-                    } catch {
-                        self.isAudioAvailable = false
-                        self.showErrorMessage = true
-                    }
-                }
+                playbackFileURL = playbackURL
+                audioPlayer = player
+                proximityManager.startMonitoring()
+                startProgressTimer()
             } catch {
-                await MainActor.run {
-                    self.isAudioAvailable = false
-                    self.showErrorMessage = true
-                }
+                guard !Task.isCancelled else { return }
+                stopPlayback(resetTime: false)
+                isAudioAvailable = false
+                showErrorMessage = true
             }
         }
     }
 
     private func resumeAfterScrub() {
         guard isAudioAvailable, wasPlayingBeforeScrub else { return }
-
-        if let player = audioPlayer {
-            ChatAudioPlaybackCenter.shared.activate(messageId: messageId) {
-                self.pausePlayback(notifyCenter: false)
-            }
-            player.enableRate = true
-            player.rate = playbackRate
-            guard player.play() else { return }
-            isPlaying = true
-            proximityManager.startMonitoring()
-            startProgressTimer()
-        } else {
-            startPlayback()
-        }
+        startPlayback()
     }
 
     private func startProgressTimer() {
@@ -1056,6 +1016,9 @@ struct GlassmorphicAudioMessage: View {
     }
 
     private func pausePlayback(notifyCenter: Bool = true) {
+        audioLoadTask?.cancel()
+        audioLoadTask = nil
+        audioSession.deactivate()
         audioPlayer?.pause()
         isPlaying = false
         timer?.invalidate()
@@ -1066,6 +1029,9 @@ struct GlassmorphicAudioMessage: View {
     }
 
     private func stopPlayback(resetTime: Bool = true) {
+        audioLoadTask?.cancel()
+        audioLoadTask = nil
+        audioSession.deactivate()
         audioPlayer?.stop()
         audioPlayer = nil
         playbackFileURL = nil

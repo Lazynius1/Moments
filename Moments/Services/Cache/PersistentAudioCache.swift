@@ -4,6 +4,7 @@ import CryptoKit
 final class PersistentAudioCache {
     static let shared = PersistentAudioCache()
 
+    private let fileLock = NSLock()
     private let fileManager = FileManager.default
     private let cacheDirectory: URL
 
@@ -24,15 +25,25 @@ final class PersistentAudioCache {
         return fileManager.fileExists(atPath: fileURL.path) ? fileURL : nil
     }
 
-    func saveToCache(temporaryURL: URL, for remoteURLString: String) {
-        let destinationURL = cacheDirectory.appendingPathComponent(filename(for: remoteURLString))
-        if fileManager.fileExists(atPath: destinationURL.path) { return }
+    @discardableResult
+    private func saveToCache(temporaryURL: URL, for remoteURLString: String) throws -> URL {
+        try fileLock.withLock {
+            let destination = cacheDirectory.appendingPathComponent(filename(for: remoteURLString))
+            if fileManager.fileExists(atPath: destination.path) { return destination }
+            let values = try temporaryURL.resourceValues(forKeys: [.fileSizeKey])
+            guard (values.fileSize ?? 0) > 0 else { throw URLError(.zeroByteResource) }
+            let staging = cacheDirectory.appendingPathComponent(UUID().uuidString + ".tmp")
+            defer { try? fileManager.removeItem(at: staging) }
+            try fileManager.copyItem(at: temporaryURL, to: staging)
+            try fileManager.moveItem(at: staging, to: destination)
+            return destination
+        }
+    }
 
-        do {
-            try fileManager.moveItem(at: temporaryURL, to: destinationURL)
-        } catch {
-            try? fileManager.removeItem(at: destinationURL)
-            try? fileManager.copyItem(at: temporaryURL, to: destinationURL)
+    private func validate(_ response: URLResponse) throws {
+        if let response = response as? HTTPURLResponse,
+           !(200..<300).contains(response.statusCode) {
+            throw URLError(.badServerResponse)
         }
     }
 
@@ -41,17 +52,22 @@ final class PersistentAudioCache {
             return cached
         }
 
-        let (temporaryURL, _) = try await URLSession.shared.download(from: remoteURL)
-        saveToCache(temporaryURL: temporaryURL, for: remoteURL.absoluteString)
-        return cacheDirectory.appendingPathComponent(filename(for: remoteURL.absoluteString))
+        let (temporaryURL, response) = try await URLSession.shared.download(from: remoteURL)
+        defer { try? fileManager.removeItem(at: temporaryURL) }
+        try Task.checkCancellation()
+        try validate(response)
+        return try saveToCache(temporaryURL: temporaryURL, for: remoteURL.absoluteString)
     }
 
     func downloadAndCache(url: URL) {
         if cachedURL(for: url.absoluteString) != nil { return }
 
-        URLSession.shared.downloadTask(with: url) { [weak self] localURL, _, error in
-            guard let self, let localURL, error == nil else { return }
-            self.saveToCache(temporaryURL: localURL, for: url.absoluteString)
+        URLSession.shared.downloadTask(with: url) { [weak self] localURL, response, error in
+            guard let self, let localURL, let response, error == nil else { return }
+            do {
+                try self.validate(response)
+                try self.saveToCache(temporaryURL: localURL, for: url.absoluteString)
+            } catch { return }
         }.resume()
     }
 

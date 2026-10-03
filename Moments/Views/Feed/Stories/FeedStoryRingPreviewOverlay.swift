@@ -162,7 +162,6 @@ struct FeedStoryRingPreviewOverlay: View {
                 successMessage = nil
                 resetPreviewPlayback()
                 loadPreview(for: userId)
-                preparePreviewAudioIfNeeded()
                 DispatchQueue.main.async {
                     withAnimation(presentationAnimation) {
                         isPresented = true
@@ -180,9 +179,6 @@ struct FeedStoryRingPreviewOverlay: View {
             }
             .onReceive(GlobalVideoManager.shared.$userHasEnabledSoundInSession) { enabled in
                 soundEnabledInSession = enabled
-                if enabled, previewStory?.mediaItem.type == .video {
-                    preparePreviewAudioIfNeeded()
-                }
             }
         }
         .ignoresSafeArea()
@@ -238,9 +234,6 @@ struct FeedStoryRingPreviewOverlay: View {
                             )
                             .frame(width: size.width, height: size.height)
                             .allowsHitTesting(false)
-                            .onAppear {
-                                preparePreviewAudioIfNeeded()
-                            }
                         }
                     }
 
@@ -594,14 +587,6 @@ struct FeedStoryRingPreviewOverlay: View {
             elapsed += Date().timeIntervalSince(startedAt)
         }
         return max(0, elapsed)
-    }
-
-    private func preparePreviewAudioIfNeeded() {
-        guard soundEnabledInSession else { return }
-        StoryAudioSession.activate()
-        Task {
-            await MomentsAudioSession.activate(category: .playback, mode: .moviePlayback)
-        }
     }
 
     private func muteAuthor(_ userId: String) {

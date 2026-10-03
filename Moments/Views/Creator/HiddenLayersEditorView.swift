@@ -104,6 +104,8 @@ struct HiddenLayersEditorView: View {
     @StateObject private var audioRecorder = HiddenLayerAudioRecorder()
     @StateObject private var micGate = PermissionPrimerGate(.microphone)
     @State private var audioPlayer: AVAudioPlayer?
+    @State private var audioSession = MomentsAudioSessionLease()
+    @State private var audioLoadTask: Task<Void, Never>?
     @State private var isPreviewPlaying = false
     @State private var audioPlaybackProgress: Double = 0
     @State private var audioPlaybackTimer: Timer?
@@ -249,6 +251,9 @@ struct HiddenLayersEditorView: View {
                     }
                 }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: MomentsAudioSession.interruptionNotification)) { _ in
+            stopAudioPreview(); _ = audioRecorder.stopRecording()
         }
         .onDisappear {
             stopAudioPreview()
@@ -1573,9 +1578,10 @@ struct HiddenLayersEditorView: View {
 
         stopAudioPreview()
 
-        Task { @MainActor in
+        audioLoadTask?.cancel()
+        audioLoadTask = Task { @MainActor in
             // La sesión debe estar activa antes de crear el player.
-            guard await MomentsAudioSession.activate(category: .playback, mode: .default) else {
+            guard await audioSession.activate(category: .playback, mode: .default) else {
                 stopAudioPreview()
                 return
             }
@@ -1601,13 +1607,15 @@ struct HiddenLayersEditorView: View {
     }
 
     private func stopAudioPreview() {
+        audioLoadTask?.cancel()
+        audioLoadTask = nil
         audioPlayer?.stop()
         audioPlayer = nil
         isPreviewPlaying = false
         audioPlaybackProgress = 0
         audioPlaybackTimer?.invalidate()
         audioPlaybackTimer = nil
-        MomentsAudioSession.deactivate()
+        audioSession.deactivate()
     }
 
     private func clearAudio(for index: Int) {
@@ -1678,18 +1686,22 @@ private final class HiddenLayerAudioRecorder: NSObject, ObservableObject, AVAudi
     @Published var isRecording = false
     @Published var elapsedTime: Double = 0
     private var recorder: AVAudioRecorder?
+    private let audioSession = MomentsAudioSessionLease()
+    private var startTask: Task<Void, Never>?
     private var startDate: Date?
     private var timer: Timer?
 
     func startRecording() {
-        Task { @MainActor [weak self] in
+        startTask?.cancel()
+        startTask = Task { @MainActor [weak self] in
+            guard let self else { return }
             // La sesión debe estar activa antes de crear el recorder; si no, graba en vacío.
-            guard await MomentsAudioSession.activate(
+            guard await audioSession.activate(
                 category: .playAndRecord,
                 mode: .default,
                 options: [.defaultToSpeaker]
             ) else { return }
-            guard let self else { return }
+            guard !Task.isCancelled else { return }
 
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("hidden_layer_audio_\(UUID().uuidString).m4a")
             let settings: [String: Any] = [
@@ -1704,6 +1716,7 @@ private final class HiddenLayerAudioRecorder: NSObject, ObservableObject, AVAudi
             self.recorder?.record(forDuration: 15)
             self.startDate = Date()
             self.isRecording = self.recorder?.isRecording == true
+            if !self.isRecording { self.audioSession.deactivate(); return }
             self.elapsedTime = 0
             self.timer?.invalidate()
             self.timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
@@ -1714,20 +1727,23 @@ private final class HiddenLayerAudioRecorder: NSObject, ObservableObject, AVAudi
     }
 
     func stopRecording() -> (url: URL, duration: Double)? {
-        guard let recorder else { return nil }
+        startTask?.cancel()
+        startTask = nil
+        guard let recorder else { audioSession.deactivate(); return nil }
         let url = recorder.url
         recorder.stop()
         self.recorder = nil
         isRecording = false
         timer?.invalidate()
         timer = nil
-        MomentsAudioSession.deactivate()
+        audioSession.deactivate()
         let duration = min(Date().timeIntervalSince(startDate ?? Date()), 15)
         elapsedTime = duration
         return (url, duration)
     }
 
     func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
+        audioSession.deactivate()
         isRecording = false
         timer?.invalidate()
         timer = nil

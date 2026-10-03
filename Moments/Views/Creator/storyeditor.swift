@@ -615,7 +615,6 @@ struct StoryEditingView: View {
         selectedMediaItems.removeAll()
 
         // ✅ Pausar cualquier audio que esté reproduciéndose
-        MomentsAudioSession.deactivate()
 
     }
 

@@ -56,19 +56,24 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
             self.sharedPlayer?.wrappedValue = player
         }
         
-        setupAudioSession()
+        player.isMuted = true
+        context.coordinator.updateAudioSession()
         
         if shouldAutoplay && (!respectsExternalPauseState || !isPaused) {
             print("🎬 MomentsVideoPlayer: Triggering initial play")
             player.play()
         }
-        player.isMuted = isMuted
+        if isMuted { player.isMuted = true }
         
         return controller
     }
     
     func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
+        if context.coordinator.parent.isPaused != isPaused || context.coordinator.lastURL != url {
+            context.coordinator.interrupted = false
+        }
         context.coordinator.parent = self // ✅ Update parent reference
+        context.coordinator.updateAudioSession()
         
         if context.coordinator.lastURL?.absoluteString != url.absoluteString {
             print("🎬 MomentsVideoPlayer: updateUIViewController - URL Changed from \(context.coordinator.lastURL?.absoluteString ?? "nil") to \(url.absoluteString)")
@@ -77,10 +82,12 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
             let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
             configurePlayerItem(playerItem)
             let newPlayer = AVQueuePlayer(playerItem: playerItem)
+            newPlayer.isMuted = true
             newPlayer.automaticallyWaitsToMinimizeStalling = prioritizeSmoothPlayback
             
             uiViewController.player = newPlayer
             context.coordinator.player = newPlayer
+            context.coordinator.updateAudioSession(force: true)
             context.coordinator.lastShouldAutoplay = shouldAutoplay
             context.coordinator.setupObservers(for: playerItem)
             
@@ -93,6 +100,7 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
             }
         }
         
+        if context.coordinator.interrupted { uiViewController.player?.pause(); return }
         if let player = uiViewController.player {
             if let time = externalSeekTime?.wrappedValue {
                 player.seek(to: CMTime(seconds: time, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
@@ -100,7 +108,7 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
                     self.externalSeekTime?.wrappedValue = nil
                 }
             }
-            player.isMuted = isMuted
+            if isMuted { player.isMuted = true }
             if respectsExternalPauseState {
                 if isPaused {
                     if player.rate != 0 {
@@ -126,16 +134,6 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
         }
     }
     
-    private func setupAudioSession() {
-        Task {
-            await MomentsAudioSession.activate(
-                category: .playback,
-                mode: .moviePlayback,
-                options: [.mixWithOthers]
-            )
-        }
-    }
-    
     private func configurePlayerItem(_ item: AVPlayerItem) {
         let tier = VideoPlaybackSelector.shared.recommendedTier()
         VideoPlaybackSelector.shared.configure(playerItem: item, tier: tier)
@@ -150,6 +148,29 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
     }
     
     class Coordinator: NSObject {
+        private let audioSession = MomentsAudioSessionLease()
+        private var audioActivationTask: Task<Void, Never>?
+        var interrupted = false
+        private var needsAudio = false
+        private var interruptionObserver: NSObjectProtocol?
+
+        func updateAudioSession(force: Bool = false) {
+            let needed = !interrupted && !parent.isMuted && parent.shouldAutoplay && (!parent.respectsExternalPauseState || !parent.isPaused)
+            guard force || needed != needsAudio else { return }
+            needsAudio = needed
+            audioActivationTask?.cancel()
+            guard needed else {
+                player?.isMuted = true
+                audioSession.deactivate()
+                return
+            }
+            audioActivationTask = Task { @MainActor [weak self] in
+                guard let self, await self.audioSession.activate(mode: .moviePlayback),
+                      !Task.isCancelled, self.needsAudio else { return }
+                self.player?.isMuted = false
+            }
+        }
+
         var parent: MomentsVideoPlayer
         var player: AVPlayer?
         var lastURL: URL?
@@ -167,10 +188,20 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
         
         init(_ parent: MomentsVideoPlayer) {
             self.parent = parent
+            super.init()
+            interruptionObserver = NotificationCenter.default.addObserver(
+                forName: MomentsAudioSession.interruptionNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                self?.interrupted = true
+                self?.audioActivationTask?.cancel()
+                self?.player?.pause()
+                self?.audioSession.deactivate()
+                self?.needsAudio = false
+            }
         }
         
         func setupObservers(for item: AVPlayerItem) {
-            cleanup()
+            cleanup(releasingAudio: false)
             stallRetryCount = 0
             
             // 1. Monitor Item Status (Critical for duration and errors)
@@ -199,7 +230,7 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
                             }
                         }
                     }
-                    if !self.parent.isPaused {
+                    if !self.interrupted && !self.parent.isPaused {
                         self.player?.play()
                     }
                     
@@ -226,7 +257,7 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
                 self.pendingRecoveryWorkItem?.cancel()
                 self.pendingRecoveryWorkItem = nil
                 self.stallRetryCount = 0
-                if !self.parent.isPaused, self.player?.rate == 0, item.status == .readyToPlay {
+                if !self.interrupted && !self.parent.isPaused, self.player?.rate == 0, item.status == .readyToPlay {
                     self.player?.play()
                 }
             }
@@ -287,7 +318,7 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
         }
         
         private func recoverFromPlaybackStall() {
-            guard !parent.isPaused else { return }
+            guard !interrupted && !parent.isPaused else { return }
             guard let player = player, let item = player.currentItem else { return }
             guard item.status != .failed else { return }
             guard stallRetryCount < maxStallRetryCount else { return }
@@ -300,14 +331,19 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
             let workItem = DispatchWorkItem { [weak self] in
                 guard let self = self else { return }
                 self.pendingRecoveryWorkItem = nil
-                guard !self.parent.isPaused else { return }
+                guard !self.interrupted && !self.parent.isPaused else { return }
                 self.player?.play()
             }
             pendingRecoveryWorkItem = workItem
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
         }
         
-        func cleanup() {
+        func cleanup(releasingAudio: Bool = true) {
+            if releasingAudio {
+                audioActivationTask?.cancel()
+                audioSession.deactivate()
+                if let interruptionObserver { NotificationCenter.default.removeObserver(interruptionObserver) }
+            }
             if let observer = timeObserver {
                 player?.removeTimeObserver(observer)
                 timeObserver = nil

@@ -1804,6 +1804,8 @@ struct EnhancedReelActionButton: View {
 
 // Enhanced Video Player Manager con seek optimizado
 class ReelVideoPlayerManager: ObservableObject {
+    private let audioSession = MomentsAudioSessionLease()
+    private var audioActivationTask: Task<Void, Never>?
     @Published var player: AVPlayer?
     @Published private(set) var playbackPhase: VideoPlaybackPhase = .idle
     @Published var isPlaying = false
@@ -1830,6 +1832,20 @@ class ReelVideoPlayerManager: ObservableObject {
     private var fallbackURL: URL?
     private var failedAttempts = 0
     private var shouldAutoplay = false
+    private var interruptionObserver: NSObjectProtocol?
+
+    init() {
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: MomentsAudioSession.interruptionNotification, object: nil, queue: .main
+        ) { [weak self] _ in self?.pause() }
+    }
+
+    deinit {
+        audioActivationTask?.cancel()
+        audioSession.deactivate()
+        if let interruptionObserver { NotificationCenter.default.removeObserver(interruptionObserver) }
+        cleanup(releaseFromPool: false)
+    }
     
     func setupPlayer(with video: VideoMoment, startAtSeconds: Double = 0, consumerId handoffConsumerId: String? = nil) {
         let moment = video.moment
@@ -1893,7 +1909,6 @@ class ReelVideoPlayerManager: ObservableObject {
             pooledPlayer.automaticallyWaitsToMinimizeStalling = true
             pooledPlayer.allowsExternalPlayback = false
             applySessionMuteState()
-            configureAudioSession()
             observePlayerItem()
             setupLooping()
             observePlayback()
@@ -1925,7 +1940,6 @@ class ReelVideoPlayerManager: ObservableObject {
         player = pooledPlayer
         isLoaded = playerItem?.status == .readyToPlay
         applySessionMuteState()
-        configureAudioSession()
         observePlayerItem()
         setupLooping()
         observePlayback()
@@ -1944,6 +1958,8 @@ class ReelVideoPlayerManager: ObservableObject {
     }
 
     private func handlePoolEviction() {
+        audioActivationTask?.cancel()
+        audioSession.deactivate()
         if let timeObserver {
             player?.removeTimeObserver(timeObserver)
             self.timeObserver = nil
@@ -2035,16 +2051,20 @@ class ReelVideoPlayerManager: ObservableObject {
         isSeeking = true
     }
     
-    private func configureAudioSession() {
-        Task {
-            await MomentsAudioSession.activate(
-                category: .playback,
-                mode: .moviePlayback,
-                options: [.mixWithOthers, .allowBluetoothHFP]
-            )
+    private func activateAudioAndPlay(_ player: AVPlayer) {
+        player.isMuted = true
+        audioActivationTask?.cancel()
+        audioActivationTask = Task { @MainActor [weak self, weak player] in
+            guard let self, let player,
+                  await self.audioSession.activate(mode: .moviePlayback),
+                  !Task.isCancelled, self.player === player,
+                  self.ownsPoolPlayer, self.shouldAutoplay, !self.isMuted else { return }
+            player.isMuted = false
+            player.play()
+            self.isPlaying = true
         }
     }
-    
+
     private func observePlayerItem() {
         guard let playerItem = playerItem else { return }
         
@@ -2235,13 +2255,10 @@ class ReelVideoPlayerManager: ObservableObject {
         guard let player = player, isLoaded, ownsPoolPlayer else { return }
         
         if isPlaying {
-            shouldAutoplay = false
-            player.pause()
-            isPlaying = false
+            pause()
         } else {
             shouldAutoplay = true
-            player.play()
-            isPlaying = true
+            play()
         }
     }
     
@@ -2254,11 +2271,13 @@ class ReelVideoPlayerManager: ObservableObject {
         guard isCurrentLeaseGeneration() else { return }
         guard let player = player, isLoaded, ownsPoolPlayer else { return }
         player.currentItem?.canUseNetworkResourcesForLiveStreamingWhilePaused = true
-        player.play()
-        isPlaying = true
+        if isMuted { player.play(); isPlaying = true }
+        else { activateAudioAndPlay(player) }
     }
-    
+
     func pause() {
+        audioActivationTask?.cancel()
+        audioSession.deactivate()
         shouldAutoplay = false
         guard let player = player, ownsPoolPlayer else { return }
         player.pause()
@@ -2267,27 +2286,22 @@ class ReelVideoPlayerManager: ObservableObject {
     }
 
     func toggleMute() {
-        guard let player = player, ownsPoolPlayer else { return }
-
-        let volume = AVAudioSession.sharedInstance().outputVolume
-        if isMuted && volume == 0.0 {
-            return
-        }
-
-        let wasMuted = isMuted
+        guard let player, ownsPoolPlayer else { return }
         isMuted.toggle()
-        player.isMuted = isMuted
-
-        if wasMuted && !isMuted {
-            GlobalVideoManager.shared.enableSoundForSession()
-        } else if !wasMuted && isMuted {
+        if isMuted {
+            player.isMuted = true
+            audioActivationTask?.cancel()
+            audioSession.deactivate()
             GlobalVideoManager.shared.disableSoundForSession()
+        } else {
+            GlobalVideoManager.shared.enableSoundForSession()
+            if shouldAutoplay { activateAudioAndPlay(player) }
         }
     }
 
     private func applySessionMuteState() {
         isMuted = !GlobalVideoManager.shared.userHasEnabledSoundInSession
-        player?.isMuted = isMuted
+        player?.isMuted = true
     }
     
     private func observePlayback() {
@@ -2315,6 +2329,8 @@ class ReelVideoPlayerManager: ObservableObject {
     }
     
     func cleanup(releaseFromPool: Bool = true) {
+        audioActivationTask?.cancel()
+        audioSession.deactivate()
         let shouldPreserve = consumerId.map {
             GlobalVideoManager.shared.shouldPreserveSharedPlayer(consumerId: $0)
         } ?? false
@@ -2346,9 +2362,6 @@ class ReelVideoPlayerManager: ObservableObject {
         hasLoadError = false
     }
 
-    deinit {
-        cleanup(releaseFromPool: false)
-    }
 
     private var ownsPoolPlayer: Bool {
         guard let player, let consumerId, let poolGeneration else { return false }

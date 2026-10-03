@@ -256,6 +256,9 @@ extension GlassmorphicChatView {
 
     func mainChatStack() -> some View {
         return messagesListSection
+            .onReceive(NotificationCenter.default.publisher(for: MomentsAudioSession.interruptionNotification)) { _ in
+                resetVoiceRecordingInteraction()
+            }
             .environment(\.chatFailedMessageRetryAction, ChatFailedMessageRetryAction(
                 canRetry: { viewModel.canRetryMessage($0) },
                 retry: { viewModel.retryFailedMessage($0) }

@@ -1734,13 +1734,11 @@ struct InteractiveAudioStickerView: View {
     @State private var isPlaying = false
     @State private var progress: Double = 0
     @State private var audioPlayer: AVAudioPlayer?
+    @State private var audioSession = MomentsAudioSessionLease()
+    @State private var audioLoadTask: Task<Void, Never>?
     @State private var timer: Timer?
     @State private var waveTask: Task<Void, Never>?
     @State private var animatedHeights: [CGFloat] = [10, 14, 10]
-    @State private var previousAudioCategory: AVAudioSession.Category?
-    @State private var previousAudioMode: AVAudioSession.Mode?
-    @State private var previousAudioOptions: AVAudioSession.CategoryOptions = []
-    @State private var didConfigureAudioSession = false
 
     var body: some View {
         ZStack {
@@ -1789,6 +1787,9 @@ struct InteractiveAudioStickerView: View {
             guard !exportBackgroundOnly else { return }
             startPlayback()
         }
+        .onReceive(NotificationCenter.default.publisher(for: MomentsAudioSession.interruptionNotification)) { _ in
+            pausePlayback()
+        }
         .onDisappear {
             waveTask?.cancel()
             stopPlayback()
@@ -1808,22 +1809,11 @@ struct InteractiveAudioStickerView: View {
         }
     }
 
-    private func startPlayback() {
+    private func startPlayback(userInitiated: Bool = false) {
         guard let url = URL(string: audioURL) else { return }
 
-        let session = AVAudioSession.sharedInstance()
-
-        if !didConfigureAudioSession {
-            previousAudioCategory = session.category
-            previousAudioMode = session.mode
-            previousAudioOptions = session.categoryOptions
-            didConfigureAudioSession = true
-        }
-
-        Task {
-            // La sesión debe estar activa antes de crear el player.
-            await MomentsAudioSession.activate(category: .ambient, mode: .default)
-
+        audioLoadTask?.cancel()
+        audioLoadTask = Task {
             do {
                 let player: AVAudioPlayer
                 if url.scheme == "file" {
@@ -1833,19 +1823,26 @@ struct InteractiveAudioStickerView: View {
                     player = try AVAudioPlayer(contentsOf: cachedURL)
                 }
 
+                guard !Task.isCancelled, await audioSession.activate(category: userInitiated ? .playback : .ambient),
+                      !Task.isCancelled else { return }
                 await MainActor.run {
+                    guard !Task.isCancelled else { return }
                     self.audioPlayer = player
-                    self.audioPlayer?.play()
+                    guard player.play() else { self.audioSession.deactivate(); return }
                     self.isPlaying = true
                     self.startProgressTimer()
                 }
             } catch {
+                guard !Task.isCancelled else { return }
+                audioSession.deactivate()
                 print("Failed to play audio: \(error)")
             }
         }
     }
 
     private func stopPlayback() {
+        audioLoadTask?.cancel()
+        audioLoadTask = nil
         audioPlayer?.stop()
         audioPlayer = nil
         isPlaying = false
@@ -1858,6 +1855,9 @@ struct InteractiveAudioStickerView: View {
     }
 
     private func pausePlayback() {
+        audioLoadTask?.cancel()
+        audioLoadTask = nil
+        audioSession.deactivate()
         audioPlayer?.pause()
         isPlaying = false
         timer?.invalidate()
@@ -1866,15 +1866,21 @@ struct InteractiveAudioStickerView: View {
 
     private func resumePlayback() {
         if let audioPlayer {
-            audioPlayer.play()
-            isPlaying = true
-            startProgressTimer()
+            audioLoadTask?.cancel()
+            audioLoadTask = Task { @MainActor in
+                guard await audioSession.activate(), !Task.isCancelled else { return }
+                guard audioPlayer.play() else { audioSession.deactivate(); return }
+                isPlaying = true
+                startProgressTimer()
+            }
         } else {
-            startPlayback()
+            startPlayback(userInitiated: true)
         }
     }
 
     private func finishPlayback() {
+        audioLoadTask?.cancel()
+        audioLoadTask = nil
         audioPlayer?.stop()
         audioPlayer = nil
         isPlaying = false
@@ -1923,12 +1929,7 @@ struct InteractiveAudioStickerView: View {
     }
 
     private func restoreAudioSessionIfNeeded() {
-        guard didConfigureAudioSession else { return }
-        MomentsAudioSession.restore(
-            category: previousAudioCategory,
-            mode: previousAudioMode,
-            options: previousAudioOptions
-        )
+        audioSession.deactivate()
     }
 }
 

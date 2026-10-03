@@ -117,6 +117,7 @@ struct CameraPreviewRepresentable: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ uiView: CameraPreviewView, coordinator: Coordinator) {
+        uiView.stopRecording()
         uiView.detachDuoAccessory()
     }
 
@@ -146,6 +147,9 @@ class CameraPreviewView: UIView {
     var prefersMaximumCaptureQuality: Bool
     var enablesCenterStageControls: Bool
 
+    private let audioSession = MomentsAudioSessionLease()
+    private var recordingTask: Task<Void, Never>?
+    private var interruptionObserver: NSObjectProtocol?
     private var captureSession: AVCaptureSession?
     private var videoPreviewLayer: AVCaptureVideoPreviewLayer?
     private var photoOutput: AVCapturePhotoOutput?
@@ -167,7 +171,7 @@ class CameraPreviewView: UIView {
     #endif
 
     var isCurrentlyRecording: Bool {
-        return movieOutput?.isRecording ?? false
+        return recordingTask != nil || (movieOutput?.isRecording ?? false)
     }
 
     init(
@@ -191,6 +195,9 @@ class CameraPreviewView: UIView {
     }
 
     deinit {
+        recordingTask?.cancel()
+        audioSession.deactivate()
+        if let interruptionObserver { NotificationCenter.default.removeObserver(interruptionObserver) }
         stopObservingCenterStageEnabled()
     }
 
@@ -203,6 +210,9 @@ class CameraPreviewView: UIView {
     }
 
     private func configureHardwareCaptureInteraction() {
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: MomentsAudioSession.interruptionNotification, object: nil, queue: .main
+        ) { [weak self] _ in self?.stopRecording() }
         let interaction = AVCaptureEventInteraction { [weak self] event in
             guard event.phase == .ended else { return }
             self?.handleHardwareCapturePress()
@@ -227,6 +237,7 @@ class CameraPreviewView: UIView {
         guard captureSession == nil else { return }
 
         let session = AVCaptureSession()
+        session.automaticallyConfiguresApplicationAudioSession = false
         applySessionPreset(to: session)
 
         guard let camera = captureDevice(for: currentPosition),
@@ -244,14 +255,6 @@ class CameraPreviewView: UIView {
 
         if session.canAddInput(input) {
             session.addInput(input)
-        }
-
-        if AVCaptureDevice.authorizationStatus(for: .audio) == .authorized,
-           let microphone = AVCaptureDevice.default(for: .audio),
-           let audioInput = try? AVCaptureDeviceInput(device: microphone),
-           session.canAddInput(audioInput) {
-            session.addInput(audioInput)
-            currentAudioInput = audioInput
         }
 
         let photoOutput = AVCapturePhotoOutput()
@@ -659,26 +662,47 @@ class CameraPreviewView: UIView {
     }
 
     func startRecording() {
-        guard let movieOutput = movieOutput,
-              !movieOutput.isRecording else { return }
-
-        if let videoConnection = movieOutput.connection(with: .video) {
-            applyRotation(to: videoConnection, forPreview: false)
-            if videoConnection.isVideoMirroringSupported {
-                videoConnection.automaticallyAdjustsVideoMirroring = false
-                videoConnection.isVideoMirrored = (currentPosition == .front)
+        guard let movieOutput, !isCurrentlyRecording else { return }
+        recordingTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let activated = await self.audioSession.activate(category: .playAndRecord, mode: .videoRecording)
+            guard !Task.isCancelled else { return }
+            guard activated else { self.recordingTask = nil; return }
+            if let session = self.captureSession,
+               AVCaptureDevice.authorizationStatus(for: .audio) == .authorized,
+               let microphone = AVCaptureDevice.default(for: .audio),
+               let input = try? AVCaptureDeviceInput(device: microphone), session.canAddInput(input) {
+                session.beginConfiguration()
+                session.addInput(input)
+                self.currentAudioInput = input
+                session.commitConfiguration()
             }
+            if let connection = movieOutput.connection(with: .video) {
+                self.applyRotation(to: connection, forPreview: false)
+                if connection.isVideoMirroringSupported {
+                    connection.automaticallyAdjustsVideoMirroring = false
+                    connection.isVideoMirrored = self.currentPosition == .front
+                }
+            }
+            movieOutput.startRecording(to: self.createTempVideoURL(), recordingDelegate: self)
         }
-
-        let outputURL = createTempVideoURL()
-        movieOutput.startRecording(to: outputURL, recordingDelegate: self)
     }
 
     func stopRecording() {
-        guard let movieOutput = movieOutput,
-              movieOutput.isRecording else { return }
+        recordingTask?.cancel()
+        recordingTask = nil
+        if let movieOutput, movieOutput.isRecording { movieOutput.stopRecording() }
+        else { releaseRecordingAudio() }
+    }
 
-        movieOutput.stopRecording()
+    private func releaseRecordingAudio() {
+        if let session = captureSession, let input = currentAudioInput {
+            session.beginConfiguration()
+            session.removeInput(input)
+            session.commitConfiguration()
+            currentAudioInput = nil
+        }
+        audioSession.deactivate()
     }
 
     private func handleHardwareCapturePress() {
@@ -769,14 +793,14 @@ extension CameraPreviewView: AVCapturePhotoCaptureDelegate {
 
 extension CameraPreviewView: AVCaptureFileOutputRecordingDelegate {
     func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
+        DispatchQueue.main.async { [weak self] in self?.recordingTask = nil }
     }
 
     func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
-        if error != nil {
-            return
-        }
-
         DispatchQueue.main.async { [weak self] in
+            self?.recordingTask = nil
+            self?.releaseRecordingAudio()
+            guard error == nil else { return }
             self?.delegate?.parent.onVideoCaptured(outputFileURL)
         }
     }

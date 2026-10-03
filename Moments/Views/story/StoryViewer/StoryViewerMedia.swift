@@ -10,29 +10,6 @@ import MapKit
 import AVFoundation
 import SwiftData
 
-// Sesión de audio de stories en cola serie fuera del main thread: setActive
-// síncrono (sobre todo el false con notifyOthersOnDeactivation) causaba
-// micro-tirones de >100ms al cambiar de story.
-enum StoryAudioSession {
-    private static let queue = DispatchQueue(label: "com.moments.storyAudioSession", qos: .userInitiated)
-
-    static func activate() {
-        queue.async {
-            let session = AVAudioSession.sharedInstance()
-            if session.category != .playback {
-                try? session.setCategory(.playback, mode: .moviePlayback, options: [])
-            }
-            try? session.setActive(true)
-        }
-    }
-
-    static func deactivate() {
-        queue.async {
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        }
-    }
-}
-
 // MARK: - Glassmorphic Story Video Player
 struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
     let url: URL
@@ -49,8 +26,6 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
 
-        // ✅ AUDIO FIX: Activar sesión de audio para que suene aunque esté en silencio
-        StoryAudioSession.activate()
 
         // ✅ USAR VIDEOPRELOADER PARA INICIO INSTANTÁNEO
         let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
@@ -65,12 +40,13 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             player = AVPlayer(playerItem: playerItem)
         }
 
-        player.isMuted = isMutedExternally || !isPlaying
+        player.isMuted = true
         controller.player = player
         controller.showsPlaybackControls = false
         controller.videoGravity = videoGravity
         controller.view.backgroundColor = .clear
         context.coordinator.player = player
+        context.coordinator.updateAudioSession(playing: isPlaying, muted: isMutedExternally)
         context.coordinator.onProgressUpdate = onProgressUpdate
         context.coordinator.onVideoComplete = onVideoComplete
         context.coordinator.currentURL = url // ✅ Track initial URL
@@ -114,6 +90,7 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
 
             uiViewController.player = newPlayer
             context.coordinator.player = newPlayer
+            context.coordinator.needsAudioForNewPlayer()
 
             // 3. UPDATE COORDINATOR
             context.coordinator.currentURL = url
@@ -132,14 +109,16 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             uiViewController.videoGravity = videoGravity
         }
 
+        context.coordinator.updateAudioSession(playing: isPlaying, muted: isMutedExternally)
+
         // ✅ EVITAR LOOP: Verificar estado actual del player
         let playerIsPlaying = uiViewController.player?.rate != 0.0
-        uiViewController.player?.isMuted = isMutedExternally || !isPlaying
+        if isMutedExternally || !isPlaying { uiViewController.player?.isMuted = true }
 
         if isPlaying && !playerIsPlaying {
             // ✅ Solo reproducir si no está reproduciéndose
             if let player = uiViewController.player, player.currentItem != nil {
-                player.isMuted = isMutedExternally
+                if isMutedExternally { player.isMuted = true }
                 context.coordinator.applyPendingSeekIfNeeded()
                 player.play()
             }
@@ -155,6 +134,26 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
     }
 
     class Coordinator: NSObject {
+        private let audioSession = MomentsAudioSessionLease()
+        private var audioActivationTask: Task<Void, Never>?
+        private var needsAudio = false
+        private var interruptionObserver: NSObjectProtocol?
+        func needsAudioForNewPlayer() { needsAudio = false }
+
+        func updateAudioSession(playing: Bool, muted: Bool) {
+            let needed = playing && !muted
+            guard needed != needsAudio else { return }
+            needsAudio = needed
+            audioActivationTask?.cancel()
+            player?.isMuted = true
+            guard needed else { audioSession.deactivate(); return }
+            audioActivationTask = Task { @MainActor [weak self] in
+                guard let self, await self.audioSession.activate(mode: .moviePlayback),
+                      !Task.isCancelled, self.needsAudio else { return }
+                self.player?.isMuted = false
+            }
+        }
+
         var parent: GlassmorphicStoryVideoPlayer
         var player: AVPlayer?
         var playerLooper: AVPlayerLooper?
@@ -170,6 +169,16 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
 
         init(_ parent: GlassmorphicStoryVideoPlayer) {
             self.parent = parent
+            super.init()
+            interruptionObserver = NotificationCenter.default.addObserver(
+                forName: MomentsAudioSession.interruptionNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                self?.audioActivationTask?.cancel()
+                self?.player?.pause()
+                self?.parent.isPlaying = false
+                self?.audioSession.deactivate()
+                self?.needsAudio = false
+            }
             self.currentURL = parent.url // Initialize with current URL
         }
 
@@ -259,6 +268,9 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         }
 
         deinit {
+            if let interruptionObserver { NotificationCenter.default.removeObserver(interruptionObserver) }
+            audioActivationTask?.cancel()
+            audioSession.deactivate()
             cleanupObservers() // ✅ Ensure observers are removed
 
             player?.pause()
@@ -268,7 +280,7 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             player = nil
 
             // ✅ CLEANUP DE AUDIO SESSION
-            StoryAudioSession.deactivate()
+
         }
     }
 }

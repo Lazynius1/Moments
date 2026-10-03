@@ -267,6 +267,10 @@ struct StickerVideoPlayer: UIViewRepresentable {
 
     class StickerPlayerUIView: UIView {
         private let playerLayer = AVPlayerLayer()
+        private let audioSession = MomentsAudioSessionLease()
+        private var audioActivationTask: Task<Void, Never>?
+        private var needsAudio = false
+        private var interruptionObserver: NSObjectProtocol?
         private let exportImageView = UIImageView()
         private var player: AVPlayer?
         private var playerItem: AVPlayerItem?
@@ -277,6 +281,14 @@ struct StickerVideoPlayer: UIViewRepresentable {
         override init(frame: CGRect) {
             super.init(frame: frame)
             setupLayer()
+            interruptionObserver = NotificationCenter.default.addObserver(
+                forName: MomentsAudioSession.interruptionNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                self?.audioActivationTask?.cancel()
+                self?.player?.pause()
+                self?.audioSession.deactivate()
+                self?.needsAudio = false
+            }
         }
 
         required init?(coder: NSCoder) {
@@ -296,6 +308,9 @@ struct StickerVideoPlayer: UIViewRepresentable {
         }
 
         func showExportFrame(_ image: UIImage?) {
+            audioActivationTask?.cancel()
+            audioSession.deactivate()
+            needsAudio = false
             player?.pause()
             playerLayer.isHidden = true
             exportImageView.contentMode = .scaleAspectFill
@@ -308,15 +323,9 @@ struct StickerVideoPlayer: UIViewRepresentable {
         func play(url: URL, isMuted: Bool) {
             exportImageView.removeFromSuperview()
             playerLayer.isHidden = false
-            if !isMuted {
-                // Misma sesión que el visor: .playback ignora el switch de silencio.
-                // Hay que encolarla antes de play(); si no, el primer arranque queda mudo.
-                StoryAudioSession.activate()
-            }
-
             // Evitar recrear si es la misma URL
             if let currentUrl = (player?.currentItem?.asset as? AVURLAsset)?.url, currentUrl == url {
-                player?.isMuted = isMuted
+                updateAudioSession(muted: isMuted)
                 player?.volume = isMuted ? 0 : 1
                 if player?.timeControlStatus != .playing {
                     player?.play()
@@ -333,12 +342,14 @@ struct StickerVideoPlayer: UIViewRepresentable {
             playerItem = item
 
             let newPlayer = AVPlayer(playerItem: item)
-            newPlayer.isMuted = isMuted
+            newPlayer.isMuted = true
             newPlayer.volume = isMuted ? 0 : 1
             newPlayer.automaticallyWaitsToMinimizeStalling = false // Intentar reproducir ASAP
 
             player = newPlayer
             playerLayer.player = newPlayer
+            needsAudio = false
+            updateAudioSession(muted: isMuted)
 
             newPlayer.play()
             loadDuration(from: item, url: url)
@@ -351,6 +362,19 @@ struct StickerVideoPlayer: UIViewRepresentable {
             ) { [weak newPlayer] _ in
                 newPlayer?.seek(to: .zero)
                 newPlayer?.play()
+            }
+        }
+
+        private func updateAudioSession(muted: Bool) {
+            guard needsAudio != !muted else { return }
+            needsAudio = !muted
+            audioActivationTask?.cancel()
+            player?.isMuted = true
+            guard !muted else { audioSession.deactivate(); return }
+            audioActivationTask = Task { @MainActor [weak self] in
+                guard let self, await self.audioSession.activate(mode: .moviePlayback),
+                      !Task.isCancelled, self.needsAudio else { return }
+                self.player?.isMuted = false
             }
         }
 
@@ -381,6 +405,9 @@ struct StickerVideoPlayer: UIViewRepresentable {
         }
 
         deinit {
+            if let interruptionObserver { NotificationCenter.default.removeObserver(interruptionObserver) }
+            audioActivationTask?.cancel()
+            audioSession.deactivate()
             if let observer = loopObserver {
                 NotificationCenter.default.removeObserver(observer)
             }

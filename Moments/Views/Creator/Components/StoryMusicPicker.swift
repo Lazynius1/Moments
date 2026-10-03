@@ -113,6 +113,17 @@ final class StoryMusicAudioPlayer: ObservableObject {
     private var timeObserver: Any?
     private var selection: StoryMusicSelection?
     private var generation = UUID()
+    private let audioSession = MomentsAudioSessionLease()
+    private var activationTask: Task<Void, Never>?
+    private var interruptionObserver: NSObjectProtocol?
+
+    init() {
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: MomentsAudioSession.interruptionNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.pause() }
+        }
+    }
 
     func load(_ selection: StoryMusicSelection, url: URL, play: Bool) {
         stop()
@@ -121,7 +132,7 @@ final class StoryMusicAudioPlayer: ObservableObject {
         self.player = player
         timeObserver = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.08, preferredTimescale: 600), queue: .main) { [weak self] time in
             Task { @MainActor in
-                guard let self, let selection = self.selection else { return }
+                guard let self, self.player === player, let selection = self.selection else { return }
                 if time.seconds.isFinite {
                     self.elapsed = min(max(time.seconds - selection.start, 0), selection.duration)
                 }
@@ -138,7 +149,9 @@ final class StoryMusicAudioPlayer: ObservableObject {
         guard let player else { return }
         let generation = UUID()
         self.generation = generation
+        activationTask?.cancel()
         player.pause()
+        if !play { audioSession.deactivate() }
         elapsed = max(seconds - (selection?.start ?? 0), 0)
         isPlaying = play
         player.seek(to: CMTime(seconds: max(seconds, 0), preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] completed in
@@ -151,16 +164,32 @@ final class StoryMusicAudioPlayer: ObservableObject {
     func update(_ selection: StoryMusicSelection) { self.selection = selection; seek(to: selection.start, play: isPlaying) }
     func play() {
         guard player != nil else { return }
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
-        player?.play(); isPlaying = true
+        activationTask?.cancel()
+        let generation = self.generation
+        activationTask = Task { @MainActor [weak self] in
+            guard let self, await self.audioSession.activate(),
+                  !Task.isCancelled, self.generation == generation else { return }
+            self.player?.play()
+            self.isPlaying = true
+        }
     }
-    func pause() { generation = UUID(); player?.pause(); isPlaying = false }
+    func pause() {
+        generation = UUID()
+        activationTask?.cancel()
+        activationTask = nil
+        player?.pause()
+        isPlaying = false
+        audioSession.deactivate()
+    }
     func stop() {
         pause()
         if let timeObserver { player?.removeTimeObserver(timeObserver) }
         timeObserver = nil; player = nil; selection = nil; failed = false; elapsed = 0
     }
     deinit {
+        activationTask?.cancel()
+        audioSession.deactivate()
+        if let interruptionObserver { NotificationCenter.default.removeObserver(interruptionObserver) }
         if let timeObserver { player?.removeTimeObserver(timeObserver) }
         player?.pause()
     }
