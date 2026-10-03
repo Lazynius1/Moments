@@ -1004,19 +1004,8 @@ extension GlassmorphicChatView {
         extractSource: ChatMessageExtractSource
     ) {
         guard anchorFrame.width > 0, anchorFrame.height > 0 else { return }
-        let keyboardOpen = keyboardScrollCoordinator.isVisible
-            || keyboardScrollCoordinator.keyboardHeight > 0
-            || isTextFieldFocused
-        if keyboardOpen {
-            restoreComposerFocusAfterMessageMenu = true
-            isTextFieldFocused = false
-            UIApplication.shared.sendAction(
-                #selector(UIResponder.resignFirstResponder),
-                to: nil,
-                from: nil,
-                for: nil
-            )
-        }
+        // El menú se hospeda sobre la ventana del teclado sin cambiar el foco.
+        // El composer conserva su first responder y la conversación no cambia de altura.
         // El overlay anima el lift; asignar con spring aquí pelea con el put-back.
         messageMenuSelection = ChatMessageMenuSelection(
             rowId: rowId,

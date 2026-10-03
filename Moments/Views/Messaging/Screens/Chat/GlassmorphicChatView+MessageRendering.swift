@@ -192,57 +192,63 @@ extension GlassmorphicChatView {
                     .zIndex(45)
                 }
 
-                ChatMessageContextMenuOverlay(
-                    selection: $messageMenuSelection,
-                    containerSize: proxy.size,
-                    containerFrameInGlobal: proxy.frame(in: .global),
-                    safeAreaInsets: proxy.safeAreaInsets,
-                    colorScheme: colorScheme,
-                    currentUserId: viewModel.currentUserId,
-                    forwardingPreferences: viewModel.forwardingPreferences,
-                    isGroup: viewModel.conversation.isGroup,
-                    onDeleteForEveryone: { message in
-                        viewModel.deleteMessageForEveryone(message)
-                    },
-                    onDeleteForMe: { message in
-                        viewModel.deleteMessageForMe(message)
-                    },
-                    onEdit: { message in
-                        replyingTo = nil
-                        editingMessage = message
-                        messageText = message.content ?? ""
-                        isTextFieldFocused = true
-                    },
-                    onReply: { message in
-                        activateReply(to: message)
-                    },
-                    onCopy: { message in
-                        let text = message.content ?? ""
-                        UIPasteboard.general.string = text
-                        if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            InAppNotificationService.shared.showActionToast(.messageCopied(text: text))
+                ChatMessageMenuPresentationHost(
+                    isPresented: messageMenuSelection != nil,
+                    keyboardVisible: keyboardScrollCoordinator.isVisible || keyboardScrollCoordinator.keyboardHeight > 0,
+                    colorScheme: colorScheme
+                ) { menuProxy, menuSafeArea in
+                    ChatMessageContextMenuOverlay(
+                        selection: $messageMenuSelection,
+                        containerSize: menuProxy.size,
+                        containerFrameInGlobal: menuProxy.frame(in: .global),
+                        safeAreaInsets: menuSafeArea,
+                        colorScheme: colorScheme,
+                        currentUserId: viewModel.currentUserId,
+                        forwardingPreferences: viewModel.forwardingPreferences,
+                        isGroup: viewModel.conversation.isGroup,
+                        onDeleteForEveryone: { message in
+                            viewModel.deleteMessageForEveryone(message)
+                        },
+                        onDeleteForMe: { message in
+                            viewModel.deleteMessageForMe(message)
+                        },
+                        onEdit: { message in
+                            replyingTo = nil
+                            editingMessage = message
+                            messageText = message.content ?? ""
+                            isTextFieldFocused = true
+                        },
+                        onReply: { message in
+                            activateReply(to: message)
+                        },
+                        onCopy: { message in
+                            let text = message.content ?? ""
+                            UIPasteboard.general.string = text
+                            if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                InAppNotificationService.shared.showActionToast(.messageCopied(text: text))
+                            }
+                        },
+                        onForward: { message in
+                            forwardingMessage = message
+                        },
+                        onToggleStar: { message in
+                            viewModel.toggleStar(for: message)
+                        },
+                        onReaction: { message, emoji in
+                            viewModel.addReaction(to: message, emoji: emoji)
+                            pulseBubbleHighlight(message.id)
+                        },
+                        onMoreReactions: { message in
+                            reactionPickerMessage = message
+                            showingReactionEmojiPicker = true
+                        },
+                        onOpenMessage: { message, cluster in
+                            openChatMessageBody(message, cluster: cluster)
                         }
-                    },
-                    onForward: { message in
-                        forwardingMessage = message
-                    },
-                    onToggleStar: { message in
-                        viewModel.toggleStar(for: message)
-                    },
-                    onReaction: { message, emoji in
-                        viewModel.addReaction(to: message, emoji: emoji)
-                        pulseBubbleHighlight(message.id)
-                    },
-                    onMoreReactions: { message in
-                        reactionPickerMessage = message
-                        showingReactionEmojiPicker = true
-                    },
-                    onOpenMessage: { message, cluster in
-                        openChatMessageBody(message, cluster: cluster)
-                    }
-                )
-                .allowsHitTesting(messageMenuSelection != nil)
-                .zIndex(50)
+                    )
+                }
+                .frame(width: 0, height: 0)
+                .allowsHitTesting(false)
             }
         }
         .ignoresSafeArea(.container, edges: .bottom)

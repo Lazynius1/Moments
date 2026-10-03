@@ -359,7 +359,7 @@ enum ChatComposerChromeMetrics {
     static let panelInset: CGFloat = 8
     static let messageListGap: CGFloat = 11
     static let fadeExtendAbovePanel: CGFloat = 20
-    static let fadeEdgeSize: CGFloat = 60
+    static let fadeEdgeSize: CGFloat = 44
     static let fadeAlphaSolid: CGFloat = 0.82
     static let estimatedComposerChromeHeight: CGFloat = 68
     static let composerOuterHorizontalPadding: CGFloat = 16

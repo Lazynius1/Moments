@@ -1,5 +1,177 @@
 import SwiftUI
 import UIKit
+import ObjectiveC
+
+/// El teclado remoto no figura siempre entre las ventanas públicas de la escena.
+/// Consulta su host existente; no invoca el getter por pantalla que falla en iOS 27.
+@MainActor
+private enum ChatKeyboardPresentationHost {
+    static func window(for sourceWindow: UIWindow) -> UIWindow? {
+        if let window = sourceWindow.windowScene?.windows.first(where: {
+            NSStringFromClass(type(of: $0)).hasSuffix("RemoteKeyboardWindow") && !$0.isHidden
+        }) {
+            return window
+        }
+        let sharedSelector = NSSelectorFromString("sharedRemoteKeyboards")
+        let windowSelector = NSSelectorFromString("keyboardWindow")
+        guard let keyboardClass = NSClassFromString("_UIRemoteKeyboards"),
+              let sharedMethod = class_getClassMethod(keyboardClass, sharedSelector) else { return nil }
+        typealias SharedKeyboards = @convention(c) (AnyObject, Selector) -> Unmanaged<AnyObject>?
+        let sharedKeyboards = unsafeBitCast(method_getImplementation(sharedMethod), to: SharedKeyboards.self)
+        guard let keyboards = sharedKeyboards(keyboardClass, sharedSelector)?.takeUnretainedValue() as? NSObject,
+              keyboards.responds(to: windowSelector),
+              let window = keyboards.perform(windowSelector)?.takeUnretainedValue() as? UIWindow,
+              !window.isHidden else { return nil }
+        // El host remoto puede exponer otro objeto UIScreen para la misma pantalla.
+        // La visibilidad del teclado del compositor determina cuándo se utiliza.
+        return window
+    }
+}
+
+/// El compositor conserva el foco mientras el menú recibe los toques.
+private final class ChatMessageMenuWindow: UIWindow {
+    override var canBecomeKey: Bool { false }
+}
+
+/// Hospeda el menú dentro de la ventana del teclado; conserva la ventana del chat como key.
+struct ChatMessageMenuPresentationHost<Content: View>: UIViewRepresentable {
+    let isPresented: Bool
+    let keyboardVisible: Bool
+    let colorScheme: ColorScheme
+    @ViewBuilder let content: (GeometryProxy, EdgeInsets) -> Content
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        DispatchQueue.main.async { [weak uiView] in
+            guard let sourceWindow = uiView?.window else { return }
+            let insets = sourceWindow.safeAreaInsets
+            let safeArea = EdgeInsets(
+                top: insets.top, leading: insets.left,
+                bottom: insets.bottom, trailing: insets.right
+            )
+            context.coordinator.update(
+                sourceWindow: sourceWindow,
+                isPresented: isPresented,
+                keyboardVisible: keyboardVisible,
+                colorScheme: colorScheme,
+                content: AnyView(GeometryReader { proxy in content(proxy, safeArea) }.ignoresSafeArea())
+            )
+        }
+    }
+
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+        coordinator.invalidate()
+    }
+
+    @MainActor
+    final class Coordinator {
+        private var host: UIHostingController<AnyView>?
+        private var overlayWindow: ChatMessageMenuWindow?
+        private var isMounted = true
+        private weak var sourceWindow: UIWindow?
+        private var keyboardVisible = false
+        private var keyboardObservers: [NSObjectProtocol] = []
+
+        init() {
+            keyboardObservers = [
+                UIResponder.keyboardDidShowNotification,
+                UIResponder.keyboardDidChangeFrameNotification,
+                UIResponder.keyboardDidHideNotification,
+            ].map { name in
+                NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.mount() }
+                }
+            }
+        }
+
+        func invalidate() {
+            isMounted = false
+            keyboardObservers.forEach { NotificationCenter.default.removeObserver($0) }
+            keyboardObservers.removeAll()
+            dismiss()
+        }
+
+        func update(sourceWindow: UIWindow, isPresented: Bool, keyboardVisible: Bool, colorScheme: ColorScheme, content: AnyView) {
+            guard isMounted else { return }
+            guard isPresented else {
+                dismiss()
+                return
+            }
+            self.sourceWindow = sourceWindow
+            self.keyboardVisible = keyboardVisible
+            let controller: UIHostingController<AnyView>
+            if let host {
+                controller = host
+                controller.rootView = content
+            } else {
+                controller = UIHostingController(rootView: content)
+                controller.view.backgroundColor = .clear
+                controller.view.accessibilityViewIsModal = true
+                controller.safeAreaRegions = []
+                host = controller
+            }
+            controller.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .light
+            mount()
+        }
+
+        private func mount() {
+            guard isMounted, let sourceWindow, let scene = sourceWindow.windowScene, let controller = host else { return }
+            if keyboardVisible, let keyboardWindow = ChatKeyboardPresentationHost.window(for: sourceWindow) {
+                overlayWindow?.isHidden = true
+                overlayWindow?.rootViewController = nil
+                overlayWindow = nil
+                // Ambos hosts cubren la pantalla. El menú se mide en el espacio
+                // local del teclado: convertir entre sus objetos UIScreen falla
+                // en dispositivo aunque representen el mismo panel físico.
+                controller.view.frame = keyboardWindow.bounds
+                controller.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+                if controller.view.superview !== keyboardWindow {
+                    controller.view.removeFromSuperview()
+                    keyboardWindow.addSubview(controller.view)
+                } else {
+                    keyboardWindow.bringSubviewToFront(controller.view)
+                }
+                return
+            }
+            let window: ChatMessageMenuWindow
+            if let overlayWindow, overlayWindow.windowScene === scene {
+                window = overlayWindow
+            } else {
+                overlayWindow?.isHidden = true
+                overlayWindow?.rootViewController = nil
+                window = ChatMessageMenuWindow(windowScene: scene)
+                window.backgroundColor = .clear
+                overlayWindow = window
+            }
+            let visibleLevel = scene.windows
+                .filter { $0 !== window && !$0.isHidden }
+                .map { $0.windowLevel.rawValue }
+                .max() ?? sourceWindow.windowLevel.rawValue
+            let minimumLevel: CGFloat = UIWindow.Level.alert.rawValue + 1
+            window.windowLevel = UIWindow.Level(rawValue: max(minimumLevel, visibleLevel + 1))
+            window.frame = sourceWindow.convert(sourceWindow.bounds, to: scene.coordinateSpace)
+            if window.rootViewController !== controller {
+                window.rootViewController = controller
+            }
+            window.isHidden = false
+        }
+
+        func dismiss() {
+            overlayWindow?.isHidden = true
+            overlayWindow?.rootViewController = nil
+            overlayWindow = nil
+            host?.view.removeFromSuperview()
+            host = nil
+        }
+    }
+}
 
 // MARK: - Selection + frame tracking
 
@@ -88,6 +260,7 @@ private final class ChatExtractSlotView: UIView {
 }
 
 private struct ChatExtractableContent<Content: View>: UIViewRepresentable {
+    @Environment(\.self) private var environment
     let source: ChatMessageExtractSource
     let content: Content
 
@@ -97,7 +270,7 @@ private struct ChatExtractableContent<Content: View>: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(content: content)
+        Coordinator(content: AnyView(content.environment(\.self, environment)))
     }
 
     func makeUIView(context: Context) -> ChatExtractSlotView {
@@ -117,7 +290,7 @@ private struct ChatExtractableContent<Content: View>: UIViewRepresentable {
     }
 
     func updateUIView(_ slot: ChatExtractSlotView, context: Context) {
-        context.coordinator.hostingController.rootView = content
+        context.coordinator.hostingController.rootView = AnyView(content.environment(\.self, context.environment))
         source.slotView = slot
         if slot.hostedView == nil {
             slot.hostedView = context.coordinator.hostingController.view
@@ -138,9 +311,9 @@ private struct ChatExtractableContent<Content: View>: UIViewRepresentable {
     }
 
     final class Coordinator {
-        let hostingController: UIHostingController<Content>
+        let hostingController: UIHostingController<AnyView>
 
-        init(content: Content) {
+        init(content: AnyView) {
             let host = UIHostingController(rootView: content)
             host.view.backgroundColor = .clear
             host.safeAreaRegions = []
@@ -197,8 +370,8 @@ private final class ChatExtractOverlayHostView: UIView {
 }
 
 enum ChatBubbleAnchorMetrics {
-    /// Escala al abrir menú o durante highlight (reacción, jump, reply).
-    static let menuSelectionScale: CGFloat = 1.07
+    /// El menú conserva el tamaño original; el highlight tiene su propia escala.
+    static let menuSelectionScale: CGFloat = 1
     static let highlightScale: CGFloat = 1.03
     static let highlightDuration: TimeInterval = 1.5
     /// Duración del flash al saltar a un mensaje citado (tap en la cita).
@@ -414,15 +587,14 @@ struct ChatMessageContextMenuOverlay: View {
     private let horizontalInset: CGFloat = 16
 
     private var reactionRailWidth: CGFloat {
-        min(max(containerSize.width - horizontalInset * 2, 0), 400)
+        min(max(containerSize.width - horizontalInset * 2, 0), 320)
     }
     private let menuEstimatedWidth: CGFloat = 240
-    /// Lift extra cuando hay hueco (el mensaje no solo se escala, también se eleva).
-    private let extraMessageLift: CGFloat = 18
 
     @StateObject private var emojiUsageTracker = EmojiUsageTracker()
     @State private var isPresented = false
     @State private var dismissGeneration = 0
+    @State private var reactionDocking: CGFloat = 0
     @State private var areReactionsExpanded = false
     @State private var skinToneSelection: ChatSkinToneSelection?
     @State private var reactionEmojiFrames: [String: CGRect] = [:]
@@ -462,7 +634,12 @@ struct ChatMessageContextMenuOverlay: View {
 
                 Rectangle()
                     .fill(.ultraThinMaterial)
-                    .overlay(Color.black.opacity(colorScheme == .dark ? 0.32 : 0.18))
+                    .overlay {
+                        (colorScheme == .dark
+                            ? Color.black
+                            : Color(red: 0, green: 10.0 / 255, blue: 38.0 / 255))
+                            .opacity(colorScheme == .dark ? 0.6 : 0.2)
+                    }
                     .opacity(isPresented ? 1 : 0)
                     .ignoresSafeArea()
 
@@ -494,7 +671,7 @@ struct ChatMessageContextMenuOverlay: View {
                     .zIndex(2)
             }
         }
-        .onChange(of: selection?.rowId) { _, rowId in
+        .onChange(of: selection?.rowId, initial: true) { _, rowId in
             guard rowId != nil else {
                 isPresented = false
                 return
@@ -559,6 +736,27 @@ struct ChatMessageContextMenuOverlay: View {
                         )
                         .frame(width: 48, height: reactionsBarHeight)
                     }
+                    Button {
+                        toggleReactionCatalog()
+                    } label: {
+                        Image("ChatReactionSmileIcon")
+                            .renderingMode(.template)
+                            .resizable().scaledToFit()
+                            .frame(width: 24, height: 24)
+                            .frame(width: 48, height: reactionsBarHeight)
+                    }
+                    .buttonStyle(.plain)
+                    .background {
+                        GeometryReader { geometry in
+                            Color.clear.preference(
+                                key: ChatReactionEmojiFramePreference.self,
+                                value: ["quick:catalog": geometry.frame(in: .named("chatReactionRail"))]
+                            )
+                        }
+                    }
+                    .opacity(Double(reactionDocking))
+                    .allowsHitTesting(reactionDocking > 0.9)
+                    .accessibilityLabel(Text("momentDetail.showMore"))
                 }
             }
             .contentMargins(.horizontal, 14, for: .scrollContent)
@@ -595,18 +793,13 @@ struct ChatMessageContextMenuOverlay: View {
         .frame(width: reactionRailWidth)
         .modifier(ChatReactionRailFormation(
             progress: isPresented ? 1 : 0,
+            docking: reactionDocking,
             sourceX: reactionConnectorX(for: selection, centerX: centerX),
             pointsDown: isAboveMessage,
             bendsTrailing: !selection.isOutgoing,
             reduceMotion: UIAccessibility.isReduceMotionEnabled,
             isExpanded: areReactionsExpanded,
-            onToggleExpanded: {
-                HapticManager.shared.lightImpact()
-                skinToneSelection = nil
-                withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.4, dampingFraction: 0.86)) {
-                    areReactionsExpanded.toggle()
-                }
-            }
+            onToggleExpanded: toggleReactionCatalog
         ))
         .animation(
             // Preserve the reference phases with a slightly quicker entry.
@@ -614,9 +807,21 @@ struct ChatMessageContextMenuOverlay: View {
             UIAccessibility.isReduceMotionEnabled ? nil : .linear(duration: isPresented ? 0.42 : 0.30),
             value: isPresented
         )
+        .animation(UIAccessibility.isReduceMotionEnabled ? nil : .easeOut(duration: 0.16), value: reactionDocking)
         .coordinateSpace(name: "chatReactionRail")
         .onPreferenceChange(ChatReactionEmojiFramePreference.self) { frames in
             reactionEmojiFrames = frames
+            let emojis = railReactionEmojis
+            let catalogEnd = frames["quick:catalog"]?.maxX ?? emojis.enumerated().reversed().compactMap { index, emoji -> CGFloat? in
+                guard let frame = frames["quick:\(emoji)"] else { return nil }
+                return frame.midX + CGFloat(emojis.count - index) * 48 + 24
+            }.first
+            if let catalogEnd {
+                let remaining = catalogEnd - (reactionRailWidth - 14)
+                reactionDocking = min(max(1 - remaining / 96, 0), 1)
+            } else {
+                reactionDocking = 0
+            }
         }
         .overlay {
             skinToneOverlay(
@@ -626,12 +831,19 @@ struct ChatMessageContextMenuOverlay: View {
         }
     }
 
+    private func toggleReactionCatalog() {
+        HapticManager.shared.lightImpact()
+        skinToneSelection = nil
+        withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.4, dampingFraction: 0.86)) {
+            areReactionsExpanded.toggle()
+        }
+    }
+
     private func reactionConnectorX(for selection: ChatMessageMenuSelection, centerX: CGFloat) -> CGFloat {
         let anchor = scaledAnchorFrame(for: selection.anchorFrame)
         let railLeft = centerX - reactionRailWidth / 2
-        let sourceX = selection.isOutgoing ? anchor.minX - 22 : anchor.maxX + 22
-        let inset: CGFloat = 34
-        return min(max(sourceX - railLeft, inset), max(inset, reactionRailWidth - inset))
+        let sourceX = selection.isOutgoing ? anchor.minX - 32 : anchor.maxX + 32
+        return min(max(sourceX - railLeft, 0), reactionRailWidth)
     }
 
     private var railReactionEmojis: [String] {
@@ -1032,10 +1244,18 @@ struct ChatMessageContextMenuOverlay: View {
         let reactionPanelHeight = areReactionsExpanded ? expandedReactionsHeight : reactionsBarHeight
         let reactionMessageGap: CGFloat = 6
         let reactionPanelWidth = reactionRailWidth
-        let centerX = clampedCenterX(scaled.midX, itemWidth: max(reactionPanelWidth, menuEstimatedWidth))
+        let isWideMessage = scaled.width >= reactionPanelWidth * 0.85
+        let railOverhang: CGFloat = isWideMessage ? 56 : 44
+        let centerX = clampedCenterX(
+            selection.isOutgoing
+                ? scaled.minX - railOverhang + reactionPanelWidth / 2
+                : scaled.maxX + railOverhang - reactionPanelWidth / 2,
+            itemWidth: reactionPanelWidth,
+            inset: isWideMessage ? 4 : horizontalInset
+        )
 
-        // Reubica el mensaje elevado para que reacciones + mensaje + acciones
-        // formen un bloque visible. El rail queda arriba y las acciones debajo.
+        // Conserva el mensaje en su posición mientras rail y acciones quepan.
+        // Solo lo desplaza al alcanzar los límites visibles de la pantalla.
         let minimumMessageTop = layoutTopMargin + reactionPanelHeight + reactionMessageGap
         let maximumMessageTop = containerSize.height
             - layoutBottomMargin
@@ -1044,7 +1264,7 @@ struct ChatMessageContextMenuOverlay: View {
             - scaled.height
         let targetMessageTop: CGFloat
         if maximumMessageTop >= minimumMessageTop {
-            let preferredTop = scaled.minY - extraMessageLift
+            let preferredTop = scaled.minY
             targetMessageTop = min(max(preferredTop, minimumMessageTop), maximumMessageTop)
         } else {
             // Menú excepcionalmente alto: prioriza que su inicio quede accesible;
@@ -1070,10 +1290,11 @@ struct ChatMessageContextMenuOverlay: View {
         )
     }
 
-    private func clampedCenterX(_ centerX: CGFloat, itemWidth: CGFloat) -> CGFloat {
+    private func clampedCenterX(_ centerX: CGFloat, itemWidth: CGFloat, inset: CGFloat? = nil) -> CGFloat {
+        let edgeInset = inset ?? horizontalInset
         let half = itemWidth / 2
-        let minCenterX = horizontalInset + half
-        let maxCenterX = containerSize.width - horizontalInset - half
+        let minCenterX = edgeInset + half
+        let maxCenterX = containerSize.width - edgeInset - half
         guard maxCenterX >= minCenterX else { return containerSize.width / 2 }
         return min(max(centerX, minCenterX), maxCenterX)
     }
@@ -1150,6 +1371,7 @@ private struct ChatReactionGlassGroup<Content: View>: View {
 // Apply native glass to each surface's content after layout and visual modifiers.
 private struct ChatReactionRailFormation: AnimatableModifier {
     var progress: CGFloat
+    var docking: CGFloat
     let sourceX: CGFloat
     let pointsDown: Bool
     let bendsTrailing: Bool
@@ -1157,9 +1379,9 @@ private struct ChatReactionRailFormation: AnimatableModifier {
     let isExpanded: Bool
     let onToggleExpanded: () -> Void
 
-    var animatableData: CGFloat {
-        get { progress }
-        set { progress = newValue }
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(progress, docking) }
+        set { progress = newValue.first; docking = newValue.second }
     }
 
     private func phase(_ start: CGFloat, _ end: CGFloat) -> CGFloat {
@@ -1171,8 +1393,9 @@ private struct ChatReactionRailFormation: AnimatableModifier {
         let round = reduceMotion ? 1 : phase(0, 0.26)
         let spread = reduceMotion ? 1 : phase(0.20, 0.78)
         let visible = reduceMotion ? progress : phase(0.30, 0.82)
-        let tail = reduceMotion ? 1 : phase(0.50, 0.89)
-        let faceOpacity = reduceMotion ? progress : phase(0.60, 1)
+        let connector = 1 - min(max(docking, 0), 1)
+        let tail = (reduceMotion ? 1 : phase(0.50, 0.89)) * connector
+        let faceOpacity = (reduceMotion ? progress : phase(0.60, 1)) * connector
         let medium = reduceMotion ? 1 : phase(0.58, 0.94)
         let small = reduceMotion ? 1 : phase(0.65, 0.98)
 
@@ -1190,9 +1413,12 @@ private struct ChatReactionRailFormation: AnimatableModifier {
                     let edgeY = centerY + direction * height / 2
                     // Grow out of the moving rail edge, keeping the large and
                     // medium surfaces touching while native glass joins them.
-                    let faceY = edgeY + direction * (-8 + 18 * tail)
-                    let mediumY = faceY + direction * (12 + 8 * medium)
-                    let smallY = mediumY + direction * (6 + 5 * small)
+                    let faceY = edgeY + direction * (-10 + 24 * tail)
+                    let mediumY = faceY + direction * (14 + 10 * medium - 10 * docking)
+                    let smallY = mediumY + direction * (9 + 8 * small)
+                    let bend: CGFloat = bendsTrailing ? 1 : -1
+                    let mediumX = sourceX + bend * (16 * medium * (1 - docking) - 8 * docking)
+                    let smallX = sourceX + bend * ((16 * medium + 6 * small) * (1 - docking) - 2 * docking)
 
                     ChatReactionGlassGroup {
                         ZStack {
@@ -1216,20 +1442,21 @@ private struct ChatReactionRailFormation: AnimatableModifier {
                                 isExpanded: isExpanded,
                                 formation: tail,
                                 glyphOpacity: faceOpacity,
-                                surfaceOpacity: reduceMotion ? progress : tail,
+                                surfaceOpacity: tail * (reduceMotion ? progress : 1),
                                 reduceMotion: reduceMotion,
                                 onToggleExpanded: onToggleExpanded
                             )
+                            .allowsHitTesting(docking < 0.9)
                             .position(x: sourceX, y: faceY)
 
-                            tailBubble(size: 12, formation: medium)
+                            tailBubble(size: 24, formation: medium)
                                 .position(
-                                    x: sourceX + (bendsTrailing ? 14 : -14) * medium,
+                                    x: mediumX,
                                     y: mediumY
                                 )
-                            tailBubble(size: 8, formation: small)
+                            tailBubble(size: 10, formation: small)
                                 .position(
-                                    x: sourceX + (bendsTrailing ? 1 : -1) * (14 * medium + 5 * small),
+                                    x: smallX,
                                     y: smallY
                                 )
                         }
@@ -1265,10 +1492,10 @@ private struct ChatReactionRailConnector: View {
                 .renderingMode(.template)
                 .scaledToFit()
                 .foregroundStyle(MomentsChromeGlass.contentColor(for: colorScheme).opacity(0.65))
-                .frame(width: 22, height: 22)
+                .frame(width: 26, height: 26)
                 .blur(radius: reduceMotion ? 0 : 2.5 * (1 - glyphOpacity))
                 .opacity(Double(glyphOpacity))
-                .frame(width: max(0.01, 40 * formation), height: max(0.01, 40 * formation))
+                .frame(width: max(0.01, 48 * formation), height: max(0.01, 48 * formation))
                 .clipShape(Circle())
                 .momentsChromeGlass(in: Circle(), interactive: true, style: .tinted)
                 .opacity(Double(surfaceOpacity))
