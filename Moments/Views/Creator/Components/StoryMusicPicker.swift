@@ -87,7 +87,7 @@ enum StoryMusicCatalog {
         try await request("getStoryMusicTrack", body: ["trackId": trackId].merging(storyId.map { ["storyId": $0] } ?? [:]) { _, new in new })
     }
 
-    private static func request<T: Decodable>(_ function: String, body: [String: Any]) async throws -> T {
+    static func request<T: Decodable>(_ function: String, body: [String: Any]) async throws -> T {
         guard let user = Auth.auth().currentUser else { throw CatalogError.unauthorized }
         guard let project = FirebaseApp.app()?.options.projectID,
               let url = URL(string: "https://europe-southwest1-\(project).cloudfunctions.net/\(function)") else { throw CatalogError.unavailable }
@@ -337,6 +337,12 @@ final class StoryMusicLibrary: ObservableObject {
 
 struct StoryMusicTrackSheet: View {
     let track: StoryMusicTrack
+    var originalAudio: StoryOriginalAudioSource? = nil
+    var onCreatorTap: ((String) -> Void)? = nil
+    @State private var originalDetail: StoryOriginalAudioDetail?
+    @State private var originalBusy = false
+    private var isSaved: Bool { originalAudio == nil ? library.contains(track.id) : originalDetail?.saved == true }
+    private var shownTrack: StoryMusicTrack { originalDetail?.track ?? track }
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var library = StoryMusicLibrary()
     @StateObject private var audio = StoryMusicAudioPlayer()
@@ -346,22 +352,39 @@ struct StoryMusicTrackSheet: View {
         ScrollView {
         VStack(spacing: 24) {
             HStack(spacing: 16) {
-                AsyncImage(url: track.artworkURL) { image in image.resizable().scaledToFill() }
+                AsyncImage(url: shownTrack.artworkURL) { image in image.resizable().scaledToFill() }
                     placeholder: { Image(systemName: "music.note").font(.largeTitle) }
-                    .frame(width: 96, height: 96).clipShape(.rect(cornerRadius: 16))
+                    .frame(width: 96, height: 96).clipShape(.rect(cornerRadius: originalAudio == nil ? 16 : 48))
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(track.title).font(.title2.bold())
-                    Text(track.artist).foregroundStyle(.secondary)
-                    Text(String(format: "%d:%02d", Int(track.duration) / 60, Int(track.duration) % 60)).font(.caption).foregroundStyle(.secondary)
+                    Text(originalAudio == nil ? track.title : NSLocalizedString("story.audio.original", comment: "Original audio")).font(.title2.bold())
+                    if let creatorId = originalDetail?.creatorId, let onCreatorTap {
+                        Button {
+                            audio.stop()
+                            onCreatorTap(creatorId)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(shownTrack.artist).lineLimit(1)
+                                VerifiedBadgeView(userId: creatorId, size: 14)
+                            }
+                            .frame(minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                        }.buttonStyle(.plain).foregroundStyle(.primary)
+                    } else {
+                        Text(shownTrack.artist).foregroundStyle(.secondary)
+                    }
+                    Text(String(format: "%d:%02d", Int(shownTrack.duration) / 60, Int(shownTrack.duration) % 60)).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
             }
             HStack(spacing: 16) {
                 previewButton
-                Button { Task { await library.toggle(track) } } label: {
-                    Image(systemName: library.contains(track.id) ? "bookmark.fill" : "bookmark").font(.title2).frame(width: 44, height: 44)
-                }.buttonStyle(.bordered).disabled(library.busy.contains(track.id))
-                    .accessibilityLabel(NSLocalizedString(library.contains(track.id) ? "story.music.unsave" : "story.music.save", comment: "Bookmark"))
+                Button { Task { if let originalAudio { await toggleOriginal(originalAudio) } else { await library.toggle(track) } } } label: {
+                    Image(systemName: isSaved ? "bookmark.fill" : "bookmark").font(.title2).frame(width: 44, height: 44)
+                }.buttonStyle(.bordered).disabled(library.busy.contains(track.id) || originalBusy || (originalAudio != nil && originalDetail?.canSave != true && !isSaved))
+                    .accessibilityLabel(NSLocalizedString(isSaved ? "story.music.unsave" : "story.music.save", comment: "Bookmark"))
+            }
+            if let originalDetail, !originalDetail.canSave {
+                Text(originalDetail.reason == "audience" ? "story.audio.restricted.audience" : "story.audio.restricted.creator").font(.footnote).foregroundStyle(.secondary)
             }
             if failed || library.failed || audio.failed { Text(NSLocalizedString("story.music.unavailable.detail", comment: "Retry")).font(.footnote).foregroundStyle(.secondary) }
         }
@@ -378,7 +401,7 @@ struct StoryMusicTrackSheet: View {
         }
         }.tint(.primary)
         .presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
-        .task { await library.load() }
+        .task { if let originalAudio { do { originalDetail = try await StoryOriginalAudioCatalog.detail(originalAudio) } catch { failed = true } } else { await library.load() } }
         .onDisappear { audio.stop() }
     }
     private var previewButton: some View {
@@ -399,12 +422,26 @@ struct StoryMusicTrackSheet: View {
         .disabled(resolving)
     }
 
+    private func toggleOriginal(_ source: StoryOriginalAudioSource) async {
+        guard let detail = originalDetail, !originalBusy else { return }
+        originalBusy = true; failed = false
+        defer { originalBusy = false }
+        do {
+            try await StoryOriginalAudioCatalog.save(source, id: detail.track.id, saved: !detail.saved)
+            originalDetail = StoryOriginalAudioDetail(track: detail.track, creatorId: detail.creatorId, canSave: detail.canSave, reason: detail.reason, saved: !detail.saved)
+            InAppNotificationService.shared.showActionToast(InAppActionToast(systemImage: detail.saved ? "bookmark" : "bookmark.fill", prefix: NSLocalizedString(detail.saved ? "story.audio.unsaved.confirmation" : "story.audio.saved.confirmation", comment: "Audio bookmark")))
+        } catch { failed = true }
+    }
     private func preview() async {
         if audio.isPlaying { audio.pause(); return }
         resolving = true; failed = false
         defer { resolving = false }
         do {
-            let resolved = try await StoryMusicCatalog.resolve(trackId: track.id)
+            let resolved: StoryMusicTrack
+            if let originalAudio {
+                let detail = try await StoryOriginalAudioCatalog.detail(originalAudio)
+                originalDetail = detail; resolved = detail.track
+            } else { resolved = try await StoryMusicCatalog.resolve(trackId: track.id) }
             guard !Task.isCancelled, let url = resolved.previewURL else { return }
             audio.load(StoryMusicSelection(track: resolved, duration: resolved.duration), url: url, play: true)
         } catch { failed = true }

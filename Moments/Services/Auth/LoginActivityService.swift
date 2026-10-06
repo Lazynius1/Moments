@@ -4,6 +4,7 @@ import FirebaseAuth
 import FirebaseFirestore
 import Combine
 import UIKit
+import Security
 
 struct LoginActivity: Identifiable {
     let id: String
@@ -20,6 +21,8 @@ final class RealLoginActivityService: NSObject, ObservableObject {
 
     private let db = Firestore.firestore()
     private let locationManager = CLLocationManager()
+    private let deviceIdentityLock = NSLock()
+    private var cachedDeviceFingerprint: String?
     private var currentLocation: CLLocation?
     private var currentLocationString: String = "Ubicacion no disponible"
 
@@ -124,7 +127,7 @@ final class RealLoginActivityService: NSObject, ObservableObject {
                     return
                 }
 
-                completion(sessions.first)
+                completion(nil)
             }
         }
     }
@@ -201,6 +204,18 @@ final class RealLoginActivityService: NSObject, ObservableObject {
                 }
                 completion(error)
             }
+    }
+
+    func markCurrentSessionSignedOut(userId: String) {
+        // Update only: account deletion must not recreate a session document.
+        db.collection("users").document(userId).collection("loginActivity")
+            .document(hash(currentDeviceFingerprint()))
+            .updateData([
+                "isActive": false,
+                "sessionRevokedAt": Timestamp(date: Date()),
+                "sessionRevokedReason": "user_requested_logout",
+                "updatedAt": Timestamp(date: Date())
+            ])
     }
 
     func invalidateAllSessions(userId: String, completion: @escaping (Error?) -> Void) {
@@ -300,7 +315,7 @@ final class RealLoginActivityService: NSObject, ObservableObject {
             let device = data["device"] as? String ?? "Dispositivo desconocido"
             let location = data["location"] as? String ?? "Ubicacion no disponible"
             let ipAddress = data["ipAddress"] as? String ?? "No disponible"
-            let isActive = data["isActive"] as? Bool ?? true
+            let isActive = data["isActive"] as? Bool ?? false
             let isSuspicious = data["isSuspicious"] as? Bool ?? false
             let isNewDevice = data["isNewDevice"] as? Bool ?? false
             let suspiciousReason = data["suspiciousReason"] as? String
@@ -432,11 +447,51 @@ final class RealLoginActivityService: NSObject, ObservableObject {
         return identifier
     }
 
+    func currentDeviceId() -> String {
+        currentDeviceFingerprint()
+    }
+
     private func currentDeviceFingerprint() -> String {
-        if let vendorId = UIDevice.current.identifierForVendor?.uuidString, !vendorId.isEmpty {
-            return vendorId
+        deviceIdentityLock.lock()
+        defer { deviceIdentityLock.unlock() }
+        if let cachedDeviceFingerprint { return cachedDeviceFingerprint }
+
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.moments.login-device",
+            kSecAttrAccount as String: "device-identifier",
+            kSecAttrSynchronizable as String: false
+        ]
+        func readStoredIdentity() -> (OSStatus, String?) {
+            var readQuery = query
+            readQuery[kSecReturnData as String] = true
+            readQuery[kSecMatchLimit as String] = kSecMatchLimitOne
+            var result: CFTypeRef?
+            let status = SecItemCopyMatching(readQuery as CFDictionary, &result)
+            let value = (result as? Data).flatMap { String(data: $0, encoding: .utf8) }
+            return (status, value?.isEmpty == false ? value : nil)
         }
-        return getCurrentDeviceInfo()
+        let (status, stored) = readStoredIdentity()
+        if let stored {
+            cachedDeviceFingerprint = stored
+            return stored
+        }
+
+        // Seed with the existing identity so this update keeps its current session.
+        let identity = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
+        if status == errSecItemNotFound {
+            var newItem = query
+            newItem[kSecValueData as String] = Data(identity.utf8)
+            newItem[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            let addStatus = SecItemAdd(newItem as CFDictionary, nil)
+            if addStatus == errSecDuplicateItem, let existing = readStoredIdentity().1 {
+                cachedDeviceFingerprint = existing
+                return existing
+            }
+            if addStatus == errSecSuccess { cachedDeviceFingerprint = identity }
+        }
+        // A temporarily inaccessible keychain is retried on the next call.
+        return identity
     }
 
     private func normalizeLocation(_ value: String) -> String {

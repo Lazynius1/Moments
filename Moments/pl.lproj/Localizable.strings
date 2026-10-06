@@ -1685,7 +1685,7 @@
 "settings.sections.blockedAccounts" = "Zablokowane konta";
 "settings.sections.blockedAccounts.subtitle" = "%d kont";
 "settings.sections.mute" = "Wycisz";
-"settings.sections.mute.subtitle" = "Konta, słowa i frazy";
+"settings.sections.mute.subtitle" = "Wyciszaj konta i filtruj treści";
 "settings.sections.password" = "Hasło";
 "settings.sections.password.subtitle" = "Zmień hasło";
 "settings.sections.2fa" = "Uwierzytelnianie dwuskładnikowe";
@@ -4346,7 +4346,7 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "messaging.error.invalidRecipient" = "Wybierz prawidłowego odbiorcę.";
 "messaging.error.emptyMessage" = "Najpierw napisz wiadomość.";
 "messageRequests.hiddenWords.title" = "Ukryte słowa";
-"messageRequests.hiddenWords.description" = "Prośby są filtrowane po odszyfrowaniu na tym urządzeniu.";
+"messageRequests.hiddenWords.description" = "Filtruj prośby o wiadomości na tym urządzeniu po ich odszyfrowaniu.";
 "messageRequests.hiddenWords.automatic" = "Filtr automatyczny";
 "messageRequests.hiddenWords.automatic.description" = "Ukrywa prośby na podstawie sygnałów bezpieczeństwa, bez analizy treści po stronie serwera.";
 "messageRequests.hiddenWords.custom" = "Słowa i frazy";
@@ -4781,3 +4781,39 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "chat.wallpaper.preset.watercolor" = "Akwarela";
 "chat.wallpaper.preset.sketch" = "Szkic";
 "chat.wallpaper.preset.canvas" = "Płótno";
+
+// Per-story sharing options
+"storyShare.title" = "Share story";
+"storyShare.close" = "Close";
+"storyShare.back" = "Back";
+"storyShare.yourStory" = "Your story";
+"storyShare.review" = "Choose who can see and interact.";
+"storyShare.expiration" = "Available for";
+"storyShare.chainSettings" = "Chain settings";
+"storyShare.interactions" = "Interactions";
+"storyShare.onlyThisStory" = "These options apply only to this story. Your defaults in Settings stay the same.";
+"storyShare.chainAudience" = "Chains are visible to everyone and last 48 hours. Interactions apply only to your part.";
+"storyShare.customize" = "Customize";
+"storyShare.disabled" = "Disabled";
+
+"storyShare.audience" = "Odbiorcy";
+
+// Original story audio
+"story.audio.title" = "Audio";
+"story.audio.record" = "Record";
+"story.audio.saved" = "Saved";
+"story.audio.original" = "Original audio";
+"story.audio.empty" = "The audios you save from stories will appear here.";
+"story.audio.use" = "Use audio";
+"story.audio.retry" = "Try again";
+"story.audio.unavailable" = "This audio is unavailable.";
+"story.audio.allowReuse" = "Allow saving and reusing audio";
+"story.audio.allowReuse.detail" = "People can save this audio and reuse it after this story expires.";
+"story.audio.restricted.audience" = "Only audio from public stories and public accounts can be saved.";
+"story.audio.restricted.creator" = "The creator has not allowed saving this audio.";
+"story.audio.saved.confirmation" = "Audio saved to favorites";
+"story.audio.unsaved.confirmation" = "Audio removed from favorites";
+
+"settings.group.profileContent" = "Profil i treści";
+
+"settings.group.messagingPrivacy" = "Wiadomości i interakcje";

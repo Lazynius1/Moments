@@ -50,20 +50,30 @@ struct SettingsFormView: View {
                 .offset(y: animateSections ? 0 : 20)
                 .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.1), value: animateSections), value: animateSections)
 
-                SettingsGroup(title: NSLocalizedString("settings.group.privacy", comment: "Privacy")) {
+                SettingsGroup(title: NSLocalizedString("settings.group.profileContent", comment: "Profile and content")) {
                     PrivacySection(
                         isPrivate: $isPrivate,
                         showFollowing: $showFollowing,
                         showFollowers: $showFollowers,
                         viewModel: viewModel,
                         route: $route,
-                        showReadReceipts: $showReadReceipts,
                         blockedAccountsCount: blockedAccountsCount
                     )
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
                 .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.15), value: animateSections), value: animateSections)
+
+                SettingsGroup(title: NSLocalizedString("settings.group.messagingPrivacy", comment: "Messages and interactions")) {
+                    MessagingPrivacySection(
+                        viewModel: viewModel,
+                        route: $route,
+                        showReadReceipts: $showReadReceipts
+                    )
+                }
+                .opacity(animateSections ? 1 : 0)
+                .offset(y: animateSections ? 0 : 20)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.175), value: animateSections), value: animateSections)
 
                 SettingsGroup(title: NSLocalizedString("settings.group.content", comment: "Your Content & Activity")) {
                     ActivitySection(
@@ -92,13 +102,6 @@ struct SettingsFormView: View {
                 .offset(y: animateSections ? 0 : 20)
                 .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.25), value: animateSections), value: animateSections)
 
-                SettingsGroup(title: NSLocalizedString("settings.group.data", comment: "Data")) {
-                    DataSection(route: $route)
-                }
-                .opacity(animateSections ? 1 : 0)
-                .offset(y: animateSections ? 0 : 20)
-                .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.3), value: animateSections), value: animateSections)
-
                 SettingsGroup(title: NSLocalizedString("settings.group.support", comment: "Support & Legal")) {
                     HelpSection(route: $route)
                 }
@@ -106,7 +109,7 @@ struct SettingsFormView: View {
                 .offset(y: animateSections ? 0 : 20)
                 .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.35), value: animateSections), value: animateSections)
 
-                SettingsGroup(title: NSLocalizedString("settings.group.advanced", comment: "Advanced Settings")) {
+                SettingsGroup(title: NSLocalizedString("accountManagement.section.title", comment: "Account management")) {
                     AdvancedAccountSection(
                         isShowingAdvancedAccountManagement: $isShowingAdvancedAccountManagement
                     )
@@ -311,7 +314,7 @@ struct AdvancedAccountSection: View {
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .frame(width: 28, alignment: .center)
 
-                    Text(NSLocalizedString("settings.advanced.title", comment: "Advanced"))
+                    Text(NSLocalizedString("accountManagement.section.title", comment: "Account management"))
                         .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
 
@@ -346,7 +349,8 @@ struct AdvancedAccountManagementView: View {
 
     @State private var flowDestination: FlowDestination = .main
     @State private var navigatingForward = true
-    @State private var isShowingSessionManagement = false
+    @State private var showingLoginActivity = false
+    @State private var showingDataExport = false
     @State private var showDeactivateConfirmation = false
     @State private var isProcessing = false
     @State private var deletePasswordErrorMessage: String?
@@ -374,9 +378,8 @@ struct AdvancedAccountManagementView: View {
             }
             .animation(MotionPolicy.animation(MotionPolicy.Spring.sheet, value: flowDestination), value: flowDestination)
             .interactiveDismissDisabled(isProcessing)
-            .navigationDestination(isPresented: $isShowingSessionManagement) {
-                LoginActivityView()
-            }
+            .navigationDestination(isPresented: $showingLoginActivity) { LoginActivityView() }
+            .navigationDestination(isPresented: $showingDataExport) { DataExportView() }
             .alert(NSLocalizedString("accountManagement.deactivate.title", comment: "Deactivate account"), isPresented: $showDeactivateConfirmation) {
                 Button(NSLocalizedString("accountManagement.cancel", comment: "Cancel"), role: .cancel) {}
                 Button(NSLocalizedString("accountManagement.deactivate", comment: "Deactivate"), role: .destructive) {
@@ -398,8 +401,8 @@ struct AdvancedAccountManagementView: View {
     private var advancedMainContent: some View {
         VStack(spacing: 0) {
             AdvancedSheetHeader(
-                title: NSLocalizedString("settings.advanced.title", comment: "Advanced"),
-                subtitle: NSLocalizedString("settings.dangerZone.warning", comment: "Danger zone warning"),
+                title: NSLocalizedString("accountManagement.section.title", comment: "Account management"),
+                subtitle: nil,
                 leadingIcon: "chevron.down",
                 onLeadingTap: { dismiss() }
             )
@@ -411,11 +414,18 @@ struct AdvancedAccountManagementView: View {
                     VStack(spacing: 4) {
                         AdvancedAccountActionRow(
                             icon: "clock.arrow.circlepath",
-                            title: NSLocalizedString("settings.sections.loginActivity", comment: "Login Activity"),
-                            subtitle: NSLocalizedString("settings.sections.loginActivity.subtitle", comment: "Review your recent activity"),
-                            action: { isShowingSessionManagement = true }
+                            title: NSLocalizedString("settings.sections.loginActivity", comment: "Login activity"),
+                            subtitle: NSLocalizedString("settings.sections.loginActivity.subtitle", comment: "Recent sessions"),
+                            action: { showingLoginActivity = true }
                         )
-
+                        AdvancedAccountActionRow(
+                            icon: "arrow.down.circle",
+                            title: NSLocalizedString("settings.sections.downloadData", comment: "Download your data"),
+                            subtitle: NSLocalizedString("settings.sections.downloadData.subtitle", comment: "Copy of your data"),
+                            action: { showingDataExport = true }
+                        )
+                    }
+                    VStack(spacing: 4) {
                         AdvancedAccountActionRow(
                             icon: "pause",
                             title: NSLocalizedString("accountManagement.deactivate.title", comment: "Deactivate account title"),
@@ -791,7 +801,6 @@ struct PrivacySection: View {
     @Binding var showFollowers: Bool
     @ObservedObject var viewModel: SettingsViewModel
     @Binding var route: SettingsRoute?
-    @Binding var showReadReceipts: Bool
     let blockedAccountsCount: Int
 
     var body: some View {
@@ -848,7 +857,45 @@ struct PrivacySection: View {
                 subtitle: NSLocalizedString("settings.sections.mute.subtitle", comment: "Accounts, words and phrases"),
                 action: { route = .mute })
 
-            MessageRequestPolicyRow(viewModel: viewModel)
+
+        }
+    }
+
+    private func getConnectionPrivacyStatus() -> String {
+        let hiddenCount = (!showFollowing ? 1 : 0) + (!showFollowers ? 1 : 0)
+        switch hiddenCount {
+        case 0: return NSLocalizedString("settings.privacy.connections.allPublic", comment: "All connections are public")
+        case 1: return NSLocalizedString("settings.privacy.connections.hiddenCount.singular", comment: "1 hidden list")
+        case 2: return NSLocalizedString("settings.privacy.connections.allHidden", comment: "All lists are hidden")
+        default: return NSLocalizedString("settings.privacy.connections.configure", comment: "Configure")
+        }
+    }
+
+    private func blockedAccountsSubtitle() -> String {
+        let format = NSLocalizedString("settings.sections.blockedAccounts.subtitle", comment: "Blocked accounts count")
+        let formatted = String(format: format, blockedAccountsCount)
+
+        // Fallback robusto por si una traducción trae el placeholder mal y se muestra literal.
+        if formatted.contains("%d") || formatted == format {
+            return format.replacingOccurrences(of: "%d", with: "\(blockedAccountsCount)")
+        }
+
+        return formatted
+    }
+}
+
+struct MessagingPrivacySection: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject var viewModel: SettingsViewModel
+    @Binding var route: SettingsRoute?
+    @Binding var showReadReceipts: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SettingsRow(icon: "envelope.badge",
+                title: NSLocalizedString("messageRequests.title", comment: "Message requests"),
+                subtitle: NSLocalizedString("settings.privacy.messageRequests.description", comment: "Who can send requests"),
+                action: { route = .messageRequestSettings })
             GroupInvitePolicyRow(viewModel: viewModel)
 
             // Read Receipts toggle — plain row, no divider at bottom (last item)
@@ -879,28 +926,6 @@ struct PrivacySection: View {
             .padding(.vertical, 11)
             .padding(.horizontal, 4)
         }
-    }
-
-    private func getConnectionPrivacyStatus() -> String {
-        let hiddenCount = (!showFollowing ? 1 : 0) + (!showFollowers ? 1 : 0)
-        switch hiddenCount {
-        case 0: return NSLocalizedString("settings.privacy.connections.allPublic", comment: "All connections are public")
-        case 1: return NSLocalizedString("settings.privacy.connections.hiddenCount.singular", comment: "1 hidden list")
-        case 2: return NSLocalizedString("settings.privacy.connections.allHidden", comment: "All lists are hidden")
-        default: return NSLocalizedString("settings.privacy.connections.configure", comment: "Configure")
-        }
-    }
-
-    private func blockedAccountsSubtitle() -> String {
-        let format = NSLocalizedString("settings.sections.blockedAccounts.subtitle", comment: "Blocked accounts count")
-        let formatted = String(format: format, blockedAccountsCount)
-
-        // Fallback robusto por si una traducción trae el placeholder mal y se muestra literal.
-        if formatted.contains("%d") || formatted == format {
-            return format.replacingOccurrences(of: "%d", with: "\(blockedAccountsCount)")
-        }
-
-        return formatted
     }
 }
 
@@ -1328,6 +1353,7 @@ struct SecuritySection: View {
                     route = .passwordChange
                 }
             )
+
 
             SettingsRow(
                 icon: "lock.rotation",

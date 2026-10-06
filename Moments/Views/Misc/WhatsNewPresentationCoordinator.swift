@@ -24,7 +24,7 @@ final class WhatsNewPresentationCoordinator {
     private init() {}
 
     var currentMarketingVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.30"
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.31"
     }
 
     private var lastPromptedVersion: String {
@@ -32,7 +32,7 @@ final class WhatsNewPresentationCoordinator {
         set { UserDefaults.standard.set(newValue, forKey: Self.lastVersionKey) }
     }
 
-    /// Llamar al terminar el splash: 1ª install y upgrades dejan pendiente (mismas notas 2.30).
+    /// Llamar al terminar el splash: 1ª install y upgrades dejan pendiente (notas de la versión actual).
     func handleSplashFinished() {
         let current = currentMarketingVersion
         let last = lastPromptedVersion

@@ -1731,7 +1731,7 @@
 "settings.sections.blockedAccounts" = "Comptes bloquejats";
 "settings.sections.blockedAccounts.subtitle" = "%d comptes";
 "settings.sections.mute" = "Silenciar";
-"settings.sections.mute.subtitle" = "Comptes, paraules i frases";
+"settings.sections.mute.subtitle" = "Silencia comptes i filtra contingut";
 "settings.sections.password" = "Contrasenya";
 "settings.sections.password.subtitle" = "Canviar contrasenya";
 "settings.sections.2fa" = "Autenticació en dos passos";
@@ -4594,7 +4594,7 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "messaging.error.invalidRecipient" = "Tria un destinatari vàlid.";
 "messaging.error.emptyMessage" = "Escriu un missatge primer.";
 "messageRequests.hiddenWords.title" = "Paraules ocultes";
-"messageRequests.hiddenWords.description" = "Filtra sol·licituds després de desxifrar-les al dispositiu.";
+"messageRequests.hiddenWords.description" = "Filtra sol·licituds de missatges en aquest dispositiu, després de desxifrar-les.";
 "messageRequests.hiddenWords.automatic" = "Filtre automàtic";
 "messageRequests.hiddenWords.automatic.description" = "Oculta sol·licituds amb senyals de seguretat sense analitzar el contingut al servidor.";
 "messageRequests.hiddenWords.custom" = "Paraules i frases";
@@ -5029,3 +5029,39 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "chat.wallpaper.preset.watercolor" = "Aquarel·la";
 "chat.wallpaper.preset.sketch" = "Traç";
 "chat.wallpaper.preset.canvas" = "Tela";
+
+// Per-story sharing options
+"storyShare.title" = "Compartir història";
+"storyShare.close" = "Tancar";
+"storyShare.back" = "Tornar";
+"storyShare.yourStory" = "La teva història";
+"storyShare.review" = "Tria qui pot veure-la i interactuar.";
+"storyShare.expiration" = "Disponible durant";
+"storyShare.chainSettings" = "Configuració de la cadena";
+"storyShare.interactions" = "Interaccions";
+"storyShare.onlyThisStory" = "Aquestes opcions només s’apliquen a aquesta història. Les preferències de Configuració no canvien.";
+"storyShare.chainAudience" = "Les cadenes són visibles per a tothom i duren 48 hores. Les interaccions només s’apliquen a la teva part.";
+"storyShare.customize" = "Personalitzar";
+"storyShare.disabled" = "Desactivades";
+
+"storyShare.audience" = "Audiència";
+
+// Original story audio
+"story.audio.title" = "Àudio";
+"story.audio.record" = "Gravar";
+"story.audio.saved" = "Desats";
+"story.audio.original" = "Àudio original";
+"story.audio.empty" = "Aquí apareixeran els àudios que desis de les històries.";
+"story.audio.use" = "Utilitzar àudio";
+"story.audio.retry" = "Tornar-ho a provar";
+"story.audio.unavailable" = "Aquest àudio no està disponible.";
+"story.audio.allowReuse" = "Permetre desar i reutilitzar l’àudio";
+"story.audio.allowReuse.detail" = "Altres podran desar aquest àudio i reutilitzar-lo quan caduqui la història.";
+"story.audio.restricted.audience" = "Només es poden desar àudios d’històries públiques i comptes públics.";
+"story.audio.restricted.creator" = "El creador no permet desar aquest àudio.";
+"story.audio.saved.confirmation" = "Àudio desat als preferits";
+"story.audio.unsaved.confirmation" = "Àudio eliminat dels preferits";
+
+"settings.group.profileContent" = "Perfil i contingut";
+
+"settings.group.messagingPrivacy" = "Missatges i interaccions";

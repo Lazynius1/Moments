@@ -1685,7 +1685,7 @@
 "settings.sections.blockedAccounts" = "차단한 계정";
 "settings.sections.blockedAccounts.subtitle" = "%d개 계정";
 "settings.sections.mute" = "숨기기";
-"settings.sections.mute.subtitle" = "계정, 단어 및 문구";
+"settings.sections.mute.subtitle" = "계정 음소거 및 콘텐츠 필터링";
 "settings.sections.password" = "비밀번호";
 "settings.sections.password.subtitle" = "비밀번호 변경";
 "settings.sections.2fa" = "2단계 인증";
@@ -4346,7 +4346,7 @@
 "messaging.error.invalidRecipient" = "유효한 수신자를 선택하세요.";
 "messaging.error.emptyMessage" = "먼저 메시지를 입력하세요.";
 "messageRequests.hiddenWords.title" = "숨김 단어";
-"messageRequests.hiddenWords.description" = "이 기기에서 복호화된 후 요청을 필터링해요.";
+"messageRequests.hiddenWords.description" = "메시지 요청을 복호화한 후 이 기기에서 필터링합니다.";
 "messageRequests.hiddenWords.automatic" = "자동 필터";
 "messageRequests.hiddenWords.automatic.description" = "서버에서 콘텐츠를 분석하지 않고 안전 신호를 사용해 요청을 숨겨요.";
 "messageRequests.hiddenWords.custom" = "단어 및 문구";
@@ -4781,3 +4781,39 @@
 "chat.wallpaper.preset.watercolor" = "수채화";
 "chat.wallpaper.preset.sketch" = "스케치";
 "chat.wallpaper.preset.canvas" = "캔버스";
+
+// Per-story sharing options
+"storyShare.title" = "Share story";
+"storyShare.close" = "Close";
+"storyShare.back" = "Back";
+"storyShare.yourStory" = "Your story";
+"storyShare.review" = "Choose who can see and interact.";
+"storyShare.expiration" = "Available for";
+"storyShare.chainSettings" = "Chain settings";
+"storyShare.interactions" = "Interactions";
+"storyShare.onlyThisStory" = "These options apply only to this story. Your defaults in Settings stay the same.";
+"storyShare.chainAudience" = "Chains are visible to everyone and last 48 hours. Interactions apply only to your part.";
+"storyShare.customize" = "Customize";
+"storyShare.disabled" = "Disabled";
+
+"storyShare.audience" = "공개 대상";
+
+// Original story audio
+"story.audio.title" = "Audio";
+"story.audio.record" = "Record";
+"story.audio.saved" = "Saved";
+"story.audio.original" = "Original audio";
+"story.audio.empty" = "The audios you save from stories will appear here.";
+"story.audio.use" = "Use audio";
+"story.audio.retry" = "Try again";
+"story.audio.unavailable" = "This audio is unavailable.";
+"story.audio.allowReuse" = "Allow saving and reusing audio";
+"story.audio.allowReuse.detail" = "People can save this audio and reuse it after this story expires.";
+"story.audio.restricted.audience" = "Only audio from public stories and public accounts can be saved.";
+"story.audio.restricted.creator" = "The creator has not allowed saving this audio.";
+"story.audio.saved.confirmation" = "Audio saved to favorites";
+"story.audio.unsaved.confirmation" = "Audio removed from favorites";
+
+"settings.group.profileContent" = "프로필 및 콘텐츠";
+
+"settings.group.messagingPrivacy" = "메시지 및 상호작용";

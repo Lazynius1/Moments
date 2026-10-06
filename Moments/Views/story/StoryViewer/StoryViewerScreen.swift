@@ -72,6 +72,8 @@ struct StoryViewerScreen: View {
     }
 
     @State private var musicTrackSheet: StoryMusicTrack?
+    @State private var originalAudioSheet: StoryOriginalAudioSource?
+    @State private var pendingOriginalAudioCreatorId: String?
     @State private var showMomentDetail: Bool = false
     @State private var targetMomentId: String? = nil
     @State private var targetMomentUserId: String? = nil
@@ -438,6 +440,10 @@ struct StoryViewerScreen: View {
                 onPauseStory: pauseStory,
                 onResumeStory: resumeStory
             )
+            .environment(\.storyAudioPlaybackClock, StoryAudioPlaybackClock(
+                elapsed: playbackCoordinator.progress * (story.duration > 0 ? story.duration : 15),
+                active: isDeckPageActive && !playbackCoordinator.isPaused && !isHoldingStory
+            ))
             .id((story.id ?? "") + "-overlays")
             .frame(width: captureRect.width, height: captureRect.height)
             .position(x: captureRect.midX, y: captureRect.midY)
@@ -637,6 +643,21 @@ struct StoryViewerScreen: View {
             interactionCaptureRect = newValue
         }
         .permissionPrimerGate(photosSaveGate)
+        .sheet(item: $originalAudioSheet, onDismiss: {
+            if let creatorId = pendingOriginalAudioCreatorId {
+                pendingOriginalAudioCreatorId = nil
+                profileRoute = FeedProfileSheetRoute(userId: creatorId)
+                pauseStory()
+            } else {
+                resumeStory()
+            }
+        }) { source in
+            let clip = story.stickers?.first { $0.stickerId == source.stickerId }
+            StoryMusicTrackSheet(track: StoryMusicTrack(id: source.id, title: NSLocalizedString("story.audio.original", comment: "Original audio"), artist: clip?.originalAudioId == nil ? story.username : "", duration: clip?.audioDuration ?? 15), originalAudio: source, onCreatorTap: { creatorId in
+                pendingOriginalAudioCreatorId = creatorId
+                originalAudioSheet = nil
+            })
+        }
         .sheet(item: $musicTrackSheet, onDismiss: { resumeStory() }) { track in
             StoryMusicTrackSheet(track: track)
         }
@@ -1018,6 +1039,15 @@ struct StoryViewerScreen: View {
                                 .shadow(color: .black.opacity(0.55), radius: 4)
                                 .contentShape(Rectangle())
                                 .highPriorityGesture(TapGesture().onEnded { pauseStory(); musicTrackSheet = music.track })
+                        } else if let clip = story.stickers?.first(where: { $0.type == "audio" && $0.audioURL != nil }), let clipId = clip.stickerId, let storyId = story.id {
+                            Button {
+                                pauseStory()
+                                originalAudioSheet = StoryOriginalAudioSource(ownerId: story.authorId, storyId: storyId, stickerId: clipId)
+                            } label: {
+                                Label("\(NSLocalizedString("story.audio.original", comment: "Original audio"))\(clip.originalAudioId == nil ? " · " + story.username : "") ›", systemImage: "waveform")
+                                    .font(.caption2).foregroundStyle(.white).lineLimit(1)
+                                    .shadow(color: .black.opacity(0.55), radius: 4)
+                            }.buttonStyle(.plain)
                         }
                     }
                 }
@@ -2656,7 +2686,7 @@ struct StoryViewerScreen: View {
 
     private func resumeStory() {
         // ✅ REFUERZO SEGURO: No reanudar si cualquier overlay está visible o si hay teclado/drag
-        let isAnyOverlayVisible = musicTrackSheet != nil || showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || profileRoute != nil || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation || showDeleteConfirmation || showUnfollowConfirmation || showMuteConfirmation
+        let isAnyOverlayVisible = musicTrackSheet != nil || originalAudioSheet != nil || showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || profileRoute != nil || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation || showDeleteConfirmation || showUnfollowConfirmation || showMuteConfirmation
 
         let canResume = !isKeyboardVisible && !isDragging && !isMenuInteractionActive && !isAnyOverlayVisible && isDeckPageActive
         playbackCoordinator.resumeStory(story, canResume: canResume, onImageComplete: onNext)
@@ -2677,6 +2707,13 @@ struct StoryViewerScreen: View {
     }
 
     private func loadAuthorInteractionSettings() {
+        if let settings = story.interactionSettings {
+            authorAllowsMessages = settings["allowStoryMessages"] ?? true
+            authorAllowsReactions = settings["allowStoryReactions"] ?? true
+            authorAllowsEphemeralPhotos = settings["allowStoryEphemeralPhotos"] ?? true
+            return
+        }
+
         FirestoreService().db.collection("users").document(story.authorId).getDocument { document, error in
             DispatchQueue.main.async {
                 if let document = document, document.exists,

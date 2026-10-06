@@ -105,6 +105,7 @@ struct StickerItem: Identifiable {
         var contentOffsetY: CGFloat?
 
         var audioURL: String?
+        var originalAudioId: String?
         var audioDuration: Double?
         var music: StoryMusicSelection?
 
@@ -144,6 +145,7 @@ struct StickerItem: Identifiable {
             contentOffsetY: CGFloat? = nil,
             audioURL: String? = nil,
             audioDuration: Double? = nil,
+            originalAudioId: String? = nil,
             music: StoryMusicSelection? = nil
         ) {
             self.username = username
@@ -181,6 +183,7 @@ struct StickerItem: Identifiable {
             self.contentOffsetY = contentOffsetY
             self.audioURL = audioURL
             self.audioDuration = audioDuration
+            self.originalAudioId = originalAudioId
             self.music = music
         }
     }

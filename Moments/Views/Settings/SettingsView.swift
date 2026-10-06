@@ -76,6 +76,7 @@ extension View {
 /// para no acumular modificadores que la transición zoom evalúa fuera del NavigationStack.
 enum SettingsRoute: Hashable, Identifiable {
     case contentVisibility
+    case messageRequestSettings
     case connections
     case bestFriends
     case blockedAccounts
@@ -376,6 +377,8 @@ struct SettingsView: View {
         switch route {
         case .contentVisibility:
             ContentVisibilityView()
+        case .messageRequestSettings:
+            MessageRequestSettingsView(viewModel: viewModel)
         case .connections:
             ConnectionVisibilityView(
                 showFollowing: $showFollowing,

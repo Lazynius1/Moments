@@ -320,7 +320,7 @@ struct AudioStickerRecordingView: View {
             isRecording = true
             timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
                 duration += 0.1
-                if duration >= 15 {
+                if duration >= 60 {
                     stopRecording()
                 }
             }

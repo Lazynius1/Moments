@@ -47,6 +47,7 @@ class UploadingStory: ObservableObject, Identifiable {
     let continuationCustomViewers: [String]? // 🔗 AÑADIDO: Usuarios específicos que pueden continuar
     let continuationCustomListId: String? // 🔗 AÑADIDO: Lista específica que puede continuar
     let continuationCustomListName: String? // 🔗 AÑADIDO: Nombre de la lista que puede continuar
+    let interactionSettings: [String: Bool]?
     let expirationHours: Int
     let storyVideoMode: CreatorMedia.StoryVideoMode
     let plannedStoryId: String
@@ -83,6 +84,7 @@ class UploadingStory: ObservableObject, Identifiable {
         continuationCustomViewers: [String]? = nil, // 🔗 AÑADIDO: Usuarios específicos que pueden continuar
         continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
         continuationCustomListName: String? = nil, // 🔗 AÑADIDO: Nombre de la lista que puede continuar
+        interactionSettings: [String: Bool]? = nil,
         expirationHours: Int = 24,
         storyVideoMode: CreatorMedia.StoryVideoMode = .normal,
         tempId: String? = nil,
@@ -113,6 +115,7 @@ class UploadingStory: ObservableObject, Identifiable {
         self.continuationCustomViewers = continuationCustomViewers // 🔗 AÑADIDO: Asignar usuarios específicos
         self.continuationCustomListId = continuationCustomListId // 🔗 AÑADIDO: Asignar lista específica
         self.continuationCustomListName = continuationCustomListName // 🔗 AÑADIDO: Asignar nombre de lista
+        self.interactionSettings = interactionSettings
         self.expirationHours = expirationHours == 48 ? 48 : 24
         self.storyVideoMode = storyVideoMode
         self.createdAt = Date()
@@ -151,6 +154,7 @@ struct StoryUploadPayload: Codable {
     let continuationCustomListId: String?
     let continuationCustomListName: String?
     let expirationHours: Int?
+    let interactionSettings: [String: Bool]?
 }
 
 struct CachedSticker: Codable {
@@ -205,6 +209,7 @@ struct CachedStickerInteractionData: Codable {
     let contentOffsetY: CGFloat?
     let audioURL: String?
     let audioDuration: Double?
+    var originalAudioId: String? = nil
     let music: StoryMusicSelection?
 }
 
@@ -257,6 +262,7 @@ class BackgroundStoryUploadService: ObservableObject {
         continuationCustomViewers: [String]? = nil,
         continuationCustomListId: String? = nil,
         continuationCustomListName: String? = nil,
+        interactionSettings: [String: Bool]? = nil,
         expirationHours: Int = 24,
         storyVideoMode: CreatorMedia.StoryVideoMode = .normal,
         tempId: String? = nil
@@ -291,6 +297,7 @@ class BackgroundStoryUploadService: ObservableObject {
             continuationCustomViewers: continuationCustomViewers,
             continuationCustomListId: continuationCustomListId,
             continuationCustomListName: continuationCustomListName,
+            interactionSettings: interactionSettings,
             expirationHours: expirationHours,
             storyVideoMode: storyVideoMode,
             tempId: tempId
@@ -398,6 +405,7 @@ class BackgroundStoryUploadService: ObservableObject {
         continuationCustomViewers: [String]? = nil, // 🔗 AÑADIDO: Usuarios específicos que pueden continuar
         continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
         continuationCustomListName: String? = nil, // 🔗 AÑADIDO: Nombre de la lista que puede continuar
+        interactionSettings: [String: Bool]? = nil,
         expirationHours: Int = 24,
         recoveryActionId: String? = nil,
         shouldPersistAction: Bool = true,
@@ -468,6 +476,7 @@ class BackgroundStoryUploadService: ObservableObject {
             continuationCustomViewers: continuationCustomViewers, // 🔗 AÑADIDO: Pasar usuarios específicos
             continuationCustomListId: continuationCustomListId, // 🔗 AÑADIDO: Pasar lista específica
             continuationCustomListName: continuationCustomListName, // 🔗 AÑADIDO: Pasar nombre de lista
+            interactionSettings: interactionSettings,
             expirationHours: expirationHours,
             storyVideoMode: finalMediaItem.storyVideoMode,
             tempId: recoveryActionId,
@@ -681,6 +690,8 @@ class BackgroundStoryUploadService: ObservableObject {
                 continuationCustomViewers: uploadingStory.continuationCustomViewers,
                 continuationCustomListId: uploadingStory.continuationCustomListId,
                 continuationCustomListName: uploadingStory.continuationCustomListName,
+                interactionSettings: uploadingStory.interactionSettings,
+                expirationHours: uploadingStory.expirationHours,
                 storyVideoMode: .normal,
                 plannedStoryId: UUID().uuidString
             )
@@ -1175,6 +1186,7 @@ class BackgroundStoryUploadService: ObservableObject {
                     continuationCustomListName: uploadingStory.continuationCustomListName,
                     expirationHours: uploadingStory.expirationHours,
                     duration: duration,
+                    interactionSettings: uploadingStory.interactionSettings,
                     storyId: uploadingStory.plannedStoryId
                 ) { storyId, error in
                     if let error = error {
@@ -1215,6 +1227,7 @@ class BackgroundStoryUploadService: ObservableObject {
                     continuationCustomListName: uploadingStory.continuationCustomListName,
                     expirationHours: uploadingStory.expirationHours,
                     duration: duration,
+                    interactionSettings: uploadingStory.interactionSettings,
                     storyId: uploadingStory.plannedStoryId
                 ) { storyId, error in
                     if let error = error {
@@ -1784,7 +1797,8 @@ class BackgroundStoryUploadService: ObservableObject {
                 continuationCustomViewers: uploadingStory.continuationCustomViewers,
                 continuationCustomListId: uploadingStory.continuationCustomListId,
                 continuationCustomListName: uploadingStory.continuationCustomListName,
-                expirationHours: uploadingStory.expirationHours
+                expirationHours: uploadingStory.expirationHours,
+                interactionSettings: uploadingStory.interactionSettings
             )
 
             let encodedPayload = try JSONEncoder().encode(payload)
@@ -1892,6 +1906,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 contentOffsetY: data.contentOffsetY,
                 audioURL: data.audioURL,
                 audioDuration: data.audioDuration,
+                originalAudioId: data.originalAudioId,
                 music: data.music
             )
         }
@@ -2071,6 +2086,7 @@ class BackgroundStoryUploadService: ObservableObject {
                             contentOffsetY: data.contentOffsetY,
                             audioURL: data.audioURL,
                             audioDuration: data.audioDuration,
+                originalAudioId: data.originalAudioId,
                             music: data.music
                         )
                     }
@@ -2172,6 +2188,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 continuationCustomViewers: payload.continuationCustomViewers,
                 continuationCustomListId: payload.continuationCustomListId,
                 continuationCustomListName: payload.continuationCustomListName,
+                interactionSettings: payload.interactionSettings,
                 expirationHours: payload.expirationHours ?? (payload.chainId != nil ? 48 : 24),
                 recoveryActionId: action.id,
                 shouldPersistAction: false,

@@ -530,6 +530,14 @@ struct StickerPickerView: View {
         if category == .emojiSlider {
             StickerEmojiSliderPillGlyph()
                 .frame(width: 122, height: 28)
+        } else if category == .frame {
+            Image("StickerPolaroidIcon")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 18, height: 18)
+                .foregroundStyle(category.accentColor)
+                .shadow(color: category.accentColor.opacity(0.22), radius: 1.5, x: 0, y: 0)
         } else if let attachmentIcon = category.attachmentIcon {
             AttachmentIconView(icon: attachmentIcon, preset: .stickerCatalogPill, tintColor: category.accentColor)
                 .shadow(color: category.accentColor.opacity(0.22), radius: 1.5, x: 0, y: 0)
@@ -774,8 +782,10 @@ struct StickerPickerView: View {
                 onRemove: { selectedStickers.removeAll { $0.interactionData?.music != nil }; dismiss() }
             )
         case .audio:
-            AudioStickerRecordingView(onAdd: { data, duration in
+            StoryAudioPicker(onRecord: { data, duration in
                 createAudioSticker(audioData: data, duration: duration)
+            }, onUse: { data, duration, id in
+                createAudioSticker(audioData: data, duration: duration, originalAudioId: id)
             })
         }
     }
@@ -1903,7 +1913,7 @@ struct StickerPickerView: View {
         dismiss()
     }
 
-    private func createAudioSticker(audioData: Data, duration: Double) {
+    private func createAudioSticker(audioData: Data, duration: Double, originalAudioId: String? = nil) {
         HapticManager.shared.mediumImpact()
 
         // 1. Guardar el audio en un archivo temporal para que BackgroundStoryUploadService lo pueda subir
@@ -1962,7 +1972,8 @@ struct StickerPickerView: View {
                 type: .audio,
                 interactionData: StickerItem.StickerInteractionData(
                     audioURL: fileURL.absoluteString,
-                    audioDuration: duration
+                    audioDuration: duration,
+                    originalAudioId: originalAudioId
                 )
             )
 

@@ -1281,6 +1281,7 @@ struct Story: Identifiable, Codable {
     let profileImagePath: String?
     let timestamp: Date
     let username: String
+    let interactionSettings: [String: Bool]?
     let audience: String?
     let customListId: String? // ✅ AÑADIDO: Campo para el ID de la lista personalizada
     let text: String?
@@ -1320,6 +1321,7 @@ struct Story: Identifiable, Codable {
         case profileImagePath
         case timestamp
         case username
+        case interactionSettings
         case audience
         case customListId // ✅ AÑADIDO: Clave de codificación
         case text
@@ -1363,6 +1365,7 @@ struct Story: Identifiable, Codable {
          expirationHours: Int? = nil,
          expirationDate: Date,
          profileImagePath: String?,
+         interactionSettings: [String: Bool]? = nil,
          audience: String? = nil,
          customListId: String? = nil, // ✅ AÑADIDO
          text: String? = nil,
@@ -1398,6 +1401,7 @@ struct Story: Identifiable, Codable {
         self.expirationHours = expirationHours
         self.expirationDate = expirationDate
         self.profileImagePath = profileImagePath
+        self.interactionSettings = interactionSettings
         self.audience = audience
         self.customListId = customListId // ✅ AÑADIDO
         self.text = text
@@ -1437,6 +1441,7 @@ struct Story: Identifiable, Codable {
         let expirationDate = try container.decode(Timestamp.self, forKey: .expirationDate)
         self.expirationDate = expirationDate.dateValue()
         self.profileImagePath = try container.decodeIfPresent(String.self, forKey: .profileImagePath)
+        self.interactionSettings = try container.decodeIfPresent([String: Bool].self, forKey: .interactionSettings)
         self.audience = try container.decodeIfPresent(String.self, forKey: .audience)
         self.customListId = try container.decodeIfPresent(String.self, forKey: .customListId) // ✅ AÑADIDO
         self.text = try container.decodeIfPresent(String.self, forKey: .text)
@@ -1497,6 +1502,7 @@ struct Story: Identifiable, Codable {
         try container.encode(Timestamp(date: timestamp), forKey: .timestamp)
         try container.encode(Timestamp(date: expirationDate), forKey: .expirationDate)
         try container.encodeIfPresent(profileImagePath, forKey: .profileImagePath)
+        try container.encodeIfPresent(interactionSettings, forKey: .interactionSettings)
         try container.encodeIfPresent(audience, forKey: .audience)
         try container.encodeIfPresent(customListId, forKey: .customListId) // ✅ AÑADIDO
         try container.encodeIfPresent(text, forKey: .text)
@@ -1687,6 +1693,7 @@ struct Story: Identifiable, Codable {
                 contentOffsetY: stickerData.contentOffsetY,
                 audioURL: stickerData.audioURL,
                 audioDuration: stickerData.audioDuration,
+                originalAudioId: stickerData.originalAudioId,
                 music: stickerData.music
             )
 
@@ -2034,6 +2041,7 @@ struct StickerData: Codable, Equatable {
 
     // Audio Data
     let audioURL: String?
+    let originalAudioId: String?
     let audioDuration: Double?
     let music: StoryMusicSelection?
 
@@ -2051,7 +2059,7 @@ struct StickerData: Codable, Equatable {
          frameStyle: String? = nil,
          contentScale: CGFloat? = nil, contentOffsetX: CGFloat? = nil, contentOffsetY: CGFloat? = nil,
          moderationState: String? = nil, moderationReason: String? = nil, moderationCategory: String? = nil,
-         audioURL: String? = nil, audioDuration: Double? = nil, music: StoryMusicSelection? = nil,
+         audioURL: String? = nil, audioDuration: Double? = nil, originalAudioId: String? = nil, music: StoryMusicSelection? = nil,
          isAnimated: Bool = false, gifURL: String? = nil, videoURL: String? = nil) {
         self.stickerId = stickerId
         self.type = type
@@ -2099,6 +2107,7 @@ struct StickerData: Codable, Equatable {
         self.moderationCategory = moderationCategory
         self.audioURL = audioURL
         self.audioDuration = audioDuration
+        self.originalAudioId = originalAudioId
         self.music = music
         self.isAnimated = isAnimated
         self.gifURL = gifURL
@@ -2168,6 +2177,7 @@ struct StickerData: Codable, Equatable {
         self.moderationCategory = try container.decodeIfPresent(String.self, forKey: .moderationCategory)
         self.audioURL = try container.decodeIfPresent(String.self, forKey: .audioURL)
         self.audioDuration = try container.decodeIfPresent(Double.self, forKey: .audioDuration)
+        self.originalAudioId = try container.decodeIfPresent(String.self, forKey: .originalAudioId)
         self.music = try container.decodeIfPresent(StoryMusicSelection.self, forKey: .music)
 
         // ✅ COMPATIBILIDAD HACIA ATRÁS: Detectar stickers animados basándose en el contenido
@@ -2243,6 +2253,7 @@ struct StickerData: Codable, Equatable {
             moderationCategory: nil,
             audioURL: interactionData?.audioURL,
             audioDuration: interactionData?.audioDuration,
+                originalAudioId: interactionData?.originalAudioId,
             music: interactionData?.music,
             isAnimated: stickerItem.isAnimated,
             gifURL: stickerItem.gifURL?.absoluteString,
@@ -2354,6 +2365,7 @@ extension StickerData {
         case moderationReason
         case moderationCategory
         case audioURL
+        case originalAudioId
         case audioDuration
         case music
     }
@@ -2409,6 +2421,7 @@ extension StickerData {
         try container.encodeIfPresent(moderationCategory, forKey: .moderationCategory)
         try container.encodeIfPresent(audioURL, forKey: .audioURL)
         try container.encodeIfPresent(audioDuration, forKey: .audioDuration)
+        try container.encodeIfPresent(originalAudioId, forKey: .originalAudioId)
         try container.encodeIfPresent(music, forKey: .music)
     }
 }

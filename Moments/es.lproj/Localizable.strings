@@ -1782,7 +1782,7 @@
 "settings.sections.blockedAccounts" = "Cuentas bloqueadas";
 "settings.sections.blockedAccounts.subtitle" = "%d cuentas";
 "settings.sections.mute" = "Silenciar";
-"settings.sections.mute.subtitle" = "Cuentas, palabras y frases";
+"settings.sections.mute.subtitle" = "Silencia cuentas y filtra contenido";
 "settings.sections.password" = "Contraseña";
 "settings.sections.password.subtitle" = "Cambiar contraseña";
 "settings.sections.2fa" = "Autenticación en dos pasos";
@@ -4481,7 +4481,7 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "messaging.error.invalidRecipient" = "Elige un destinatario válido.";
 "messaging.error.emptyMessage" = "Escribe un mensaje primero.";
 "messageRequests.hiddenWords.title" = "Palabras ocultas";
-"messageRequests.hiddenWords.description" = "Filtra solicitudes después de descifrarlas en este dispositivo.";
+"messageRequests.hiddenWords.description" = "Filtra solicitudes de mensajes en este dispositivo, después de descifrarlas.";
 "messageRequests.hiddenWords.automatic" = "Filtro automático";
 "messageRequests.hiddenWords.automatic.description" = "Oculta solicitudes con señales de seguridad, sin analizar su contenido en el servidor.";
 "messageRequests.hiddenWords.custom" = "Palabras y frases";
@@ -5030,3 +5030,39 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "chat.wallpaper.preset.watercolor" = "Acuarela";
 "chat.wallpaper.preset.sketch" = "Trazo";
 "chat.wallpaper.preset.canvas" = "Lienzo";
+
+// Per-story sharing options
+"storyShare.title" = "Compartir historia";
+"storyShare.close" = "Cerrar";
+"storyShare.back" = "Volver";
+"storyShare.yourStory" = "Tu historia";
+"storyShare.review" = "Elige quién puede verla e interactuar.";
+"storyShare.expiration" = "Disponible durante";
+"storyShare.chainSettings" = "Ajustes de la cadena";
+"storyShare.interactions" = "Interacciones";
+"storyShare.onlyThisStory" = "Estas opciones solo se aplican a esta historia. Tus preferencias de Ajustes no cambian.";
+"storyShare.chainAudience" = "Las cadenas son visibles para todos y duran 48 horas. Las interacciones solo se aplican a tu parte.";
+"storyShare.customize" = "Personalizar";
+"storyShare.disabled" = "Desactivadas";
+
+"storyShare.audience" = "Audiencia";
+
+// Original story audio
+"story.audio.title" = "Audio";
+"story.audio.record" = "Grabar";
+"story.audio.saved" = "Guardados";
+"story.audio.original" = "Audio original";
+"story.audio.empty" = "Aquí aparecerán los audios que guardes de las historias.";
+"story.audio.use" = "Usar audio";
+"story.audio.retry" = "Reintentar";
+"story.audio.unavailable" = "Este audio no está disponible.";
+"story.audio.allowReuse" = "Permitir guardar y reutilizar el audio";
+"story.audio.allowReuse.detail" = "Otros podrán guardar este audio y reutilizarlo cuando caduque la historia.";
+"story.audio.restricted.audience" = "Solo se pueden guardar audios de historias públicas y cuentas públicas.";
+"story.audio.restricted.creator" = "El creador no permite guardar este audio.";
+"story.audio.saved.confirmation" = "Audio guardado en favoritos";
+"story.audio.unsaved.confirmation" = "Audio eliminado de favoritos";
+
+"settings.group.profileContent" = "Perfil y contenido";
+
+"settings.group.messagingPrivacy" = "Mensajes e interacciones";

@@ -1685,7 +1685,7 @@
 "settings.sections.blockedAccounts" = "ब्लॉक किए गए अकाउंट";
 "settings.sections.blockedAccounts.subtitle" = "%d अकाउंट";
 "settings.sections.mute" = "म्यूट";
-"settings.sections.mute.subtitle" = "अकाउंट, शब्द और वाक्यांश";
+"settings.sections.mute.subtitle" = "खातों को म्यूट करें और सामग्री फ़िल्टर करें";
 "settings.sections.password" = "पासवर्ड";
 "settings.sections.password.subtitle" = "पासवर्ड बदलें";
 "settings.sections.2fa" = "टू-फ़ैक्टर ऑथेंटिकेशन";
@@ -4346,7 +4346,7 @@
 "messaging.error.invalidRecipient" = "कोई मान्य प्राप्तकर्ता चुनें।";
 "messaging.error.emptyMessage" = "पहले कोई संदेश लिखें।";
 "messageRequests.hiddenWords.title" = "छिपे हुए शब्द";
-"messageRequests.hiddenWords.description" = "इस डिवाइस पर डिक्रिप्ट होने के बाद अनुरोध फ़िल्टर करें।";
+"messageRequests.hiddenWords.description" = "संदेश अनुरोधों को डिक्रिप्ट करने के बाद इस डिवाइस पर फ़िल्टर करें।";
 "messageRequests.hiddenWords.automatic" = "अपने-आप फ़िल्टर करें";
 "messageRequests.hiddenWords.automatic.description" = "सर्वर पर सामग्री का विश्लेषण किए बिना, सुरक्षा संकेतों के आधार पर अनुरोध छिपाता है।";
 "messageRequests.hiddenWords.custom" = "शब्द और वाक्यांश";
@@ -4781,3 +4781,39 @@
 "chat.wallpaper.preset.watercolor" = "जलरंग";
 "chat.wallpaper.preset.sketch" = "रेखाचित्र";
 "chat.wallpaper.preset.canvas" = "कैनवास";
+
+// Per-story sharing options
+"storyShare.title" = "Share story";
+"storyShare.close" = "Close";
+"storyShare.back" = "Back";
+"storyShare.yourStory" = "Your story";
+"storyShare.review" = "Choose who can see and interact.";
+"storyShare.expiration" = "Available for";
+"storyShare.chainSettings" = "Chain settings";
+"storyShare.interactions" = "Interactions";
+"storyShare.onlyThisStory" = "These options apply only to this story. Your defaults in Settings stay the same.";
+"storyShare.chainAudience" = "Chains are visible to everyone and last 48 hours. Interactions apply only to your part.";
+"storyShare.customize" = "Customize";
+"storyShare.disabled" = "Disabled";
+
+"storyShare.audience" = "दर्शक";
+
+// Original story audio
+"story.audio.title" = "Audio";
+"story.audio.record" = "Record";
+"story.audio.saved" = "Saved";
+"story.audio.original" = "Original audio";
+"story.audio.empty" = "The audios you save from stories will appear here.";
+"story.audio.use" = "Use audio";
+"story.audio.retry" = "Try again";
+"story.audio.unavailable" = "This audio is unavailable.";
+"story.audio.allowReuse" = "Allow saving and reusing audio";
+"story.audio.allowReuse.detail" = "People can save this audio and reuse it after this story expires.";
+"story.audio.restricted.audience" = "Only audio from public stories and public accounts can be saved.";
+"story.audio.restricted.creator" = "The creator has not allowed saving this audio.";
+"story.audio.saved.confirmation" = "Audio saved to favorites";
+"story.audio.unsaved.confirmation" = "Audio removed from favorites";
+
+"settings.group.profileContent" = "प्रोफ़ाइल और सामग्री";
+
+"settings.group.messagingPrivacy" = "संदेश और इंटरैक्शन";

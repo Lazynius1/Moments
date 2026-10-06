@@ -1755,7 +1755,7 @@
 "settings.sections.blockedAccounts" = "Comptes bloqués";
 "settings.sections.blockedAccounts.subtitle" = "%d accounts";
 "settings.sections.mute" = "Sourdine";
-"settings.sections.mute.subtitle" = "Comptes, mots et expressions";
+"settings.sections.mute.subtitle" = "Masquer des comptes et filtrer le contenu";
 "settings.sections.password" = "Mot de passe";
 "settings.sections.password.subtitle" = "Modifier le mot de passe";
 "settings.sections.2fa" = "Authentification à deux facteurs";
@@ -4575,7 +4575,7 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "messaging.error.invalidRecipient" = "Choisissez un destinataire valide.";
 "messaging.error.emptyMessage" = "Écrivez d’abord un message.";
 "messageRequests.hiddenWords.title" = "Mots masqués";
-"messageRequests.hiddenWords.description" = "Filtre les demandes après leur déchiffrement sur cet appareil.";
+"messageRequests.hiddenWords.description" = "Filtre les demandes de messages sur cet appareil après leur déchiffrement.";
 "messageRequests.hiddenWords.automatic" = "Filtre automatique";
 "messageRequests.hiddenWords.automatic.description" = "Utilise des signaux de sécurité sans analyser le contenu sur le serveur.";
 "messageRequests.hiddenWords.custom" = "Mots et expressions";
@@ -5010,3 +5010,39 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "chat.wallpaper.preset.watercolor" = "Aquarelle";
 "chat.wallpaper.preset.sketch" = "Esquisse";
 "chat.wallpaper.preset.canvas" = "Toile";
+
+// Per-story sharing options
+"storyShare.title" = "Share story";
+"storyShare.close" = "Close";
+"storyShare.back" = "Back";
+"storyShare.yourStory" = "Your story";
+"storyShare.review" = "Choose who can see and interact.";
+"storyShare.expiration" = "Available for";
+"storyShare.chainSettings" = "Chain settings";
+"storyShare.interactions" = "Interactions";
+"storyShare.onlyThisStory" = "These options apply only to this story. Your defaults in Settings stay the same.";
+"storyShare.chainAudience" = "Chains are visible to everyone and last 48 hours. Interactions apply only to your part.";
+"storyShare.customize" = "Customize";
+"storyShare.disabled" = "Disabled";
+
+"storyShare.audience" = "Audience";
+
+// Original story audio
+"story.audio.title" = "Audio";
+"story.audio.record" = "Record";
+"story.audio.saved" = "Saved";
+"story.audio.original" = "Original audio";
+"story.audio.empty" = "The audios you save from stories will appear here.";
+"story.audio.use" = "Use audio";
+"story.audio.retry" = "Try again";
+"story.audio.unavailable" = "This audio is unavailable.";
+"story.audio.allowReuse" = "Allow saving and reusing audio";
+"story.audio.allowReuse.detail" = "People can save this audio and reuse it after this story expires.";
+"story.audio.restricted.audience" = "Only audio from public stories and public accounts can be saved.";
+"story.audio.restricted.creator" = "The creator has not allowed saving this audio.";
+"story.audio.saved.confirmation" = "Audio saved to favorites";
+"story.audio.unsaved.confirmation" = "Audio removed from favorites";
+
+"settings.group.profileContent" = "Profil et contenu";
+
+"settings.group.messagingPrivacy" = "Messages et interactions";

@@ -12,7 +12,6 @@ struct ContentVisibilityView: View {
     @State private var showingStoryInteractionSettings = false // ✅ NUEVO
     @State private var showingCustomAudienceLists = false
     @State private var showingHiddenFromView = false
-    @State private var showingHiddenWords = false
     
     var body: some View {
         ZStack {
@@ -79,32 +78,7 @@ struct ContentVisibilityView: View {
                                     }
                                     .buttonStyle(.momentsPressSubtle)
 
-                                    Divider().opacity(0.2).padding(.leading, 42)
 
-                                    Button(action: { showingHiddenWords = true }) {
-                                        HStack(spacing: 14) {
-                                            Image(systemName: "text.magnifyingglass")
-                                                .foregroundStyle(colorScheme == .dark ? .white : .black)
-                                                .font(.system(size: 18))
-                                                .frame(width: 28, alignment: .center)
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text("messageRequests.hiddenWords.title")
-                                                    .font(.system(size: legacyPoppinsSize(15), weight: .medium))
-                                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
-                                                Text("messageRequests.hiddenWords.description")
-                                                    .font(.system(size: legacyPoppinsSize(13)))
-                                                    .foregroundStyle(.gray)
-                                            }
-                                            Spacer()
-                                            Image(systemName: "chevron.right")
-                                                .foregroundStyle(.gray)
-                                                .font(.system(size: 12, weight: .semibold))
-                                        }
-                                        .padding(.vertical, 11)
-                                        .padding(.horizontal, 4)
-                                        .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.momentsPressSubtle)
                                 }
                             }
                             
@@ -209,7 +183,7 @@ struct ContentVisibilityView: View {
                 } // end else
             } // end ZStack
             .settingsSwitchTint()
-            .navigationTitle(NSLocalizedString("contentVisibility.title", comment: "Content Privacy"))
+            .navigationTitle(NSLocalizedString("settings.sections.contentVisibility", comment: "Content visibility"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .navigationInteractivePopEnabled()
@@ -249,11 +223,7 @@ struct ContentVisibilityView: View {
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
-            .sheet(isPresented: $showingHiddenWords) {
-                HiddenWordsSettingsView()
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-            }
+
     }
     
     // ✅ NUEVA FUNCIÓN: Resumen de configuración de interacciones
@@ -336,6 +306,35 @@ struct ContentVisibilityView: View {
             return NSLocalizedString("contentVisibility.customList", comment: "Custom list")
         default:
             return audience.description
+        }
+    }
+}
+
+struct MessageRequestSettingsView: View {
+    @ObservedObject var viewModel: SettingsViewModel
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var showingHiddenWords = false
+
+    var body: some View {
+        ScrollView {
+            SettingsGroup(title: NSLocalizedString("messageRequests.title", comment: "Message requests")) {
+                MessageRequestPolicyRow(viewModel: viewModel)
+                SettingsRow(
+                    icon: "text.magnifyingglass",
+                    title: NSLocalizedString("messageRequests.hiddenWords.title", comment: "Hidden words"),
+                    subtitle: NSLocalizedString("messageRequests.hiddenWords.description", comment: "Request filtering"),
+                    action: { showingHiddenWords = true }
+                )
+            }
+            .padding(16)
+        }
+        .background((colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea())
+        .navigationTitle("messageRequests.title")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingHiddenWords) {
+            HiddenWordsSettingsView()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
 }

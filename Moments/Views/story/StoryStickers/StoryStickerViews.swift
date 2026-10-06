@@ -1132,7 +1132,9 @@ struct StoryStickerView: View {
         } else if sticker.type == .audio, let audioURL = sticker.interactionData?.audioURL {
             InteractiveAudioStickerView(
                 audioURL: audioURL,
-                duration: sticker.interactionData?.audioDuration ?? 15.0
+                duration: sticker.interactionData?.audioDuration ?? 15.0,
+                onPauseStory: onPauseStory,
+                onResumeStory: onResumeStory
             )
             .scaleEffect(sticker.scale)
             .rotationEffect(sticker.rotation)

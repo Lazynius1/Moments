@@ -1685,7 +1685,7 @@
 "settings.sections.blockedAccounts" = "ブロック中のアカウント";
 "settings.sections.blockedAccounts.subtitle" = "%d件のアカウント";
 "settings.sections.mute" = "ミュート";
-"settings.sections.mute.subtitle" = "アカウント、単語、フレーズ";
+"settings.sections.mute.subtitle" = "アカウントをミュートし、コンテンツをフィルタリング";
 "settings.sections.password" = "パスワード";
 "settings.sections.password.subtitle" = "パスワードを変更";
 "settings.sections.2fa" = "2段階認証";
@@ -4346,7 +4346,7 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "messaging.error.invalidRecipient" = "有効な宛先を選択してください。";
 "messaging.error.emptyMessage" = "まずメッセージを入力してください。";
 "messageRequests.hiddenWords.title" = "非表示ワード";
-"messageRequests.hiddenWords.description" = "このデバイスで復号された後のリクエストをフィルタリングします。";
+"messageRequests.hiddenWords.description" = "メッセージリクエストを復号した後、このデバイスでフィルタリングします。";
 "messageRequests.hiddenWords.automatic" = "自動フィルター";
 "messageRequests.hiddenWords.automatic.description" = "サーバー側でコンテンツを分析せず、安全性に関するシグナルを使ってリクエストを非表示にします。";
 "messageRequests.hiddenWords.custom" = "単語とフレーズ";
@@ -4781,3 +4781,39 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "chat.wallpaper.preset.watercolor" = "水彩";
 "chat.wallpaper.preset.sketch" = "スケッチ";
 "chat.wallpaper.preset.canvas" = "キャンバス";
+
+// Per-story sharing options
+"storyShare.title" = "Share story";
+"storyShare.close" = "Close";
+"storyShare.back" = "Back";
+"storyShare.yourStory" = "Your story";
+"storyShare.review" = "Choose who can see and interact.";
+"storyShare.expiration" = "Available for";
+"storyShare.chainSettings" = "Chain settings";
+"storyShare.interactions" = "Interactions";
+"storyShare.onlyThisStory" = "These options apply only to this story. Your defaults in Settings stay the same.";
+"storyShare.chainAudience" = "Chains are visible to everyone and last 48 hours. Interactions apply only to your part.";
+"storyShare.customize" = "Customize";
+"storyShare.disabled" = "Disabled";
+
+"storyShare.audience" = "公開範囲";
+
+// Original story audio
+"story.audio.title" = "Audio";
+"story.audio.record" = "Record";
+"story.audio.saved" = "Saved";
+"story.audio.original" = "Original audio";
+"story.audio.empty" = "The audios you save from stories will appear here.";
+"story.audio.use" = "Use audio";
+"story.audio.retry" = "Try again";
+"story.audio.unavailable" = "This audio is unavailable.";
+"story.audio.allowReuse" = "Allow saving and reusing audio";
+"story.audio.allowReuse.detail" = "People can save this audio and reuse it after this story expires.";
+"story.audio.restricted.audience" = "Only audio from public stories and public accounts can be saved.";
+"story.audio.restricted.creator" = "The creator has not allowed saving this audio.";
+"story.audio.saved.confirmation" = "Audio saved to favorites";
+"story.audio.unsaved.confirmation" = "Audio removed from favorites";
+
+"settings.group.profileContent" = "プロフィールとコンテンツ";
+
+"settings.group.messagingPrivacy" = "メッセージと交流";

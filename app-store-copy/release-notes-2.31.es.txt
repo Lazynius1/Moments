@@ -1,0 +1,64 @@
+Novedades de Moments (v2.31)
+
+¡Moments se prepara para el iPhone Duo! También llegan chats más tuyos, un nuevo paso antes de publicar historias, audio original y mapas renovados.
+
+En esta versión:
+
+IPHONE DUO
+- Feed en una pantalla y comentarios en la otra: sigue viendo el momento mientras lees y respondes.
+- Inbox y conversación a la vez, para cambiar de chat con la lista a la vista.
+- En Explorar y en los perfiles, la rejilla y el momento abierto comparten espacio. Los detalles y perfiles se abren en la segunda pantalla.
+- Echoes muestra el contenido junto a las tarjetas de sus distintas perspectivas.
+- Al crear, ves la galería junto a la preview y editas con la foto y las herramientas a la vista.
+- Cámara con preview en la pantalla exterior, también al capturar desde el chat.
+- Historias, respuestas, reacciones y contenido de «ver una vez» adaptados al espacio disponible.
+- Ajustes en dos columnas: categorías a un lado y la opción que cambias al otro.
+- Navegación lateral y distribución adaptadas al Duo abierto, cerrado y parcialmente abierto.
+- Abre o cierra el Duo y sigue donde estabas: conservamos el momento, la posición del feed y la conversación. (Que abrirlo no signifique empezar de nuevo.)
+
+PUBLICAR HISTORIAS
+- Antes de publicar, una nueva pantalla reúne la preview y las opciones de tu historia.
+- Revisa quién puede verla y elige si estará disponible durante 24 o 48 horas.
+- Activa o desactiva mensajes, reacciones y respuestas con fotos efímeras para esa historia.
+- Estos cambios no modifican tus preferencias generales. Cada historia puede tener sus propias opciones.
+- Las cadenas también pasan por esta pantalla, con acceso a sus ajustes de continuación. Siguen siendo públicas y duran 48 horas.
+- Herramientas de texto y dibujo con iconos renovados.
+
+AUDIO ORIGINAL EN HISTORIAS
+- Guarda audios originales de historias públicas y reutilízalos desde la pestaña Guardados del sticker de audio.
+- Al publicar, decides si permites guardar y reutilizar tu audio. Solo se ofrece en historias públicas de cuentas públicas.
+- Los audios guardados pueden seguir disponibles cuando caduque la historia original.
+- El audio acompaña mejor a la historia: se pausa y continúa con ella.
+
+CHATS MÁS TUYOS
+- Personaliza cada conversación con fotos, colores o nuevos temas de fondo.
+- Ajusta el encuadre y la intensidad del fondo, y elige el color de tus burbujas.
+- El estilo es solo para ti: cada persona puede darle su propio aspecto al chat.
+- Reacciones con animaciones renovadas y un selector con tus emojis más usados.
+- Menú de acciones más cómodo, también con el teclado abierto.
+
+FOTOS, VÍDEOS Y CONTENIDO COMPARTIDO
+- Amplía las fotos del chat con dos dedos o con un doble toque.
+- Los medios enviados desde el editor para mantener en el chat conservan textos y stickers, también en la galería.
+- Previews más estables mientras se carga el contenido.
+
+MAPAS
+- Navegación renovada al abrir la ubicación de un momento y explorar el mapa.
+- Momentos e historias agrupados por lugar, con acceso a las historias de la zona.
+- Vuelve al mapa sin perder el contexto del momento que estabas viendo.
+
+AUDIENCIAS, AJUSTES Y NOTIFICACIONES
+- Gestión de listas de audiencia más cómoda.
+- Ajustes reorganizados para encontrar mejor las opciones de perfil, contenido, mensajes y cuenta.
+- Identificación más fiable de la sesión actual y del estado al cerrar sesión.
+- Miniaturas más claras para las notificaciones de cadenas.
+- Corrección de propuestas duplicadas de Echoes.
+
+FLUIDEZ Y PULIDO
+- Selector del feed más compacto, comentarios más cómodos y mejor gestión de solicitudes de mensajes.
+- Deshacer al dejar de seguir restaura correctamente la relación.
+- Confirmaciones más claras al guardar, borrar o cambiar preferencias.
+- Tu música sigue sonando al entrar en Moments o navegar por contenido silenciado.
+- Mejor coordinación del audio y carga más fluida de chats, historias, archivo y destacadas.
+
+Si echáis de menos algo o encontráis algún fallo… ¡avisadme!

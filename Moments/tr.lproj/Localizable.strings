@@ -1685,7 +1685,7 @@
 "settings.sections.blockedAccounts" = "Engellenen Hesaplar";
 "settings.sections.blockedAccounts.subtitle" = "%d hesap";
 "settings.sections.mute" = "Sessize al";
-"settings.sections.mute.subtitle" = "Hesaplar, kelimeler ve ifadeler";
+"settings.sections.mute.subtitle" = "Hesapları sessize al ve içeriği filtrele";
 "settings.sections.password" = "Şifre";
 "settings.sections.password.subtitle" = "Şifreni değiştir";
 "settings.sections.2fa" = "İki Faktörlü Kimlik Doğrulama";
@@ -4346,7 +4346,7 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "messaging.error.invalidRecipient" = "Geçerli bir alıcı seç.";
 "messaging.error.emptyMessage" = "Önce bir mesaj yaz.";
 "messageRequests.hiddenWords.title" = "Gizli kelimeler";
-"messageRequests.hiddenWords.description" = "İstekleri bu cihazda şifreleri çözüldükten sonra filtrele.";
+"messageRequests.hiddenWords.description" = "Mesaj isteklerini bu cihazda şifreleri çözüldükten sonra filtrele.";
 "messageRequests.hiddenWords.automatic" = "Otomatik filtre";
 "messageRequests.hiddenWords.automatic.description" = "Sunucu tarafında içerik analizi yapmadan, güvenlik sinyallerini kullanarak istekleri gizler.";
 "messageRequests.hiddenWords.custom" = "Kelimeler ve ifadeler";
@@ -4781,3 +4781,39 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "chat.wallpaper.preset.watercolor" = "Suluboya";
 "chat.wallpaper.preset.sketch" = "Eskiz";
 "chat.wallpaper.preset.canvas" = "Tuval";
+
+// Per-story sharing options
+"storyShare.title" = "Share story";
+"storyShare.close" = "Close";
+"storyShare.back" = "Back";
+"storyShare.yourStory" = "Your story";
+"storyShare.review" = "Choose who can see and interact.";
+"storyShare.expiration" = "Available for";
+"storyShare.chainSettings" = "Chain settings";
+"storyShare.interactions" = "Interactions";
+"storyShare.onlyThisStory" = "These options apply only to this story. Your defaults in Settings stay the same.";
+"storyShare.chainAudience" = "Chains are visible to everyone and last 48 hours. Interactions apply only to your part.";
+"storyShare.customize" = "Customize";
+"storyShare.disabled" = "Disabled";
+
+"storyShare.audience" = "Hedef kitle";
+
+// Original story audio
+"story.audio.title" = "Audio";
+"story.audio.record" = "Record";
+"story.audio.saved" = "Saved";
+"story.audio.original" = "Original audio";
+"story.audio.empty" = "The audios you save from stories will appear here.";
+"story.audio.use" = "Use audio";
+"story.audio.retry" = "Try again";
+"story.audio.unavailable" = "This audio is unavailable.";
+"story.audio.allowReuse" = "Allow saving and reusing audio";
+"story.audio.allowReuse.detail" = "People can save this audio and reuse it after this story expires.";
+"story.audio.restricted.audience" = "Only audio from public stories and public accounts can be saved.";
+"story.audio.restricted.creator" = "The creator has not allowed saving this audio.";
+"story.audio.saved.confirmation" = "Audio saved to favorites";
+"story.audio.unsaved.confirmation" = "Audio removed from favorites";
+
+"settings.group.profileContent" = "Profil ve içerik";
+
+"settings.group.messagingPrivacy" = "Mesajlar ve etkileşimler";

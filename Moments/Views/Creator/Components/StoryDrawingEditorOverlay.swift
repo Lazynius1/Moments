@@ -208,17 +208,17 @@ struct StoryDrawingEditorOverlay: View {
 
                     // 2. Brush Toolbar (aligned with text toolbar)
                     HStack(spacing: 0) {
-                        brushButton(icon: "paintbrush.pointed.fill", brushType: .pen)
+                        brushButton(icon: "EditorDrawPen", brushType: .pen)
                         toolbarDivider
-                        brushButton(icon: "arrow.up.right", brushType: .arrow)
+                        brushButton(icon: "EditorDrawArrow", brushType: .arrow)
                         toolbarDivider
-                        brushButton(icon: "highlighter", brushType: .marker)
+                        brushButton(icon: "EditorDrawMarker", brushType: .marker)
                         toolbarDivider
-                        brushButton(icon: "pencil", brushType: .pencil)
+                        brushButton(icon: "EditorDrawPencil", brushType: .pencil)
                         toolbarDivider
-                        brushButton(icon: "sparkles", brushType: .glow)
+                        brushButton(icon: "EditorDrawNeon", brushType: .glow)
                         toolbarDivider
-                        brushButton(icon: "eraser", brushType: .eraser)
+                        brushButton(icon: "EditorDrawEraser", brushType: .eraser)
                     }
                     .frame(height: 44)
                     .momentsChromeGlass(
@@ -227,7 +227,7 @@ struct StoryDrawingEditorOverlay: View {
                         tint: chromeTintColor
                     )
                     .shadow(color: .black.opacity(colorScheme == .dark ? 0.20 : 0.10), radius: 12, x: 0, y: 6)
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 20)
                 }
                 .modifier(StoryEditorBottomChromeLayout(
                     pinsToCanvas: pinsChromeToCanvas,
@@ -298,8 +298,11 @@ struct StoryDrawingEditorOverlay: View {
     private func brushButton(icon: String, brushType: StoryDrawingBrush) -> some View {
         let isSelected = brush == brushType
         return Button(action: { brush = brushType }) {
-            Image(systemName: icon)
-                .font(.system(size: 17, weight: isSelected ? .semibold : .medium))
+            Image(icon)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: brushType == .glow ? 40 : 24, height: brushType == .glow ? 40 : 24)
                 .foregroundStyle(isSelected ? chromeIconColor : chromeSecondaryColor)
                 .shadow(color: isSelected && brushType == .glow ? Color(color).opacity(0.8) : Color.clear, radius: 6)
                 .frame(maxWidth: .infinity)

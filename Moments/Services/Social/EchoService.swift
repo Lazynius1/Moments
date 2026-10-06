@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import FirebaseFirestore
 import FirebaseAuth
 import CoreLocation
@@ -206,21 +207,45 @@ class EchoService {
         )
         
         do {
-            let docRef = try db.collection("echoes").addDocument(from: newEcho)
-            let echoId = docRef.documentID
-            sendEchoSuggestions(echoId: echoId, participants: participants, hostId: hostId)
-            print("🚀 Echo proposed successfully with ID: \(echoId)")
+            let echoId = Self.proposalId(for: momentRefs)
+            let docRef = db.collection("echoes").document(echoId)
+            let created = try await db.runTransaction { transaction, errorPointer -> Any? in
+                do {
+                    let snapshot = try transaction.getDocument(docRef)
+                    if snapshot.exists { return false }
+                    try transaction.setData(from: newEcho, forDocument: docRef)
+                    return true
+                } catch let error as NSError {
+                    errorPointer?.pointee = error
+                    return nil
+                }
+            } as? Bool ?? false
+            if created {
+                sendEchoSuggestions(echoId: echoId, participants: participants, hostId: hostId)
+            } else {
+                await mergeWithExistingEcho(echoId: echoId, hostMoment: hostMoment)
+            }
         } catch {
             print("Error creating Echo document: \(error)")
         }
     }
     
+    /// Shared with Android: independent of detector, media count and post order.
+    static func proposalId(for moments: [EchoMomentRef]) -> String {
+        let keys = Set(moments.map { "\($0.authorId)/\($0.momentId)" })
+        let canonical = keys.sorted().joined(separator: "\n")
+        let digest = SHA256.hash(data: Data(canonical.utf8))
+        return "echo_v1_" + digest.map { String(format: "%02x", $0) }.joined()
+    }
+
     // MARK: - Deduplication Logic
     private func findExistingEcho(near coordinate: Moment.LocationCoordinate) async -> Echo? {
         let searchWindow = Date().addingTimeInterval(-86400) // 24 hours
         
         do {
+            guard let userId = Auth.auth().currentUser?.uid else { return nil }
             let snapshot = try await db.collection("echoes")
+                .whereField("participantIds", arrayContains: userId)
                 .whereField("createdAt", isGreaterThan: Timestamp(date: searchWindow))
                 .getDocuments()
             

@@ -335,7 +335,7 @@ struct StoryMomentsTextToolbar: View {
     var body: some View {
         HStack(spacing: 0) {
             toolbarIcon(
-                label: forcesAllCaps || styleUsesCaps ? "AA" : "Aa",
+                assetName: forcesAllCaps || styleUsesCaps ? "EditorTextCaps" : "EditorTextType",
                 isActive: activeContext == .fonts
             ) {
                 selectContext(.fonts)
@@ -359,7 +359,7 @@ struct StoryMomentsTextToolbar: View {
 
             toolbarAccessoryToggle(
                 isActive: activeContext == .motion,
-                systemName: "text.line.first.and.arrowtriangle.forward"
+                assetName: "EditorTextMotion"
             ) {
                 selectContext(.motion)
             }
@@ -367,21 +367,15 @@ struct StoryMomentsTextToolbar: View {
             toolbarDivider
 
             toolbarIcon(
-                label: "A",
+                assetName: "EditorTextEffects",
                 isActive: activeContext == .visual
             ) {
                 selectContext(.visual)
             }
-            .overlay(alignment: .topTrailing) {
-                Image(systemName: "sparkle")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(activeContext == .visual ? .yellow : .white.opacity(0.7))
-                    .offset(x: 4, y: -2)
-            }
 
             toolbarDivider
 
-            toolbarIcon(systemName: alignmentIcon, isActive: true, action: onAlignment)
+            toolbarIcon(assetName: alignmentIcon, isActive: true, action: onAlignment)
 
             toolbarDivider
 
@@ -392,7 +386,7 @@ struct StoryMomentsTextToolbar: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(StoryTextEditorChrome.toolbarFill)
         )
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 20)
     }
 
     private func selectContext(_ context: StoryTextEditorContext) {
@@ -407,22 +401,18 @@ struct StoryMomentsTextToolbar: View {
     }
 
     private var colorWheelIcon: some View {
-        Circle()
-            .fill(
-                AngularGradient(
-                    colors: [.red, .yellow, .green, .blue, .purple, .red],
-                    center: .center
-                )
-            )
-            .frame(width: 22, height: 22)
-            .overlay(Circle().stroke(Color.white.opacity(0.9), lineWidth: 1.2))
+        Image("EditorTextColor")
+            .renderingMode(.original)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 24, height: 24)
     }
 
     private var alignmentIcon: String {
         switch textAlignment {
-        case .leading: return "text.alignleft"
-        case .trailing: return "text.alignright"
-        default: return "text.aligncenter"
+        case .leading: return "EditorTextAlignLeft"
+        case .trailing: return "EditorTextAlignRight"
+        default: return "EditorTextAlignCenter"
         }
     }
 
@@ -435,12 +425,19 @@ struct StoryMomentsTextToolbar: View {
     private func toolbarIcon(
         label: String? = nil,
         systemName: String? = nil,
+        assetName: String? = nil,
         isActive: Bool,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             Group {
-                if let label {
+                if let assetName {
+                    Image(assetName)
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
+                } else if let label {
                     Text(label)
                         .font(.system(size: 15, weight: .bold))
                 } else if let systemName {
@@ -457,12 +454,15 @@ struct StoryMomentsTextToolbar: View {
 
     private func toolbarAccessoryToggle(
         isActive: Bool,
-        systemName: String,
+        assetName: String,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 17, weight: .medium))
+            Image(assetName)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 24, height: 24)
                 .foregroundStyle(isActive ? .white : .white.opacity(0.55))
                 .frame(maxWidth: .infinity)
                 .frame(height: StoryTextEditorChrome.toolbarHeight)
@@ -488,18 +488,12 @@ struct StoryMomentsTextToolbar: View {
             action()
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(backgroundPreviewFill)
-                    .frame(width: 22, height: 18)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .stroke(textBackgroundFill == .none ? Color.white.opacity(0.55) : Color.clear, lineWidth: 1)
-                    )
-                Text("A")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(textForegroundColor)
-            }
+            Image("EditorTextBackground")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 24, height: 24)
+                .foregroundStyle(textBackgroundFill == .none ? .white : backgroundPreviewFill)
             .frame(maxWidth: .infinity)
             .frame(height: StoryTextEditorChrome.toolbarHeight)
         }

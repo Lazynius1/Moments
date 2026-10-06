@@ -2130,6 +2130,9 @@ class AuthService: ObservableObject {
         }
 
         func logout() {
+            if let userId = Auth.auth().currentUser?.uid {
+                RealLoginActivityService.shared.markCurrentSessionSignedOut(userId: userId)
+            }
 
             // ✅ Detener listener antes de cerrar sesión
             stopSuspensionListener()

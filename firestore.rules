@@ -99,10 +99,12 @@ service cloud.firestore {
                  );
         }
 
-    function storyReactionsEnabled(ownerId) {
+    function storyReactionsEnabled(ownerId, storyId) {
       let ownerData = get(/databases/$(database)/documents/users/$(ownerId)).data;
-      let visibility = ownerData.get('contentVisibilitySettings', {'allowStoryReactions': true});
-      return visibility.get('allowStoryReactions', true) == true;
+      let storyData = get(/databases/$(database)/documents/users/$(ownerId)/stories/$(storyId)).data;
+      let defaults = ownerData.get('contentVisibilitySettings', {'allowStoryReactions': true});
+      let settings = storyData.get('interactionSettings', defaults);
+      return settings.get('allowStoryReactions', true) == true;
     }
 
     // ✅ NUEVA: Función helper para verificar si una cuenta puede ser seguida
@@ -1055,7 +1057,7 @@ service cloud.firestore {
                                 && request.resource.data.reaction.size() > 0
                                 && request.resource.data.reaction.size() <= 32
                                 && request.resource.data.timestamp is timestamp
-                                && storyReactionsEnabled(userId)
+                                && storyReactionsEnabled(userId, storyId)
                                 && canViewContentWithAudience(
                                      request.auth.uid,
                                      userId,
@@ -2499,6 +2501,12 @@ service cloud.firestore {
         resource.data.hostId == request.auth.uid || 
         request.auth.uid in resource.data.participantIds
       );
+
+      // A transaction can test absence of a deterministic proposal without
+      // granting access to existing Echoes owned by other participants.
+      allow get: if request.auth != null
+        && echoId.matches('echo_v1_[a-f0-9]{64}')
+        && !exists(/databases/$(database)/documents/echoes/$(echoId));
 
       // Crear: Cualquier usuario activo
       allow create: if request.auth != null

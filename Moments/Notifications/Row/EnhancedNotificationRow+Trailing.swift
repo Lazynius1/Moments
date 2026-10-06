@@ -93,74 +93,14 @@ extension EnhancedNotificationRow {
                 )
 
             case .storyChainContinued:
-                if storyPreviewModel != nil || (storyImagePath != nil && !storyImageLoadFailed) {
-                    ZStack(alignment: .bottomTrailing) {
-                        Group {
-                            if let storyPreviewModel {
-                                StoryStaticPreviewSurface(story: storyPreviewModel)
-                            } else if let path = storyImagePath, let url = URL(string: path) {
-                                KFImage(url)
-                                    .placeholder {
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(.ultraThinMaterial)
-                                            .overlay(
-                                                ProgressView()
-                                                    .scaleEffect(0.8)
-                                                    .tint(Color(hex: "007AFF"))
-                                            )
-                                    }
-                                    .resizable()
-                                    .scaledToFill()
-                            }
-                        }
-                            .frame(width: 44, height: 44)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [Color.blue.opacity(0.85), Color.purple.opacity(0.85)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 2
-                                    )
-                            )
-
-                        Image(systemName: "link.circle.fill")
-                            .font(.system(size: 14))
-                            .foregroundStyle(.white)
-                            .padding(2)
-                            .background(Color.black.opacity(0.45))
-                            .clipShape(Circle())
-                            .offset(x: 4, y: 4)
-                    }
-                    .frame(width: 44, height: 44)
-                } else {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 44, height: 44)
-                        .overlay(
-                            Image(systemName: "link.circle.fill")
-                                .foregroundStyle(
-                                    colorScheme == .dark ?
-                                    .white.opacity(0.72) :
-                                    .black.opacity(0.62)
-                                )
-                                .font(.system(size: 17, weight: .semibold))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [Color.blue.opacity(0.35), Color.purple.opacity(0.35)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1.5
-                                )
-                        )
-                }
+                NotificationStoryThumbnailView(
+                    imagePath: storyImagePath,
+                    story: storyPreviewModel,
+                    reaction: nil,
+                    colorScheme: colorScheme,
+                    loadFailed: storyImageLoadFailed,
+                    isChain: true
+                )
 
             case .followRequest:
                 HStack(spacing: 8) {

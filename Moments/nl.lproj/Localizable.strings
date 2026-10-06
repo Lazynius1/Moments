@@ -1685,7 +1685,7 @@
 "settings.sections.blockedAccounts" = "Geblokkeerde accounts";
 "settings.sections.blockedAccounts.subtitle" = "%d accounts";
 "settings.sections.mute" = "Dempen";
-"settings.sections.mute.subtitle" = "Accounts, woorden en zinnen";
+"settings.sections.mute.subtitle" = "Accounts dempen en inhoud filteren";
 "settings.sections.password" = "Wachtwoord";
 "settings.sections.password.subtitle" = "Wachtwoord wijzigen";
 "settings.sections.2fa" = "Tweestapsverificatie";
@@ -4346,7 +4346,7 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "messaging.error.invalidRecipient" = "Kies een geldige ontvanger.";
 "messaging.error.emptyMessage" = "Schrijf eerst een bericht.";
 "messageRequests.hiddenWords.title" = "Verborgen woorden";
-"messageRequests.hiddenWords.description" = "Filter verzoeken nadat ze op dit apparaat zijn ontsleuteld.";
+"messageRequests.hiddenWords.description" = "Filter berichtverzoeken op dit apparaat nadat ze zijn ontsleuteld.";
 "messageRequests.hiddenWords.automatic" = "Automatisch filter";
 "messageRequests.hiddenWords.automatic.description" = "Verbergt verzoeken op basis van veiligheidssignalen, zonder inhoud op de server te analyseren.";
 "messageRequests.hiddenWords.custom" = "Woorden en zinnen";
@@ -4781,3 +4781,39 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "chat.wallpaper.preset.watercolor" = "Aquarel";
 "chat.wallpaper.preset.sketch" = "Schets";
 "chat.wallpaper.preset.canvas" = "Doek";
+
+// Per-story sharing options
+"storyShare.title" = "Share story";
+"storyShare.close" = "Close";
+"storyShare.back" = "Back";
+"storyShare.yourStory" = "Your story";
+"storyShare.review" = "Choose who can see and interact.";
+"storyShare.expiration" = "Available for";
+"storyShare.chainSettings" = "Chain settings";
+"storyShare.interactions" = "Interactions";
+"storyShare.onlyThisStory" = "These options apply only to this story. Your defaults in Settings stay the same.";
+"storyShare.chainAudience" = "Chains are visible to everyone and last 48 hours. Interactions apply only to your part.";
+"storyShare.customize" = "Customize";
+"storyShare.disabled" = "Disabled";
+
+"storyShare.audience" = "Doelgroep";
+
+// Original story audio
+"story.audio.title" = "Audio";
+"story.audio.record" = "Record";
+"story.audio.saved" = "Saved";
+"story.audio.original" = "Original audio";
+"story.audio.empty" = "The audios you save from stories will appear here.";
+"story.audio.use" = "Use audio";
+"story.audio.retry" = "Try again";
+"story.audio.unavailable" = "This audio is unavailable.";
+"story.audio.allowReuse" = "Allow saving and reusing audio";
+"story.audio.allowReuse.detail" = "People can save this audio and reuse it after this story expires.";
+"story.audio.restricted.audience" = "Only audio from public stories and public accounts can be saved.";
+"story.audio.restricted.creator" = "The creator has not allowed saving this audio.";
+"story.audio.saved.confirmation" = "Audio saved to favorites";
+"story.audio.unsaved.confirmation" = "Audio removed from favorites";
+
+"settings.group.profileContent" = "Profiel en inhoud";
+
+"settings.group.messagingPrivacy" = "Berichten en interacties";

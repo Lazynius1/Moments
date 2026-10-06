@@ -15,7 +15,6 @@ struct HiddenLayersOverlayView: View {
     @State private var isLoading = false
     @State private var showIntroShimmer = false
     @State private var revealedLayerIds: Set<String> = []
-    @State private var autoplayLayerIds: Set<String> = []
     @State private var revealBurstLayerIds: Set<String> = []
     @State private var viewerNow = Date()
     @State private var temporaryTopMessage: String?
@@ -143,7 +142,7 @@ struct HiddenLayersOverlayView: View {
                     audioURL: mediaURL,
                     duration: layer.duration ?? 15.0,
                     frameSize: frameSize,
-                    shouldAutoplay: autoplayLayerIds.contains(layer.id)
+                    shouldAutoplay: false
                 )
             }
         }
@@ -154,9 +153,6 @@ struct HiddenLayersOverlayView: View {
         HapticManager.shared.lightImpact()
         revealBurstLayerIds.insert(layer.id)
         revealedLayerIds.insert(layer.id)
-        if layer.type == .audio {
-            autoplayLayerIds.insert(layer.id)
-        }
         markSeen(layer)
         if !wasSeen {
             recordDiscovery(for: layer)
@@ -233,7 +229,6 @@ struct HiddenLayersOverlayView: View {
                             .filter { seen($0) && $0.isUnlocked(at: viewerNow) }
                             .map(\.id)
                     )
-                    autoplayLayerIds.removeAll()
                     hasPlayedIntro = false
                     isLoading = false
                     scheduleIntroIfNeeded()

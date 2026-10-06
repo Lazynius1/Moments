@@ -1755,7 +1755,7 @@
 "settings.sections.blockedAccounts" = "Blockierte Konten";
 "settings.sections.blockedAccounts.subtitle" = "%d accounts";
 "settings.sections.mute" = "Stummschalten";
-"settings.sections.mute.subtitle" = "Konten, Wörter und Phrasen";
+"settings.sections.mute.subtitle" = "Konten stummschalten und Inhalte filtern";
 "settings.sections.password" = "Passwort";
 "settings.sections.password.subtitle" = "Passwort ändern";
 "settings.sections.2fa" = "Zwei-Faktor-Authentifizierung";
@@ -4575,7 +4575,7 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "messaging.error.invalidRecipient" = "Wähle eine gültige Person aus.";
 "messaging.error.emptyMessage" = "Schreibe zuerst eine Nachricht.";
 "messageRequests.hiddenWords.title" = "Ausgeblendete Wörter";
-"messageRequests.hiddenWords.description" = "Filtert Anfragen nach der Entschlüsselung auf diesem Gerät.";
+"messageRequests.hiddenWords.description" = "Nachrichtenanfragen nach der Entschlüsselung auf diesem Gerät filtern.";
 "messageRequests.hiddenWords.automatic" = "Automatischer Filter";
 "messageRequests.hiddenWords.automatic.description" = "Nutzt Sicherheitssignale ohne serverseitige Inhaltsanalyse.";
 "messageRequests.hiddenWords.custom" = "Wörter und Ausdrücke";
@@ -5010,3 +5010,39 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "chat.wallpaper.preset.watercolor" = "Aquarell";
 "chat.wallpaper.preset.sketch" = "Skizze";
 "chat.wallpaper.preset.canvas" = "Leinwand";
+
+// Per-story sharing options
+"storyShare.title" = "Share story";
+"storyShare.close" = "Close";
+"storyShare.back" = "Back";
+"storyShare.yourStory" = "Your story";
+"storyShare.review" = "Choose who can see and interact.";
+"storyShare.expiration" = "Available for";
+"storyShare.chainSettings" = "Chain settings";
+"storyShare.interactions" = "Interactions";
+"storyShare.onlyThisStory" = "These options apply only to this story. Your defaults in Settings stay the same.";
+"storyShare.chainAudience" = "Chains are visible to everyone and last 48 hours. Interactions apply only to your part.";
+"storyShare.customize" = "Customize";
+"storyShare.disabled" = "Disabled";
+
+"storyShare.audience" = "Zielgruppe";
+
+// Original story audio
+"story.audio.title" = "Audio";
+"story.audio.record" = "Record";
+"story.audio.saved" = "Saved";
+"story.audio.original" = "Original audio";
+"story.audio.empty" = "The audios you save from stories will appear here.";
+"story.audio.use" = "Use audio";
+"story.audio.retry" = "Try again";
+"story.audio.unavailable" = "This audio is unavailable.";
+"story.audio.allowReuse" = "Allow saving and reusing audio";
+"story.audio.allowReuse.detail" = "People can save this audio and reuse it after this story expires.";
+"story.audio.restricted.audience" = "Only audio from public stories and public accounts can be saved.";
+"story.audio.restricted.creator" = "The creator has not allowed saving this audio.";
+"story.audio.saved.confirmation" = "Audio saved to favorites";
+"story.audio.unsaved.confirmation" = "Audio removed from favorites";
+
+"settings.group.profileContent" = "Profil und Inhalte";
+
+"settings.group.messagingPrivacy" = "Nachrichten und Interaktionen";

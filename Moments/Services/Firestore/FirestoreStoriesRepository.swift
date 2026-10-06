@@ -19,6 +19,7 @@ extension FirestoreService {
         chainTitle: String? = nil,
         expirationHours: Int? = 24,
         duration: Double? = nil,
+        interactionSettings: [String: Bool]? = nil,
         completion: @escaping (Error?) -> Void
     ) {
         createStoryDocument(
@@ -45,7 +46,8 @@ extension FirestoreService {
             continuationCustomViewers: nil,
             continuationCustomListId: nil,
             continuationCustomListName: nil,
-            duration: duration
+            duration: duration,
+            interactionSettings: interactionSettings
         ) { _, error in
             completion(error)
         }
@@ -76,6 +78,7 @@ extension FirestoreService {
         continuationCustomListName: String? = nil,
         expirationHours: Int? = 24,
         duration: Double? = nil,
+        interactionSettings: [String: Bool]? = nil,
         storyId: String? = nil,
         completion: @escaping (String?, Error?) -> Void
     ) {
@@ -105,6 +108,7 @@ extension FirestoreService {
             continuationCustomListId: continuationCustomListId,
             continuationCustomListName: continuationCustomListName,
             duration: duration,
+            interactionSettings: interactionSettings,
             storyId: storyId,
             completion: completion
         )
@@ -134,6 +138,7 @@ extension FirestoreService {
         continuationCustomListName: String? = nil,
         expirationHours: Int? = 24,
         duration: Double? = nil,
+        interactionSettings: [String: Bool]? = nil,
         storyId: String? = nil,
         completion: @escaping (String?, Error?) -> Void
     ) {
@@ -163,6 +168,7 @@ extension FirestoreService {
             continuationCustomListId: continuationCustomListId,
             continuationCustomListName: continuationCustomListName,
             duration: duration,
+            interactionSettings: interactionSettings,
             storyId: storyId,
             completion: completion
         )
@@ -194,6 +200,7 @@ extension FirestoreService {
         continuationCustomListId: String?,
         continuationCustomListName: String?,
         duration: Double?,
+        interactionSettings: [String: Bool]? = nil,
         storyId: String? = nil,
         completion: @escaping (String?, Error?) -> Void
     ) {
@@ -213,7 +220,9 @@ extension FirestoreService {
                     expirationHours: resolvedExpirationHours
                 )
                 let musicDuration = stickers?.compactMap(\.music).first?.duration
-                let photoDuration = musicDuration.flatMap { value -> Double? in
+                let audioDuration = stickers?.filter { $0.type == "audio" }
+                    .compactMap { $0.audioDuration }.filter { $0.isFinite }.max()
+                let photoDuration = [musicDuration, audioDuration].compactMap { $0 }.max().flatMap { value -> Double? in
                     guard value.isFinite else { return nil }
                     return min(max(value, 15), 60)
                 } ?? 15.0
@@ -233,6 +242,7 @@ extension FirestoreService {
                     expirationHours: resolvedExpirationHours,
                     expirationDate: expirationDate,
                     profileImagePath: user.profileImagePath,
+                    interactionSettings: interactionSettings,
                     audience: audience,
                     customListId: customListId,
                     text: primaryTextOverlay?.text ?? text,

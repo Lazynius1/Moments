@@ -499,15 +499,11 @@ class LoginActivityViewModel: ObservableObject {
         var remaining = dedupedSessions
 
         if resolvedCurrent == nil,
-           let currentDeviceId = UIDevice.current.identifierForVendor?.uuidString,
+           case let currentDeviceId = loginService.currentDeviceId(),
            let matchedSession = remaining.first(where: {
                ($0.deviceIdentifier ?? "").lowercased() == currentDeviceId.lowercased()
            }) {
             resolvedCurrent = matchedSession
-        }
-
-        if resolvedCurrent == nil, let first = remaining.first {
-            resolvedCurrent = first
         }
 
         if let resolvedCurrent {
@@ -581,7 +577,7 @@ class LoginActivityViewModel: ObservableObject {
         let deviceName = loginService.currentDeviceDisplayName()
         let location = loginService.getCurrentLocationString()
         let timestamp = Auth.auth().currentUser?.metadata.lastSignInDate ?? Date()
-        let deviceIdentifier = UIDevice.current.identifierForVendor?.uuidString
+        let deviceIdentifier = loginService.currentDeviceId()
 
         return LoginSession(
             id: "local_current_session",

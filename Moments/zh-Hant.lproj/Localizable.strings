@@ -1685,7 +1685,7 @@
 "settings.sections.blockedAccounts" = "已封鎖的帳號";
 "settings.sections.blockedAccounts.subtitle" = "%d 個帳號";
 "settings.sections.mute" = "靜音";
-"settings.sections.mute.subtitle" = "帳號、字詞和詞組";
+"settings.sections.mute.subtitle" = "將帳號靜音並篩選內容";
 "settings.sections.password" = "密碼";
 "settings.sections.password.subtitle" = "變更密碼";
 "settings.sections.2fa" = "雙重驗證";
@@ -4346,7 +4346,7 @@
 "messaging.error.invalidRecipient" = "請選擇有效的收件人。";
 "messaging.error.emptyMessage" = "請先輸入訊息。";
 "messageRequests.hiddenWords.title" = "隱藏字詞";
-"messageRequests.hiddenWords.description" = "在此裝置解密後再篩選邀請。";
+"messageRequests.hiddenWords.description" = "在此裝置上解密後篩選訊息請求。";
 "messageRequests.hiddenWords.automatic" = "自動篩選";
 "messageRequests.hiddenWords.automatic.description" = "利用安全性訊號隱藏邀請，不會在伺服器端分析內容。";
 "messageRequests.hiddenWords.custom" = "字詞和片語";
@@ -4781,3 +4781,39 @@
 "chat.wallpaper.preset.watercolor" = "水彩";
 "chat.wallpaper.preset.sketch" = "線稿";
 "chat.wallpaper.preset.canvas" = "畫布";
+
+// Per-story sharing options
+"storyShare.title" = "Share story";
+"storyShare.close" = "Close";
+"storyShare.back" = "Back";
+"storyShare.yourStory" = "Your story";
+"storyShare.review" = "Choose who can see and interact.";
+"storyShare.expiration" = "Available for";
+"storyShare.chainSettings" = "Chain settings";
+"storyShare.interactions" = "Interactions";
+"storyShare.onlyThisStory" = "These options apply only to this story. Your defaults in Settings stay the same.";
+"storyShare.chainAudience" = "Chains are visible to everyone and last 48 hours. Interactions apply only to your part.";
+"storyShare.customize" = "Customize";
+"storyShare.disabled" = "Disabled";
+
+"storyShare.audience" = "觀眾";
+
+// Original story audio
+"story.audio.title" = "Audio";
+"story.audio.record" = "Record";
+"story.audio.saved" = "Saved";
+"story.audio.original" = "Original audio";
+"story.audio.empty" = "The audios you save from stories will appear here.";
+"story.audio.use" = "Use audio";
+"story.audio.retry" = "Try again";
+"story.audio.unavailable" = "This audio is unavailable.";
+"story.audio.allowReuse" = "Allow saving and reusing audio";
+"story.audio.allowReuse.detail" = "People can save this audio and reuse it after this story expires.";
+"story.audio.restricted.audience" = "Only audio from public stories and public accounts can be saved.";
+"story.audio.restricted.creator" = "The creator has not allowed saving this audio.";
+"story.audio.saved.confirmation" = "Audio saved to favorites";
+"story.audio.unsaved.confirmation" = "Audio removed from favorites";
+
+"settings.group.profileContent" = "個人檔案與內容";
+
+"settings.group.messagingPrivacy" = "訊息與互動";

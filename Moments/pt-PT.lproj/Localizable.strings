@@ -2529,7 +2529,7 @@
 "settings.sections.blockedAccounts" = "Contas bloqueadas";
 "settings.sections.blockedAccounts.subtitle" = "%d contas";
 "settings.sections.mute" = "Silenciar";
-"settings.sections.mute.subtitle" = "Contas, palavras e frases";
+"settings.sections.mute.subtitle" = "Silencia contas e filtra conteúdo";
 "settings.sections.password" = "Palavra-passe";
 "settings.sections.password.subtitle" = "Alterar palavra-passe";
 "settings.sections.2fa" = "Autenticação de dois fatores";
@@ -5349,7 +5349,7 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "messaging.error.invalidRecipient" = "Escolhe um destinatário válido.";
 "messaging.error.emptyMessage" = "Escreve primeiro uma mensagem.";
 "messageRequests.hiddenWords.title" = "Palavras ocultas";
-"messageRequests.hiddenWords.description" = "Filtra pedidos depois de serem decifrados neste dispositivo.";
+"messageRequests.hiddenWords.description" = "Filtra pedidos de mensagens neste dispositivo depois de os desencriptar.";
 "messageRequests.hiddenWords.automatic" = "Filtro automático";
 "messageRequests.hiddenWords.automatic.description" = "Usa sinais de segurança sem analisar o conteúdo no servidor.";
 "messageRequests.hiddenWords.custom" = "Palavras e frases";
@@ -5784,3 +5784,39 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "chat.wallpaper.preset.watercolor" = "Aguarela";
 "chat.wallpaper.preset.sketch" = "Traço";
 "chat.wallpaper.preset.canvas" = "Tela";
+
+// Per-story sharing options
+"storyShare.title" = "Share story";
+"storyShare.close" = "Close";
+"storyShare.back" = "Back";
+"storyShare.yourStory" = "Your story";
+"storyShare.review" = "Choose who can see and interact.";
+"storyShare.expiration" = "Available for";
+"storyShare.chainSettings" = "Chain settings";
+"storyShare.interactions" = "Interactions";
+"storyShare.onlyThisStory" = "These options apply only to this story. Your defaults in Settings stay the same.";
+"storyShare.chainAudience" = "Chains are visible to everyone and last 48 hours. Interactions apply only to your part.";
+"storyShare.customize" = "Customize";
+"storyShare.disabled" = "Disabled";
+
+"storyShare.audience" = "Público";
+
+// Original story audio
+"story.audio.title" = "Audio";
+"story.audio.record" = "Record";
+"story.audio.saved" = "Saved";
+"story.audio.original" = "Original audio";
+"story.audio.empty" = "The audios you save from stories will appear here.";
+"story.audio.use" = "Use audio";
+"story.audio.retry" = "Try again";
+"story.audio.unavailable" = "This audio is unavailable.";
+"story.audio.allowReuse" = "Allow saving and reusing audio";
+"story.audio.allowReuse.detail" = "People can save this audio and reuse it after this story expires.";
+"story.audio.restricted.audience" = "Only audio from public stories and public accounts can be saved.";
+"story.audio.restricted.creator" = "The creator has not allowed saving this audio.";
+"story.audio.saved.confirmation" = "Audio saved to favorites";
+"story.audio.unsaved.confirmation" = "Audio removed from favorites";
+
+"settings.group.profileContent" = "Perfil e conteúdo";
+
+"settings.group.messagingPrivacy" = "Mensagens e interações";

@@ -64,6 +64,7 @@ struct NotificationStoryThumbnailView: View {
     let reaction: String?
     let colorScheme: ColorScheme
     let loadFailed: Bool
+    var isChain = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -86,8 +87,24 @@ struct NotificationStoryThumbnailView: View {
             .clipShape(RoundedRectangle(cornerRadius: NotificationRowMetrics.storyThumbnailCornerRadius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: NotificationRowMetrics.storyThumbnailCornerRadius, style: .continuous)
-                    .stroke(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.1), lineWidth: 0.5)
+                    .stroke(thumbnailBorder, lineWidth: isChain ? 2 : 0.5)
             )
+            .reversedMask(alignment: .bottomTrailing) {
+                if isChain {
+                    Circle()
+                        .frame(width: 22, height: 22)
+                        .offset(x: 4, y: 4)
+                }
+            }
+
+            if isChain {
+                Image(systemName: "link.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.primary)
+                    .frame(width: 18, height: 18)
+                    .offset(x: 4, y: 4)
+                    .accessibilityHidden(true)
+            }
 
             if let reaction, !reaction.isEmpty {
                 Text(reaction)
@@ -97,6 +114,18 @@ struct NotificationStoryThumbnailView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                     .offset(x: 3, y: 3)
             }
+        }
+    }
+
+    private var thumbnailBorder: AnyShapeStyle {
+        if isChain {
+            AnyShapeStyle(LinearGradient(
+                colors: [Color.blue.opacity(0.85), Color.purple.opacity(0.85)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ))
+        } else {
+            AnyShapeStyle(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.1))
         }
     }
 

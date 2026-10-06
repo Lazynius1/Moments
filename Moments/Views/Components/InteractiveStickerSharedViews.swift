@@ -1726,11 +1726,31 @@ struct StickerDitherPattern: View {
 }
 
 // MARK: - ✅ NEW: AUDIO STICKER VIEW
+struct StoryAudioPlaybackClock: Equatable {
+    let elapsed: Double
+    let active: Bool
+}
+
+private struct StoryAudioPlaybackClockKey: EnvironmentKey {
+    static let defaultValue: StoryAudioPlaybackClock? = nil
+}
+
+extension EnvironmentValues {
+    var storyAudioPlaybackClock: StoryAudioPlaybackClock? {
+        get { self[StoryAudioPlaybackClockKey.self] }
+        set { self[StoryAudioPlaybackClockKey.self] = newValue }
+    }
+}
+
 struct InteractiveAudioStickerView: View {
+    @Environment(\.storyAudioPlaybackClock) private var storyClock
     let audioURL: String
     let duration: Double
+    var onPauseStory: () -> Void = {}
+    var onResumeStory: () -> Void = {}
     @Environment(\.storyExportAudioBackgroundOnly) private var exportBackgroundOnly
 
+    @State private var interrupted = false
     @State private var isPlaying = false
     @State private var progress: Double = 0
     @State private var audioPlayer: AVAudioPlayer?
@@ -1785,9 +1805,11 @@ struct InteractiveAudioStickerView: View {
         )
         .onAppear {
             guard !exportBackgroundOnly else { return }
-            startPlayback()
+            if storyClock == nil { startPlayback() } else { synchronizeStoryPlayback() }
         }
+        .onChange(of: storyClock) { _, _ in synchronizeStoryPlayback() }
         .onReceive(NotificationCenter.default.publisher(for: MomentsAudioSession.interruptionNotification)) { _ in
+            interrupted = true
             pausePlayback()
         }
         .onDisappear {
@@ -1801,7 +1823,25 @@ struct InteractiveAudioStickerView: View {
         }
     }
 
+    private func synchronizeStoryPlayback() {
+        guard let clock = storyClock, !interrupted else { return }
+        guard clock.active, clock.elapsed < duration else { pausePlayback(); return }
+        if let player = audioPlayer {
+            if abs(player.currentTime - clock.elapsed) > 0.35 {
+                player.currentTime = min(clock.elapsed, player.duration)
+            }
+            if !isPlaying { resumePlayback() }
+        } else if audioLoadTask == nil {
+            startPlayback(userInitiated: true)
+        }
+    }
+
     private func togglePlayback() {
+        if let clock = storyClock {
+            interrupted = false
+            if clock.active { onPauseStory() } else { onResumeStory() }
+            return
+        }
         if isPlaying {
             pausePlayback()
         } else {
@@ -1828,6 +1868,10 @@ struct InteractiveAudioStickerView: View {
                 await MainActor.run {
                     guard !Task.isCancelled else { return }
                     self.audioPlayer = player
+                    if let clock = self.storyClock {
+                        player.currentTime = min(clock.elapsed, player.duration)
+                        guard clock.active, clock.elapsed < self.duration else { self.audioSession.deactivate(); return }
+                    }
                     guard player.play() else { self.audioSession.deactivate(); return }
                     self.isPlaying = true
                     self.startProgressTimer()

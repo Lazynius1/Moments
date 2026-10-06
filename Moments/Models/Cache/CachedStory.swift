@@ -14,6 +14,8 @@ final class CachedStory {
     var expirationDate: Date
     var expirationHours: Int?
     var mediaItemData: Data // JSON encoded MediaItem
+    var interactionSettingsData: Data?
+    var storyDuration: Double?
     var audience: String?
     var customListId: String?
     var text: String?
@@ -40,6 +42,8 @@ final class CachedStory {
          expirationDate: Date,
          expirationHours: Int? = nil,
          mediaItemData: Data,
+         interactionSettingsData: Data? = nil,
+         storyDuration: Double? = nil,
          audience: String? = nil,
          customListId: String? = nil,
          text: String? = nil,
@@ -63,6 +67,8 @@ final class CachedStory {
         self.expirationDate = expirationDate
         self.expirationHours = expirationHours
         self.mediaItemData = mediaItemData
+        self.interactionSettingsData = interactionSettingsData
+        self.storyDuration = storyDuration
         self.audience = audience
         self.customListId = customListId
         self.text = text
@@ -100,6 +106,8 @@ final class CachedStory {
             expirationDate: story.expirationDate,
             expirationHours: story.expirationHours,
             mediaItemData: mediaItemData,
+            interactionSettingsData: story.interactionSettings.flatMap { try? JSONEncoder().encode($0) },
+            storyDuration: story.duration,
             audience: story.audience,
             customListId: story.customListId,
             text: story.text,
@@ -131,11 +139,12 @@ final class CachedStory {
             authorId: authorId,
             username: username,
             mediaItem: mediaItem,
-            duration: 15.0, // Default duration if not saved
+            duration: storyDuration ?? 15.0,
             timestamp: timestamp,
             expirationHours: expirationHours ?? (chainId != nil ? 48 : 24),
             expirationDate: expirationDate,
             profileImagePath: profileImagePath,
+            interactionSettings: interactionSettingsData.flatMap { try? JSONDecoder().decode([String: Bool].self, from: $0) },
             audience: audience,
             customListId: customListId,
             text: text,

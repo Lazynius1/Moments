@@ -87,6 +87,14 @@ struct StoryEditingView: View {
     private var showsEditorSystemToolbar: Bool {
         usesSystemEditorToolbar || usesChatDuoSystemToolbar
     }
+    @State private var allowOriginalAudioReuse = false
+    @State private var isPrivateAccount = false
+    @State private var showingShareSheet = false
+    @State private var showingShareAudienceSelector = false
+    @State private var showingShareChainConfiguration = false
+    @State private var allowStoryMessages = true
+    @State private var allowStoryReactions = true
+    @State private var allowStoryEphemeralPhotos = true
     @State private var showingAudienceSelector = false
     @State private var selectedTextStyle: TextStyle = .modern
     @State private var selectedTextStroke: TextStroke = .none
@@ -504,12 +512,59 @@ struct StoryEditingView: View {
                 selectedListName: $selectedListName,
                 customSelectedUsers: $customSelectedUsers
             )
-            .onDisappear {
-                updateAudienceSetting()
-            }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationBackground(.clear)
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            StoryShareSheet(
+                preview: selectedMediaItems.first?.image,
+                audienceTitle: (isCreatingChain || isContinuingChain) ? ContentAudience.everyone.title : getAudienceText(),
+                audience: (isCreatingChain || isContinuingChain) ? .everyone : storyContentAudience,
+                isChain: isCreatingChain || isContinuingChain,
+                chainTitle: isContinuingChain ? originalChainTitle : chainTitle,
+                isPublishing: isPublishing,
+                hasAudio: selectedStickers.contains { $0.type == .audio },
+                hasOriginalAudio: selectedStickers.contains { $0.type == .audio && $0.interactionData?.originalAudioId == nil },
+                canShareOriginalAudio: !isPrivateAccount && ((isCreatingChain || isContinuingChain) || storyContentAudience == .everyone),
+                allowOriginalAudioReuse: $allowOriginalAudioReuse,
+                expirationHours: $storyExpirationHours,
+                allowMessages: $allowStoryMessages,
+                allowReactions: $allowStoryReactions,
+                allowEphemeralPhotos: $allowStoryEphemeralPhotos,
+                onAudience: { showingShareAudienceSelector = true },
+                onChainSettings: { showingShareChainConfiguration = true },
+                onShare: publishStory
+            )
+            .alert(alertMessage, isPresented: $showAlert) {
+                Button(NSLocalizedString("storyEditor.ok", comment: "OK")) { }
+            }
+            .sheet(isPresented: $showingShareAudienceSelector) {
+                AudienceSelectionView(
+                    selectedAudience: convertToContentAudience(),
+                    selectedListId: $selectedListId,
+                    selectedListName: $selectedListName,
+                    customSelectedUsers: $customSelectedUsers
+                )
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showingShareChainConfiguration) {
+                ChainConfigurationView(
+                    allowOthersToContinue: $allowOthersToContinue,
+                    continuationAudience: $continuationAudience,
+                    selectedListId: $selectedListId,
+                    selectedListName: $selectedListName,
+                    customSelectedUsers: $customSelectedUsers,
+                    chainTitleSummary: isContinuingChain ? originalChainTitle : chainTitle,
+                    isContinuing: isContinuingChain,
+                    onConfirm: { showingShareChainConfiguration = false }
+                )
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         // 🔗 NUEVO: Sheet de configuración de cadenas
         .sheet(isPresented: $showingChainConfiguration) {
@@ -523,7 +578,8 @@ struct StoryEditingView: View {
                 isContinuing: isContinuingChain,
                 onConfirm: {
                     // 🔗 PUBLICAR SOLO SI SE CONFIRMA EN EL SHEET
-                    publishStory()
+                    showingChainConfiguration = false
+                    presentStoryShareSheet()
                 }
             )
             .presentationDetents([.medium, .large])
@@ -665,33 +721,6 @@ struct StoryEditingView: View {
                 }
             }
         )
-    }
-
-    private func updateAudienceSetting() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
-
-        // Convertir AudienceSetting → rawValue de ContentAudience para guardar
-        let audienceRaw: String
-        switch storyAudience {
-        case .everyone:     audienceRaw = ContentAudience.everyone.rawValue
-        case .mutuals:      audienceRaw = ContentAudience.mutuals.rawValue
-        case .bestFriends:  audienceRaw = ContentAudience.bestFriends.rawValue
-        case .custom:       audienceRaw = (selectedListId != nil) ? ContentAudience.customList.rawValue : ContentAudience.custom.rawValue
-        case .onlyMe:       audienceRaw = ContentAudience.onlyMe.rawValue
-        }
-
-        var update: [String: Any] = [
-            "contentVisibilitySettings.storyAudience": audienceRaw
-        ]
-        if let listId = selectedListId {
-            update["contentVisibilitySettings.storyCustomListId"] = listId
-            update["contentVisibilitySettings.storyCustomListName"] = selectedListName ?? ""
-        }
-        if !customSelectedUsers.isEmpty {
-            update["contentVisibilitySettings.storyCustomUsers"] = customSelectedUsers
-        }
-
-        FirestoreService().db.collection("users").document(userId).updateData(update)
     }
 
     // 🔗 NUEVA FUNCIÓN: Convertir audiencia de continuación a ContentAudience
@@ -1475,7 +1504,7 @@ struct StoryEditingView: View {
             }
             .disabled(isLoadingUserSettings)
 
-            Button(action: publishStory) {
+            Button(action: presentStoryShareSheet) {
                 Label("storyEditor.share", systemImage: "arrow.right")
             }
             .disabled(isPublishing || isLoadingUserSettings)
@@ -1564,7 +1593,7 @@ struct StoryEditingView: View {
             }
             .disabled(isLoadingUserSettings)
 
-            Button(action: publishStory) {
+            Button(action: presentStoryShareSheet) {
                 Image(systemName: "arrow.right")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(colorScheme == .dark ? Color.black.opacity(0.9) : .white)
@@ -1900,7 +1929,7 @@ struct StoryEditingView: View {
         if isContinuingChain {
             // 🔗 BOTÓN DIRECTO PARA COLABORADORES (Sin configuración)
             Button(action: {
-                publishStory()
+                presentStoryShareSheet()
             }) {
                 Image(systemName: "arrow.right")
                     .foregroundStyle(colorScheme == .dark ? Color.black.opacity(0.9) : .white)
@@ -1916,9 +1945,9 @@ struct StoryEditingView: View {
         } else if isCreatingChain {
             // 🔗 BOTÓN DE CONFIGURACIÓN PARA EL AUTOR ORIGINAL
             Button(action: {
-                showingChainConfiguration = true
+                presentStoryShareSheet()
             }) {
-                Image(systemName: "gearshape")
+                Image(systemName: "arrow.right")
                     .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(colorScheme == .dark ? .white : .black)
                 .frame(width: 54, height: 48)
@@ -1929,7 +1958,7 @@ struct StoryEditingView: View {
         } else {
             // 🎬 BOTÓN DE PUBLICAR HISTORIA NORMAL
             Button(action: {
-                publishStory()
+                presentStoryShareSheet()
             }) {
                 HStack(spacing: 8) {
                     Text("storyEditor.share")
@@ -2004,6 +2033,10 @@ struct StoryEditingView: View {
                    let data = document.data(),
                    let visibilitySettings = data["contentVisibilitySettings"] as? [String: Any] {
 
+                    self.isPrivateAccount = data["isPrivate"] as? Bool ?? false
+                    self.allowStoryMessages = visibilitySettings["allowStoryMessages"] as? Bool ?? true
+                    self.allowStoryReactions = visibilitySettings["allowStoryReactions"] as? Bool ?? true
+                    self.allowStoryEphemeralPhotos = visibilitySettings["allowStoryEphemeralPhotos"] as? Bool ?? true
                     // Cargar audiencia por defecto
                     if let storyAudienceRaw = visibilitySettings["storyAudience"] as? String,
                        let contentAudience = ContentAudience(rawValue: storyAudienceRaw) {
@@ -2864,13 +2897,22 @@ struct StoryEditingView: View {
     }
 
     // ✅ FUNCIÓN ACTUALIZADA: Publicar historia con soporte para listas
+    private func presentStoryShareSheet() {
+        guard !isPublishing, !isLoadingUserSettings, !isChatSendMode else { return }
+        let hasStoryContent = !selectedMediaItems.isEmpty || hasAnyTextOverlays || !selectedStickers.isEmpty || drawingImage != nil
+        guard hasStoryContent else { return }
+        commitActiveTextOverlayIfNeeded(canvasSize: currentMediaCanvasRect().size)
+        showingShareSheet = true
+    }
+
     private func publishStory() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard !isPublishing, let userId = Auth.auth().currentUser?.uid else { return }
         let hasStoryContent = !selectedMediaItems.isEmpty || hasAnyTextOverlays || !selectedStickers.isEmpty || drawingImage != nil
         guard hasStoryContent else { return }
 
 
         // 🔗 VALIDAR LÍMITES DE STORY CHAINS
+        isPublishing = true
         Task {
             do {
                 if isCreatingChain {
@@ -2887,6 +2929,7 @@ struct StoryEditingView: View {
                 }
             } catch {
                 await MainActor.run {
+                    isPublishing = false
                     handleChainLimitError(error)
                 }
             }
@@ -2972,6 +3015,12 @@ struct StoryEditingView: View {
             continuationCustomViewers: (isCreatingChain || isContinuingChain) ? customSelectedUsers : nil,
             continuationCustomListId: (isCreatingChain || isContinuingChain) ? selectedListId : nil,
             continuationCustomListName: (isCreatingChain || isContinuingChain) ? selectedListName : nil,
+            interactionSettings: [
+                "allowStoryMessages": allowStoryMessages,
+                "allowStoryReactions": allowStoryReactions,
+                "allowStoryEphemeralPhotos": allowStoryEphemeralPhotos,
+                "allowOriginalAudioReuse": allowOriginalAudioReuse && !isPrivateAccount && contentAudience == .everyone
+            ],
             expirationHours: resolvedExpirationHours,
             storyVideoMode: media.storyVideoMode
         ) else {
@@ -2980,10 +3029,12 @@ struct StoryEditingView: View {
             notificationFeedback.notificationOccurred(.error)
             alertMessage = NSLocalizedString("storyEditor.error.publishStart", comment: "Error starting story upload")
             showAlert = true
+            isPublishing = false
             return
         }
 
         // 3. 🔥 CERRAR PANTALLA Y RESETEAR FORMULARIO INSTANTÁNEAMENTE
+        showingShareSheet = false
         self.showCreatorView = false
 
         // 🎉 Feedback háptico de éxito inicial
