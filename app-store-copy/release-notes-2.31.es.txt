@@ -56,7 +56,7 @@ AUDIENCIAS, AJUSTES Y NOTIFICACIONES
 
 FLUIDEZ Y PULIDO
 - Selector del feed más compacto, comentarios más cómodos y mejor gestión de solicitudes de mensajes.
-- Deshacer al dejar de seguir restaura correctamente la relación.
+- Hemos renovado el banner de notificaciones dentro de la app.
 - Confirmaciones más claras al guardar, borrar o cambiar preferencias.
 - Tu música sigue sonando al entrar en Moments o navegar por contenido silenciado.
 - Mejor coordinación del audio y carga más fluida de chats, historias, archivo y destacadas.
