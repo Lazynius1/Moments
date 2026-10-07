@@ -221,8 +221,6 @@ private struct ClusterMessageStatusObserver: View {
 // MARK: - Fanned photo pile
 
 enum ClusterMediaLayout {
-    static let frontWidth: CGFloat = 196
-    static let frontHeight: CGFloat = 244
     static let cornerRadius: CGFloat = 12
     // El abanico sólo crece hacia arriba, así que el hueco inferior es mínimo.
     static let fanBottomPadding: CGFloat = 10
@@ -256,6 +254,7 @@ enum ClusterMediaLayout {
 
 struct MediaGridBubble: View {
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
     let messages: [EnhancedMessage]
     let isCurrentUser: Bool
     let uploadProgress: [String: Double]
@@ -273,6 +272,8 @@ struct MediaGridBubble: View {
     var onDoubleTap: (() -> Void)? = nil
 
     @Environment(\.colorScheme) private var colorScheme
+
+    @State private var localDimensions: [String: CGSize] = [:]
 
     private var frontMessage: EnhancedMessage { messages[0] }
 
@@ -294,6 +295,9 @@ struct MediaGridBubble: View {
         let visible = Array(activeMessages.prefix(ClusterMediaLayout.maxVisible))
         let topPad = ClusterMediaLayout.fanTopPadding(for: visible.count)
         let sidePad = ClusterMediaLayout.fanSidePadding(for: visible.count)
+        let sizes = visible.map { cardSize(for: $0, sidePadding: sidePad) }
+        let stackWidth = sizes.map(\.width).max() ?? 0
+        let stackHeight = sizes.map(\.height).max() ?? 0
 
         return VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 6) {
             countLabel(count: count, messages: activeMessages)
@@ -316,15 +320,15 @@ struct MediaGridBubble: View {
                         onLongPress(activeMessages.first ?? frontMessage, snapshot)
                     }
                 ) {
-                    let grid = ZStack {
+                    let grid = ZStack(alignment: .bottomTrailing) {
                         ForEach(Array(visible.enumerated()).reversed(), id: \.element.id) { index, message in
-                            photoCard(message: message, isFront: index == 0)
+                            photoCard(message: message, isFront: index == 0, size: sizes[index])
                                 .rotationEffect(.degrees(ClusterMediaLayout.rotations[index]))
                                 .offset(ClusterMediaLayout.offsets[index])
                                 .zIndex(Double(10 - index))
                         }
                     }
-                    .frame(width: ClusterMediaLayout.frontWidth, height: ClusterMediaLayout.frontHeight)
+                    .frame(width: stackWidth, height: stackHeight)
                     .padding(.top, topPad)
                     .padding(.horizontal, sidePad)
                     .padding(.bottom, ClusterMediaLayout.fanBottomPadding)
@@ -378,16 +382,36 @@ struct MediaGridBubble: View {
             .padding(.horizontal, 6)
     }
 
-    private func photoCard(message: EnhancedMessage, isFront: Bool) -> some View {
+    private func cardSize(for message: EnhancedMessage, sidePadding: CGFloat) -> CGSize {
+        let available = ChatBubbleLayoutWidth.capped(
+            ChatMediaCardLayout.clusterMaxWidth + sidePadding * 2, chatListWidth: chatListContainerWidth,
+            gutter: isCurrentUser ? 64 : 88
+        ) - sidePadding * 2
+        return ChatMediaCardLayout.fittedSize(
+            width: message.mediaWidth ?? localDimensions[message.id].map { Int($0.width) },
+            height: message.mediaHeight ?? localDimensions[message.id].map { Int($0.height) },
+            maxWidth: max(1, available),
+            maxHeight: ChatMediaCardLayout.clusterMaxHeight
+        )
+    }
+
+    private func photoCard(message: EnhancedMessage, isFront: Bool, size: CGSize) -> some View {
         MediaGridTileView(
             message: message,
             progress: uploadProgress[message.id],
             downsamplingSize: CGSize(
-                width: ClusterMediaLayout.frontWidth * displayScale,
-                height: ClusterMediaLayout.frontHeight * displayScale
+                width: size.width * displayScale,
+                height: size.height * displayScale
             )
         )
-        .frame(width: ClusterMediaLayout.frontWidth, height: ClusterMediaLayout.frontHeight)
+        .frame(width: size.width, height: size.height)
+        .task(id: "\(message.mediaUrl ?? "")|\(message.thumbnailUrl ?? "")") {
+            if message.mediaWidth == nil || message.mediaHeight == nil {
+                let primary = await ChatMediaFileDimensions.read(localURL: message.mediaUrl)
+                let thumbnail = primary == nil ? await ChatMediaFileDimensions.read(localURL: message.thumbnailUrl) : nil
+                localDimensions[message.id] = primary ?? thumbnail
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: ClusterMediaLayout.cornerRadius, style: .continuous))
         .overlay(alignment: .bottomLeading) {
             if message.type == .video {

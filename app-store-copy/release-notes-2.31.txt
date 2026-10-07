@@ -1,0 +1,1103 @@
+<es-ES>
+Novedades de Moments (v2.31)
+
+¡Moments llega al iPhone Duo! Chats más tuyos, historias con más control, audio original y mapas renovados.
+
+En esta versión:
+
+IPHONE DUO
+- Feed en una pantalla y comentarios en la otra: sigue viendo el momento mientras lees y respondes.
+- Inbox y conversación a la vez, para cambiar de chat con la lista a la vista.
+- Explorar y perfiles muestran la rejilla junto al momento abierto, con detalles en la segunda pantalla.
+- Echoes muestra el contenido junto a las tarjetas de sus distintas perspectivas.
+- Al crear, ves la galería junto a la preview y editas con la foto y las herramientas a la vista.
+- Cámara con preview en la pantalla exterior, también al capturar desde el chat.
+- Historias, respuestas, reacciones y contenido de «ver una vez» adaptados al espacio disponible.
+- Ajustes en dos columnas: categorías a un lado y la opción que cambias al otro.
+- Navegación lateral y distribución adaptadas al Duo abierto, cerrado y parcialmente abierto.
+- Abre o cierra el Duo y sigue donde estabas: conservamos el momento, la posición del feed y la conversación.
+
+PUBLICAR HISTORIAS
+- Antes de publicar, una nueva pantalla reúne la preview y las opciones de tu historia.
+- Revisa quién puede verla y elige si estará disponible durante 24 o 48 horas.
+- Elige si permites mensajes, reacciones y respuestas con fotos efímeras.
+- Cada historia tiene sus opciones, sin cambiar tus preferencias generales.
+- Las cadenas también pasan por esta pantalla, con acceso a sus ajustes de continuación. Siguen siendo públicas y duran 48 horas.
+- Herramientas de texto y dibujo con iconos renovados.
+
+AUDIO ORIGINAL EN HISTORIAS
+- Guarda audios originales de historias públicas y reutilízalos desde la pestaña Guardados del sticker de audio.
+- Al publicar, decides si permites guardar y reutilizar tu audio. Solo se ofrece en historias públicas de cuentas públicas.
+- Los audios guardados pueden seguir disponibles cuando caduque la historia.
+- El audio acompaña mejor a la historia: se pausa y continúa con ella.
+
+CHATS MÁS TUYOS
+- Personaliza cada conversación con fotos, colores o nuevos temas de fondo.
+- Ajusta el encuadre y la intensidad del fondo, y elige el color de tus burbujas.
+- El estilo es solo para ti: cada persona puede darle su propio aspecto al chat.
+- Reacciones con animaciones renovadas y un selector con tus emojis más usados.
+- Menú de acciones más cómodo, también con el teclado abierto.
+
+FOTOS, VÍDEOS Y CONTENIDO COMPARTIDO
+- Amplía las fotos del chat con dos dedos o con un doble toque.
+- Los medios enviados desde el editor para mantener en el chat conservan textos y stickers, también en la galería.
+- Previews más estables mientras se carga el contenido.
+
+MAPAS
+- Navegación renovada al abrir la ubicación de un momento y explorar el mapa.
+- Momentos e historias agrupados por lugar, con acceso a las historias de la zona.
+- Vuelve al mapa sin perder el contexto del momento que estabas viendo.
+
+AUDIENCIAS, AJUSTES Y NOTIFICACIONES
+- Gestión de listas de audiencia más cómoda.
+- Ajustes reorganizados: perfil, contenido, mensajes y cuenta.
+- Identificación más fiable de la sesión actual y del estado al cerrar sesión.
+- Miniaturas más claras para las notificaciones de cadenas.
+- Corrección de propuestas duplicadas de Echoes.
+
+NOTIFICACIONES DENTRO DE LA APP
+- Banner renovado con avisos y confirmaciones en el mismo lugar: guardar, publicar, borrar o cambiar preferencias.
+- Progreso mientras se completa una acción, errores más claros y una nueva animación de confirmación.
+- Avisos en cola y opción de deshacer ciertas acciones desde el banner.
+- El temporizador de Incógnito se integra con el banner y se adapta cuando llega un aviso.
+
+FLUIDEZ Y PULIDO
+- Selector del feed más compacto, comentarios más cómodos y mejor gestión de solicitudes de mensajes.
+- Tu música sigue sonando al entrar en Moments o navegar por contenido silenciado.
+- Mejor coordinación del audio y carga más fluida de chats, historias, archivo y destacadas.
+</es-ES>
+
+<ca>
+Novetats de Moments (v2.31)
+
+Moments arriba a l’iPhone Duo! Xats més teus, més control sobre les històries, àudio original i mapes renovats.
+
+En aquesta versió:
+
+IPHONE DUO
+- El feed en una pantalla i els comentaris a l’altra: continua veient el moment mentre llegeixes i respons.
+- La safata d’entrada i la conversa alhora, per canviar de xat amb la llista a la vista.
+- Explorar i els perfils mostren la graella al costat del moment obert, amb els detalls a la segona pantalla.
+- Echoes mostra el contingut al costat de les targetes de les diferents perspectives.
+- Quan crees, veus la galeria al costat de la previsualització i edites amb la foto i les eines a la vista.
+- Previsualització de la càmera a la pantalla exterior, també quan captures des del xat.
+- Històries, respostes, reaccions i contingut de visualització única adaptats a l’espai disponible.
+- Ajustos en dues columnes: categories a una banda i l’opció que canvies a l’altra.
+- Navegació lateral i distribució adaptades al Duo obert, tancat i parcialment obert.
+- Obre o tanca el Duo i continua on eres: conservem el moment, la posició del feed i la conversa.
+
+PUBLICAR HISTÒRIES
+- Abans de publicar, una pantalla nova reuneix la previsualització i les opcions de la història.
+- Revisa qui la pot veure i tria si estarà disponible durant 24 o 48 hores.
+- Tria si permets missatges, reaccions i respostes amb fotos efímeres.
+- Cada història té les seves opcions, sense canviar les preferències generals.
+- Les cadenes també passen per aquesta pantalla, amb accés als ajustos de continuació. Continuen sent públiques i duren 48 hores.
+- Eines de text i dibuix amb icones renovades.
+
+ÀUDIO ORIGINAL A LES HISTÒRIES
+- Desa àudios originals d’històries públiques i reutilitza’ls des de la pestanya Desats de l’adhesiu d’àudio.
+- En publicar, decideixes si permets desar i reutilitzar el teu àudio. Només s’ofereix en històries públiques de comptes públics.
+- Els àudios desats poden continuar disponibles quan caduqui la història.
+- L’àudio acompanya millor la història: es pausa i continua amb ella.
+
+XATS MÉS TEUS
+- Personalitza cada conversa amb fotos, colors o temes de fons nous.
+- Ajusta l’enquadrament i la intensitat del fons, i tria el color de les bombolles.
+- L’estil és només per a tu: cadascú pot donar al xat el seu propi aspecte.
+- Reaccions amb animacions renovades i un selector amb els emojis que més fas servir.
+- Menú d’accions més còmode, també amb el teclat obert.
+
+FOTOS, VÍDEOS I CONTINGUT COMPARTIT
+- Amplia les fotos del xat amb dos dits o amb un doble toc.
+- Els continguts enviats des de l’editor per conservar al xat mantenen els textos i adhesius, també a la galeria.
+- Previsualitzacions més estables mentre es carrega el contingut.
+
+MAPES
+- Navegació renovada en obrir la ubicació d’un moment i explorar el mapa.
+- Moments i històries agrupats per lloc, amb accés a les històries de la zona.
+- Torna al mapa sense perdre el context del moment que estaves veient.
+
+AUDIÈNCIES, AJUSTOS I NOTIFICACIONS
+- Gestió de llistes d’audiència més còmoda.
+- Ajustos reorganitzats: perfil, contingut, missatges i compte.
+- Identificació més fiable de la sessió actual i de l’estat en tancar sessió.
+- Miniatures més clares a les notificacions de cadenes.
+- Correcció de propostes duplicades d’Echoes.
+
+NOTIFICACIONS DINS DE L’APP
+- Bàner renovat amb avisos i confirmacions al mateix lloc: desar, publicar, esborrar o canviar preferències.
+- Progrés mentre es completa una acció, errors més clars i una animació de confirmació nova.
+- Avisos en cua i opció de desfer certes accions des del bàner.
+- El temporitzador d’Incògnit s’integra amb el bàner i s’adapta quan arriba un avís.
+
+FLUÏDESA I RETOCS
+- Selector del feed més compacte, comentaris més còmodes i millor gestió de les sol·licituds de missatges.
+- La teva música continua sonant en entrar a Moments o navegar per contingut silenciat.
+- Millor coordinació de l’àudio i càrrega més fluida de xats, històries, arxiu i destacades.
+</ca>
+
+<en-US>
+What’s new in Moments (v2.31)
+
+Moments comes to iPhone Duo! Make chats your own, take more control over stories, reuse original audio and explore refreshed maps.
+
+In this update:
+
+IPHONE DUO
+- Your feed on one screen, comments on the other. Keep the moment in view while you read and reply.
+- Your inbox and conversation side by side, so you can switch chats with the list in view.
+- Explore and profiles show the grid alongside the moment you open, with details on the second screen.
+- Echoes displays content next to cards showing its different perspectives.
+- When creating, see the gallery alongside the preview and edit with your photo and tools in view.
+- Camera preview on the outer screen, including when capturing from chat.
+- Stories, replies, reactions and view-once content adapt to the available space.
+- Settings in two columns: categories on one side, the option you’re changing on the other.
+- Side navigation and layouts adapt to Duo when open, closed or partially open.
+- Open or close Duo and pick up where you left off: your moment, feed position and conversation stay in place.
+
+PUBLISHING STORIES
+- A new screen brings together your story preview and options before you publish.
+- Check who can see it and choose whether it stays available for 24 or 48 hours.
+- Choose whether to allow messages, reactions and replies with disappearing photos.
+- Each story has its own options, without changing your account preferences.
+- Chains also use this screen, with access to continuation settings. They remain public and last 48 hours.
+- Refreshed icons for text and drawing tools.
+
+ORIGINAL AUDIO IN STORIES
+- Save original audio from public stories and reuse it from the audio sticker’s Saved tab.
+- When publishing, decide whether others can save and reuse your audio. This is available for public stories from public accounts only.
+- Saved audio can remain available after the story expires.
+- Audio follows the story more closely, pausing and resuming with it.
+
+CHATS THAT FEEL LIKE YOU
+- Customize each conversation with photos, colors or new wallpaper themes.
+- Adjust the wallpaper’s crop and dimming, and choose your bubble color.
+- The style is just for you: everyone can give the chat their own look.
+- Refreshed reaction animations and a picker with your most-used emojis.
+- A more comfortable actions menu, even with the keyboard open.
+
+PHOTOS, VIDEOS AND SHARED CONTENT
+- Zoom in on chat photos with a pinch or double tap.
+- Media sent from the editor to keep in chat retains text and stickers, including in the gallery.
+- More stable previews while content loads.
+
+MAPS
+- Refreshed navigation when opening a moment’s location or exploring the map.
+- Moments and stories grouped by place, with access to stories from the area.
+- Return to the map without losing track of the moment you were viewing.
+
+AUDIENCES, SETTINGS AND NOTIFICATIONS
+- Easier audience list management.
+- Reorganized settings for profile, content, messages and account.
+- More reliable identification of your current session and sign-out status.
+- Clearer thumbnails in chain notifications.
+- Fixed duplicate Echo proposals.
+
+IN-APP NOTIFICATIONS
+- A refreshed banner brings alerts and confirmations together: saving, publishing, deleting and changing preferences.
+- Progress while an action completes, clearer errors and a new confirmation animation.
+- Queued alerts and an option to undo certain actions from the banner.
+- The Incognito timer integrates with the banner and adapts when an alert arrives.
+
+SMOOTHER EVERYDAY USE
+- A more compact feed picker, easier commenting and better message request management.
+- Your music keeps playing when you open Moments or browse muted content.
+- Better audio coordination and smoother loading of chats, stories, archives and highlights.
+</en-US>
+
+<de-DE>
+Neu in Moments (v2.31)
+
+Moments kommt auf das iPhone Duo! Persönlichere Chats, mehr Kontrolle über Stories, Originalaudio und überarbeitete Karten.
+
+In diesem Update:
+
+IPHONE DUO
+- Feed auf einem Bildschirm, Kommentare auf dem anderen: Behalte den Moment im Blick, während du liest und antwortest.
+- Posteingang und Gespräch nebeneinander, damit du mit sichtbarer Chatliste wechseln kannst.
+- Entdecken und Profile zeigen das Raster neben dem geöffneten Moment, Details auf dem zweiten Bildschirm.
+- Echoes zeigt Inhalte neben den Karten ihrer verschiedenen Perspektiven.
+- Beim Erstellen siehst du Galerie und Vorschau gleichzeitig, beim Bearbeiten Foto und Werkzeuge.
+- Kameravorschau auf dem äußeren Bildschirm, auch bei Aufnahmen aus dem Chat.
+- Stories, Antworten, Reaktionen und Inhalte zur einmaligen Ansicht passen sich dem Platz an.
+- Einstellungen in zwei Spalten: Kategorien links, die gewählte Option rechts.
+- Seitliche Navigation und Layouts für das geöffnete, geschlossene und teilweise geöffnete Duo.
+- Öffne oder schließe Duo und mach an derselben Stelle weiter: Moment, Feedposition und Gespräch bleiben erhalten.
+
+STORIES VERÖFFENTLICHEN
+- Eine neue Ansicht bündelt Vorschau und Story-Optionen vor dem Veröffentlichen.
+- Prüfe, wer die Story sehen darf, und wähle eine Dauer von 24 oder 48 Stunden.
+- Lege fest, ob Nachrichten, Reaktionen und Antworten mit selbstlöschenden Fotos erlaubt sind.
+- Jede Story hat eigene Optionen, ohne deine allgemeinen Einstellungen zu ändern.
+- Auch Ketten nutzen diese Ansicht mit Optionen für die Fortsetzung. Sie bleiben öffentlich und dauern 48 Stunden.
+- Neue Symbole für Text- und Zeichenwerkzeuge.
+
+ORIGINALAUDIO IN STORIES
+- Speichere Originalaudio aus öffentlichen Stories und verwende es im Audio-Sticker unter „Gespeichert“ erneut.
+- Beim Veröffentlichen entscheidest du, ob andere dein Audio speichern und wiederverwenden dürfen. Das geht nur bei öffentlichen Stories öffentlicher Konten.
+- Gespeichertes Audio kann auch nach Ablauf der Story verfügbar bleiben.
+- Audio pausiert und läuft passend zur Story weiter.
+
+CHATS NACH DEINEM GESCHMACK
+- Gestalte jeden Chat mit Fotos, Farben oder neuen Hintergrundthemen.
+- Passe Ausschnitt und Abdunklung des Hintergrunds an und wähle deine Sprechblasenfarbe.
+- Der Stil gilt nur für dich: Alle können den Chat selbst gestalten.
+- Neue Reaktionsanimationen und eine Auswahl deiner meistgenutzten Emojis.
+- Ein komfortableres Aktionsmenü, auch bei geöffneter Tastatur.
+
+FOTOS, VIDEOS UND GETEILTE INHALTE
+- Vergrößere Chatfotos mit zwei Fingern oder einem Doppeltippen.
+- Medien, die du aus dem Editor dauerhaft im Chat sendest, behalten Text und Sticker, auch in der Galerie.
+- Stabilere Vorschauen beim Laden.
+
+KARTEN
+- Überarbeitete Navigation beim Öffnen eines Moment-Standorts und beim Erkunden der Karte.
+- Moments und Stories nach Ort gruppiert, mit Zugriff auf Stories aus der Umgebung.
+- Kehre zur Karte zurück, mit dem Moment weiter im Blick.
+
+ZIELGRUPPEN UND EINSTELLUNGEN
+- Einfachere Verwaltung von Zielgruppenlisten.
+- Neu geordnete Einstellungen für Profil, Inhalte, Nachrichten und Konto.
+- Zuverlässigere Erkennung der aktuellen Sitzung und des Abmeldestatus.
+- Klarere Vorschaubilder in Kettenmitteilungen.
+- Doppelte Echo-Vorschläge behoben.
+
+MITTEILUNGEN IN DER APP
+- Ein neues Banner vereint Hinweise und Bestätigungen zum Speichern, Veröffentlichen, Löschen und Ändern von Einstellungen.
+- Fortschrittsanzeigen, verständlichere Fehler und eine neue Bestätigungsanimation.
+- Hinweise erscheinen nacheinander; bestimmte Aktionen lassen sich im Banner rückgängig machen.
+- Der Inkognito-Timer ist ins Banner integriert und passt sich eingehenden Hinweisen an.
+
+FLÜSSIGER IM ALLTAG
+- Kompaktere Feed-Auswahl, bequemere Kommentare und bessere Verwaltung von Nachrichtenanfragen.
+- Deine Musik läuft beim Öffnen von Moments und beim Ansehen stummgeschalteter Inhalte weiter.
+- Besser abgestimmtes Audio und flüssigeres Laden von Chats, Stories, Archiv und Highlights.
+</de-DE>
+
+<fr-FR>
+Moments : nouveautés (v2.31)
+
+Moments sur iPhone Duo ! Discussions personnalisées, stories mieux maîtrisées, audio original et nouvelles cartes.
+
+Dans cette version :
+
+IPHONE DUO
+- Fil et commentaires sur deux écrans : gardez le moment sous les yeux pour lire et répondre.
+- La boîte de réception et la discussion côte à côte, pour changer de conversation avec la liste visible.
+- Explorer et les profils affichent la grille à côté du moment ouvert, avec les détails sur le second écran.
+- Echoes affiche le contenu à côté des cartes de ses différents points de vue.
+- À la création, la galerie côtoie l’aperçu ; à la retouche, la photo et les outils restent visibles.
+- Aperçu de la caméra sur l’écran extérieur, y compris depuis une discussion.
+- Stories, réponses, réactions et contenus à vue unique adaptés à l’espace disponible.
+- Réglages en deux colonnes : catégories d’un côté, option choisie de l’autre.
+- Navigation latérale et disposition adaptées au Duo ouvert, fermé ou entrouvert.
+- Ouvrez ou fermez Duo : votre moment, votre place dans le fil et votre discussion sont conservés.
+
+PUBLIER DES STORIES
+- Un nouvel écran réunit l’aperçu et les options avant la publication.
+- Vérifiez qui peut voir la story et choisissez une durée de 24 ou 48 heures.
+- Choisissez d’autoriser les messages, les réactions et les réponses par photos éphémères.
+- Chaque story a ses options, sans modifier vos préférences générales.
+- Les chaînes y regroupent aussi leurs options de continuation. Elles restent publiques et durent 48 heures.
+- Nouvelles icônes pour les outils de texte et de dessin.
+
+AUDIO ORIGINAL DANS LES STORIES
+- Enregistrez l’audio original de stories publiques et réutilisez-le dans l’onglet des audios enregistrés du sticker audio.
+- À la publication, décidez si votre audio peut être enregistré et réutilisé. Cette option concerne uniquement les stories publiques de comptes publics.
+- Un audio enregistré peut rester disponible après l’expiration de la story.
+- L’audio se met en pause et reprend avec la story.
+
+DES DISCUSSIONS À VOTRE IMAGE
+- Personnalisez chaque discussion avec des photos, des couleurs ou de nouveaux thèmes de fond.
+- Ajustez le cadrage et l’assombrissement du fond, et choisissez la couleur des bulles.
+- Le style n’est visible que par vous : chacun peut personnaliser sa discussion.
+- Animations de réactions renouvelées et sélection de vos emojis les plus utilisés.
+- Menu d’actions plus pratique, même avec le clavier ouvert.
+
+PHOTOS, VIDÉOS ET CONTENUS PARTAGÉS
+- Agrandissez les photos du chat avec deux doigts ou un double toucher.
+- Les médias envoyés depuis l’éditeur pour rester dans le chat conservent textes et stickers, même dans la galerie.
+- Aperçus plus stables pendant le chargement.
+
+CARTES
+- Navigation repensée à l’ouverture du lieu d’un moment et sur la carte.
+- Moments et stories regroupés par lieu, avec accès aux stories des environs.
+- Revenez à la carte en gardant le contexte du moment consulté.
+
+AUDIENCES ET RÉGLAGES
+- Gestion des listes d’audience simplifiée.
+- Réglages regroupés : profil, contenu, messages et compte.
+- Session actuelle et déconnexion mieux identifiées.
+- Miniatures plus claires pour les notifications de chaînes.
+- Correction des propositions d’Echo en double.
+
+NOTIFICATIONS DANS L’APP
+- Une bannière renouvelée réunit alertes et confirmations : enregistrer, publier, supprimer ou changer vos préférences.
+- Suivi des actions en cours, erreurs plus claires et nouvelle animation de confirmation.
+- Alertes affichées à la suite et possibilité d’annuler certaines actions depuis la bannière.
+- Le minuteur du mode Incognito s’intègre à la bannière et s’adapte à l’arrivée d’une alerte.
+
+FLUIDITÉ ET FINITIONS
+- Sélecteur de fil plus compact, commentaires plus pratiques et meilleure gestion des demandes de messages.
+- Votre musique continue quand vous ouvrez Moments ou parcourez du contenu sans son.
+- Audio mieux coordonné et chargement plus fluide des discussions, stories, archives et stories à la une.
+</fr-FR>
+
+<it>
+Novità di Moments (v2.31)
+
+Moments arriva su iPhone Duo! Chat più personali, più controllo sulle storie, audio originale e mappe rinnovate.
+
+In questa versione:
+
+IPHONE DUO
+- Feed su uno schermo e commenti sull’altro: continua a vedere il momento mentre leggi e rispondi.
+- Posta in arrivo e conversazione affiancate, per cambiare chat con l’elenco sempre visibile.
+- Esplora e profili mostrano la griglia accanto al momento aperto, con i dettagli sul secondo schermo.
+- Echoes mostra i contenuti accanto alle schede delle diverse prospettive.
+- Quando crei, vedi la galleria accanto all’anteprima e modifichi con foto e strumenti in vista.
+- Anteprima della fotocamera sullo schermo esterno, anche per le riprese dalla chat.
+- Storie, risposte, reazioni e contenuti visualizzabili una sola volta si adattano allo spazio.
+- Impostazioni su due colonne: categorie da un lato, opzione scelta dall’altro.
+- Navigazione laterale e layout adatti al Duo aperto, chiuso o parzialmente aperto.
+- Apri o chiudi Duo e riprendi da dove eri: momento, posizione nel feed e conversazione restano al loro posto.
+
+PUBBLICARE STORIE
+- Prima di pubblicare, una nuova schermata riunisce anteprima e opzioni della storia.
+- Controlla chi può vederla e scegli se lasciarla disponibile per 24 o 48 ore.
+- Scegli se consentire messaggi, reazioni e risposte con foto temporanee.
+- Ogni storia ha le sue opzioni, senza cambiare le preferenze generali.
+- Anche le catene passano da questa schermata, con le impostazioni di continuazione. Restano pubbliche e durano 48 ore.
+- Nuove icone per gli strumenti di testo e disegno.
+
+AUDIO ORIGINALE NELLE STORIE
+- Salva l’audio originale delle storie pubbliche e riutilizzalo dalla scheda Salvati dell’adesivo audio.
+- Quando pubblichi, decidi se gli altri possono salvare e riutilizzare il tuo audio. L’opzione è disponibile solo per storie pubbliche di account pubblici.
+- L’audio salvato può restare disponibile dopo la scadenza della storia.
+- L’audio segue meglio la storia: si mette in pausa e riprende insieme a lei.
+
+CHAT PIÙ TUE
+- Personalizza ogni conversazione con foto, colori o nuovi temi di sfondo.
+- Regola l’inquadratura e l’oscuramento dello sfondo e scegli il colore delle bolle.
+- Lo stile è solo per te: ognuno può dare alla chat il proprio aspetto.
+- Animazioni delle reazioni rinnovate e selettore con le emoji che usi di più.
+- Menu delle azioni più comodo, anche con la tastiera aperta.
+
+FOTO, VIDEO E CONTENUTI CONDIVISI
+- Ingrandisci le foto della chat con due dita o un doppio tocco.
+- I contenuti inviati dall’editor per restare nella chat mantengono testi e adesivi, anche nella galleria.
+- Anteprime più stabili durante il caricamento.
+
+MAPPE
+- Navigazione rinnovata quando apri la posizione di un momento o esplori la mappa.
+- Moments e storie raggruppati per luogo, con accesso alle storie della zona.
+- Torna alla mappa senza perdere il contesto del momento che stavi guardando.
+
+PUBBLICO, IMPOSTAZIONI E NOTIFICHE
+- Gestione più comoda degli elenchi di pubblico.
+- Impostazioni riorganizzate: profilo, contenuti, messaggi e account.
+- Identificazione più affidabile della sessione attuale e dello stato dopo l’uscita dall’account.
+- Miniature più chiare nelle notifiche delle catene.
+- Corrette le proposte di Echo duplicate.
+
+NOTIFICHE NELL’APP
+- Banner rinnovato con avvisi e conferme nello stesso posto: salvataggi, pubblicazioni, eliminazioni e preferenze.
+- Avanzamento delle azioni in corso, errori più chiari e nuova animazione di conferma.
+- Avvisi in coda e possibilità di annullare alcune azioni dal banner.
+- Il timer di Incognito si integra nel banner e si adatta quando arriva un avviso.
+
+FLUIDITÀ E RITOCCHI
+- Selettore del feed più compatto, commenti più comodi e migliore gestione delle richieste di messaggi.
+- La tua musica continua quando apri Moments o scorri contenuti silenziati.
+- Audio meglio coordinato e caricamento più fluido di chat, storie, archivio e storie in evidenza.
+</it>
+
+<pt-BR>
+Novidades do Moments (v2.31)
+
+O Moments chega ao iPhone Duo! Conversas com a sua cara, mais controle sobre os stories, áudio original e mapas renovados.
+
+Nesta versão:
+
+IPHONE DUO
+- Feed em uma tela e comentários na outra: continue vendo o momento enquanto lê e responde.
+- Caixa de entrada e conversa lado a lado, para trocar de chat com a lista à vista.
+- Explorar e perfis mostram a grade ao lado do momento aberto, com os detalhes na segunda tela.
+- Echoes mostra o conteúdo junto dos cartões com diferentes perspectivas.
+- Ao criar, veja a galeria ao lado da prévia e edite com a foto e as ferramentas à vista.
+- Prévia da câmera na tela externa, inclusive ao capturar pelo chat.
+- Stories, respostas, reações e conteúdo de visualização única adaptados ao espaço disponível.
+- Configurações em duas colunas: categorias de um lado, a opção escolhida do outro.
+- Navegação lateral e layout adaptados ao Duo aberto, fechado ou parcialmente aberto.
+- Abra ou feche o Duo e continue de onde parou: mantemos o momento, a posição no feed e a conversa.
+
+PUBLICAR STORIES
+- Antes de publicar, uma nova tela reúne a prévia e as opções do seu story.
+- Confira quem pode vê-lo e escolha se ficará disponível por 24 ou 48 horas.
+- Escolha se permite mensagens, reações e respostas com fotos temporárias.
+- Cada story tem suas próprias opções, sem mudar as preferências gerais.
+- As correntes também passam por essa tela, com acesso às opções de continuação. Continuam públicas e duram 48 horas.
+- Novos ícones nas ferramentas de texto e desenho.
+
+ÁUDIO ORIGINAL NOS STORIES
+- Salve áudios originais de stories públicos e reutilize-os na aba Salvos do sticker de áudio.
+- Ao publicar, decida se outras pessoas podem salvar e reutilizar seu áudio. A opção só aparece em stories públicos de contas públicas.
+- Os áudios salvos podem continuar disponíveis depois que o story expirar.
+- O áudio acompanha melhor o story: pausa e continua junto com ele.
+
+CONVERSAS COM A SUA CARA
+- Personalize cada conversa com fotos, cores ou novos temas de fundo.
+- Ajuste o enquadramento e o escurecimento do fundo e escolha a cor dos balões.
+- O estilo é só seu: cada pessoa pode dar ao chat sua própria aparência.
+- Reações com novas animações e um seletor com seus emojis mais usados.
+- Menu de ações mais prático, mesmo com o teclado aberto.
+
+FOTOS, VÍDEOS E CONTEÚDO COMPARTILHADO
+- Amplie as fotos do chat com dois dedos ou um toque duplo.
+- As mídias enviadas pelo editor para permanecer no chat mantêm textos e stickers, inclusive na galeria.
+- Prévias mais estáveis durante o carregamento.
+
+MAPAS
+- Navegação renovada ao abrir a localização de um momento e explorar o mapa.
+- Moments e stories agrupados por lugar, com acesso aos stories da região.
+- Volte ao mapa sem perder o contexto do momento que estava vendo.
+
+PÚBLICO, CONFIGURAÇÕES E NOTIFICAÇÕES
+- Gestão mais prática das listas de público.
+- Configurações reorganizadas: perfil, conteúdo, mensagens e conta.
+- Identificação mais confiável da sessão atual e do estado ao sair da conta.
+- Miniaturas mais claras nas notificações de correntes.
+- Correção de propostas duplicadas de Echoes.
+
+NOTIFICAÇÕES NO APP
+- Banner renovado que reúne avisos e confirmações: salvar, publicar, excluir ou mudar preferências.
+- Progresso das ações em andamento, erros mais claros e uma nova animação de confirmação.
+- Avisos em fila e opção de desfazer algumas ações pelo banner.
+- O temporizador do modo Incógnito se integra ao banner e se adapta quando chega um aviso.
+
+MAIS FLUIDEZ
+- Seletor do feed mais compacto, comentários mais práticos e melhor gestão das solicitações de mensagens.
+- Sua música continua tocando ao abrir o Moments ou navegar por conteúdo sem som.
+- Melhor coordenação do áudio e carregamento mais fluido de chats, stories, arquivo e destaques.
+</pt-BR>
+
+<pt-PT>
+Novidades do Moments (v2.31)
+
+O Moments chega ao iPhone Duo! Conversas à tua maneira, mais controlo sobre as histórias, áudio original e mapas renovados.
+
+Nesta versão:
+
+IPHONE DUO
+- Feed num ecrã e comentários no outro: continua a ver o momento enquanto lês e respondes.
+- Caixa de entrada e conversa lado a lado, para mudares de chat com a lista à vista.
+- Explorar e perfis mostram a grelha junto do momento aberto, com os detalhes no segundo ecrã.
+- Echoes mostra o conteúdo junto dos cartões com diferentes perspetivas.
+- Ao criar, vês a galeria junto da pré-visualização e editas com a fotografia e as ferramentas à vista.
+- Pré-visualização da câmara no ecrã exterior, também ao captar a partir do chat.
+- Histórias, respostas, reações e conteúdo de visualização única adaptados ao espaço disponível.
+- Definições em duas colunas: categorias de um lado, a opção escolhida do outro.
+- Navegação lateral e disposição adaptadas ao Duo aberto, fechado ou parcialmente aberto.
+- Abre ou fecha o Duo e continua onde estavas: mantemos o momento, a posição no feed e a conversa.
+
+PUBLICAR HISTÓRIAS
+- Antes de publicar, um novo ecrã reúne a pré-visualização e as opções da tua história.
+- Confirma quem a pode ver e escolhe se fica disponível durante 24 ou 48 horas.
+- Escolhe se permites mensagens, reações e respostas com fotografias temporárias.
+- Cada história tem as suas opções, sem alterar as preferências gerais.
+- As cadeias também passam por este ecrã, com acesso às opções de continuação. Continuam públicas e duram 48 horas.
+- Novos ícones nas ferramentas de texto e desenho.
+
+ÁUDIO ORIGINAL NAS HISTÓRIAS
+- Guarda áudios originais de histórias públicas e reutiliza-os no separador Guardados do autocolante de áudio.
+- Ao publicar, decides se outras pessoas podem guardar e reutilizar o teu áudio. A opção só existe em histórias públicas de contas públicas.
+- Os áudios guardados podem continuar disponíveis quando a história expirar.
+- O áudio acompanha melhor a história: pausa e continua com ela.
+
+CONVERSAS À TUA MANEIRA
+- Personaliza cada conversa com fotografias, cores ou novos temas de fundo.
+- Ajusta o enquadramento e o escurecimento do fundo e escolhe a cor dos balões.
+- O estilo é só para ti: cada pessoa pode dar ao chat o seu próprio aspeto.
+- Reações com novas animações e um seletor com os emojis que mais usas.
+- Menu de ações mais cómodo, mesmo com o teclado aberto.
+
+FOTOGRAFIAS, VÍDEOS E CONTEÚDO PARTILHADO
+- Amplia as fotografias do chat com dois dedos ou um duplo toque.
+- Os conteúdos enviados pelo editor para ficar no chat mantêm textos e autocolantes, também na galeria.
+- Pré-visualizações mais estáveis durante o carregamento.
+
+MAPAS
+- Navegação renovada ao abrir a localização de um momento e explorar o mapa.
+- Moments e histórias agrupados por local, com acesso às histórias da zona.
+- Volta ao mapa sem perder o contexto do momento que estavas a ver.
+
+PÚBLICO, DEFINIÇÕES E NOTIFICAÇÕES
+- Gestão mais cómoda das listas de público.
+- Definições reorganizadas: perfil, conteúdo, mensagens e conta.
+- Identificação mais fiável da sessão atual e do estado ao terminar sessão.
+- Miniaturas mais claras nas notificações de cadeias.
+- Correção de propostas duplicadas de Echoes.
+
+NOTIFICAÇÕES NA APP
+- Banner renovado com avisos e confirmações no mesmo lugar: guardar, publicar, eliminar ou alterar preferências.
+- Progresso das ações em curso, erros mais claros e uma nova animação de confirmação.
+- Avisos em fila e opção de anular certas ações a partir do banner.
+- O temporizador do modo Incógnito integra-se no banner e adapta-se quando chega um aviso.
+
+FLUIDEZ E RETOQUES
+- Seletor do feed mais compacto, comentários mais cómodos e melhor gestão dos pedidos de mensagens.
+- A tua música continua a tocar ao abrir o Moments ou navegar por conteúdo sem som.
+- Melhor coordenação do áudio e carregamento mais fluido de chats, histórias, arquivo e destaques.
+</pt-PT>
+
+<nl-NL>
+Nieuw in Moments (v2.31)
+
+Moments komt naar iPhone Duo! Chats in jouw stijl, meer controle over verhalen, originele audio en vernieuwde kaarten.
+
+In deze update:
+
+IPHONE DUO
+- Je feed op het ene scherm, reacties op het andere. Blijf het moment bekijken terwijl je leest en antwoordt.
+- Inbox en gesprek naast elkaar, zodat je van chat wisselt met de lijst in beeld.
+- Ontdekken en profielen tonen het raster naast het geopende moment, met details op het tweede scherm.
+- Echoes toont inhoud naast kaarten met de verschillende perspectieven.
+- Tijdens het maken zie je de galerij naast het voorbeeld; bij het bewerken blijven foto en tools in beeld.
+- Cameravoorbeeld op het buitenste scherm, ook bij opnamen vanuit de chat.
+- Verhalen, antwoorden, emoji-reacties en eenmalig te bekijken inhoud passen zich aan de ruimte aan.
+- Instellingen in twee kolommen: categorieën aan de ene kant, de gekozen optie aan de andere.
+- Zijnavigatie en indeling voor Duo wanneer het open, dicht of gedeeltelijk open is.
+- Open of sluit Duo en ga verder waar je was: je moment, feedpositie en gesprek blijven behouden.
+
+VERHALEN PLAATSEN
+- Een nieuw scherm brengt het voorbeeld en de opties samen voordat je een verhaal plaatst.
+- Controleer wie het kan zien en kies of het 24 of 48 uur beschikbaar blijft.
+- Kies of je berichten, emoji-reacties en antwoorden met verdwijnende foto’s toestaat.
+- Elk verhaal heeft eigen opties, zonder je algemene voorkeuren te veranderen.
+- Ook ketens gebruiken dit scherm, met opties voor het voortzetten ervan. Ze blijven openbaar en duren 48 uur.
+- Nieuwe pictogrammen voor tekst- en tekentools.
+
+ORIGINELE AUDIO IN VERHALEN
+- Bewaar originele audio uit openbare verhalen en gebruik die opnieuw via het tabblad Opgeslagen van de audiosticker.
+- Bij het plaatsen bepaal je of anderen je audio mogen bewaren en hergebruiken. Dit kan alleen bij openbare verhalen van openbare accounts.
+- Opgeslagen audio kan beschikbaar blijven nadat het verhaal is verlopen.
+- Audio pauzeert en hervat samen met het verhaal.
+
+CHATS IN JOUW STIJL
+- Geef elk gesprek een eigen achtergrond met foto’s, kleuren of nieuwe thema’s.
+- Pas de uitsnede en verduistering aan en kies de kleur van je tekstballonnen.
+- De stijl is alleen voor jou: iedereen kan de chat een eigen uiterlijk geven.
+- Nieuwe animaties voor emoji-reacties en een kiezer met je meestgebruikte emoji’s.
+- Een handiger actiemenu, ook met het toetsenbord open.
+
+FOTO’S, VIDEO’S EN GEDEELDE INHOUD
+- Zoom in op chatfoto’s met twee vingers of door dubbel te tikken.
+- Media die je vanuit de editor verstuurt om in de chat te bewaren, behouden tekst en stickers, ook in de galerij.
+- Stabielere voorbeelden tijdens het laden.
+
+KAARTEN
+- Vernieuwde navigatie bij het openen van een locatie en het verkennen van de kaart.
+- Moments en verhalen gegroepeerd per plek, met toegang tot verhalen uit de omgeving.
+- Ga terug naar de kaart met het bekeken moment nog in context.
+
+DOELGROEPEN, INSTELLINGEN EN MELDINGEN
+- Eenvoudiger beheer van doelgroeplijsten.
+- Instellingen opnieuw ingedeeld: profiel, inhoud, berichten en account.
+- Betrouwbaardere herkenning van je huidige sessie en afmeldstatus.
+- Duidelijkere miniaturen in ketenmeldingen.
+- Dubbele Echo-voorstellen verholpen.
+
+MELDINGEN IN DE APP
+- Een vernieuwde banner bundelt meldingen en bevestigingen: opslaan, plaatsen, verwijderen en voorkeuren wijzigen.
+- Voortgang bij lopende acties, duidelijkere fouten en een nieuwe bevestigingsanimatie.
+- Meldingen verschijnen na elkaar; bepaalde acties kun je via de banner ongedaan maken.
+- De Incognito-timer is geïntegreerd in de banner en past zich aan bij een melding.
+
+SOEPELER IN GEBRUIK
+- Compactere feedkiezer, prettiger reageren en beter beheer van berichtverzoeken.
+- Je muziek blijft spelen als je Moments opent of inhoud zonder geluid bekijkt.
+- Beter afgestemde audio en soepeler laden van chats, verhalen, archief en hoogtepunten.
+</nl-NL>
+
+<pl>
+Nowości w Moments (v2.31)
+
+Moments trafia na iPhone Duo! Czaty w Twoim stylu, większa kontrola nad relacjami, oryginalne audio i odświeżone mapy.
+
+W tej wersji:
+
+IPHONE DUO
+- Kanał na jednym ekranie, komentarze na drugim. Oglądaj moment, czytając i odpowiadając.
+- Skrzynka i rozmowa obok siebie, aby zmieniać czat z listą cały czas pod ręką.
+- Odkrywaj i profile pokazują siatkę obok otwartego momentu, ze szczegółami na drugim ekranie.
+- Echoes wyświetla treść obok kart z różnymi perspektywami.
+- Podczas tworzenia widzisz galerię obok podglądu, a podczas edycji zdjęcie i narzędzia.
+- Podgląd aparatu na zewnętrznym ekranie, także przy robieniu zdjęć i nagrywaniu z czatu.
+- Relacje, odpowiedzi, reakcje i treści do jednorazowego obejrzenia dopasowują się do dostępnego miejsca.
+- Ustawienia w dwóch kolumnach: kategorie po jednej stronie, wybrana opcja po drugiej.
+- Boczna nawigacja i układ dopasowane do otwartego, zamkniętego i częściowo otwartego Duo.
+- Otwórz lub zamknij Duo i kontynuuj: moment, pozycja w kanale i rozmowa pozostają na miejscu.
+
+PUBLIKOWANIE RELACJI
+- Nowy ekran łączy podgląd i opcje relacji przed publikacją.
+- Sprawdź, kto ją zobaczy, i wybierz czas dostępności: 24 lub 48 godzin.
+- Zdecyduj, czy pozwalasz na wiadomości, reakcje i odpowiedzi ze znikającymi zdjęciami.
+- Każda relacja ma własne opcje, bez zmiany ogólnych preferencji.
+- Łańcuchy również korzystają z tego ekranu, z dostępem do ustawień kontynuacji. Nadal są publiczne i trwają 48 godzin.
+- Odświeżone ikony narzędzi tekstowych i rysowania.
+
+ORYGINALNE AUDIO W RELACJACH
+- Zapisuj oryginalne audio z publicznych relacji i używaj go ponownie z karty Zapisane w naklejce audio.
+- Przy publikacji decydujesz, czy inni mogą zapisywać i wykorzystywać Twoje audio. Dotyczy to wyłącznie publicznych relacji z publicznych kont.
+- Zapisane audio może być dostępne także po wygaśnięciu relacji.
+- Audio zatrzymuje się i wznawia razem z relacją.
+
+CZATY W TWOIM STYLU
+- Personalizuj rozmowy zdjęciami, kolorami lub nowymi motywami tła.
+- Dopasuj kadr i przyciemnienie tła oraz wybierz kolor dymków.
+- Styl widzisz tylko Ty: każda osoba może nadać czatowi własny wygląd.
+- Odświeżone animacje reakcji i wybór najczęściej używanych emoji.
+- Wygodniejsze menu działań, także przy otwartej klawiaturze.
+
+ZDJĘCIA, FILMY I UDOSTĘPNIONE TREŚCI
+- Powiększaj zdjęcia w czacie dwoma palcami lub podwójnym stuknięciem.
+- Media wysłane z edytora do zachowania w czacie zachowują teksty i naklejki, również w galerii.
+- Stabilniejsze podglądy podczas ładowania.
+
+MAPY
+- Odświeżona nawigacja przy otwieraniu lokalizacji momentu i przeglądaniu mapy.
+- Moments i relacje pogrupowane według miejsca, z dostępem do relacji z okolicy.
+- Wróć do mapy bez utraty kontekstu oglądanego momentu.
+
+ODBIORCY, USTAWIENIA I POWIADOMIENIA
+- Wygodniejsze zarządzanie listami odbiorców.
+- Uporządkowane ustawienia: profil, treści, wiadomości i konto.
+- Pewniejsze rozpoznawanie bieżącej sesji i stanu po wylogowaniu.
+- Czytelniejsze miniatury w powiadomieniach o łańcuchach.
+- Usunięte duplikaty propozycji Echo.
+
+POWIADOMIENIA W APLIKACJI
+- Odświeżony baner łączy powiadomienia i potwierdzenia: zapisywanie, publikację, usuwanie i zmianę preferencji.
+- Postęp trwających działań, czytelniejsze błędy i nowa animacja potwierdzenia.
+- Powiadomienia w kolejce i możliwość cofnięcia wybranych działań z banera.
+- Zegar trybu Incognito jest zintegrowany z banerem i dostosowuje się do nowych powiadomień.
+
+PŁYNNIEJSZE DZIAŁANIE
+- Mniejszy selektor kanału, wygodniejsze komentarze i lepsze zarządzanie prośbami o wiadomość.
+- Twoja muzyka gra dalej po otwarciu Moments i podczas przeglądania wyciszonych treści.
+- Lepsza synchronizacja audio oraz płynniejsze ładowanie czatów, relacji, archiwum i wyróżnionych relacji.
+</pl>
+
+<tr>
+Moments’ta yenilikler (v2.31)
+
+Moments, iPhone Duo’ya geliyor! Sana özel sohbetler, hikâyelerde daha fazla kontrol, orijinal sesler ve yenilenen haritalar.
+
+Bu sürümde:
+
+IPHONE DUO
+- Bir ekranda akış, diğerinde yorumlar: Okuyup yanıtlarken anı görmeye devam et.
+- Gelen kutusu ve sohbet yan yana; listeyi görerek sohbetler arasında geçiş yap.
+- Keşfet ve profillerde ızgara, açtığın anın yanında; ayrıntılar ikinci ekranda.
+- Echoes, içeriği farklı bakış açılarının kartlarıyla birlikte gösterir.
+- Oluştururken galeriyle önizlemeyi, düzenlerken fotoğrafla araçları bir arada gör.
+- Sohbetten çekim yaparken de dış ekranda kamera önizlemesi.
+- Hikâyeler, yanıtlar, tepkiler ve bir kez görüntülenen içerikler ekrana uyum sağlar.
+- İki sütunlu ayarlar: Bir yanda kategoriler, diğer yanda seçtiğin seçenek.
+- Yan gezinme ve düzen, Duo’nun açık, kapalı veya kısmen açık hâline uyum sağlar.
+- Duo’yu açıp kapatınca kaldığın yerden devam et: Anın, akış konumun ve sohbetin korunur.
+
+HİKÂYE PAYLAŞMA
+- Yeni ekran, paylaşmadan önce hikâye önizlemesini ve seçeneklerini bir araya getirir.
+- Kimlerin görebileceğini kontrol et; 24 veya 48 saat boyunca görünür kalmasını seç.
+- Mesajlara, tepkilere ve kaybolan fotoğraflarla yanıtlara izin verip vermeyeceğini belirle.
+- Her hikâyenin seçenekleri ayrıdır; genel tercihlerin değişmez.
+- Zincirler de devam ettirme ayarlarıyla bu ekranı kullanır. Herkese açık kalır ve 48 saat sürer.
+- Metin ve çizim araçlarında yenilenen simgeler.
+
+HİKÂYELERDE ORİJİNAL SES
+- Herkese açık hikâyelerin orijinal seslerini kaydet; ses çıkartmasının Kaydedilenler sekmesinden yeniden kullan.
+- Paylaşırken sesinin kaydedilip yeniden kullanılmasına izin verip vermeyeceğini seç. Yalnızca herkese açık hesapların herkese açık hikâyelerinde kullanılabilir.
+- Kaydedilen sesler, hikâyenin süresi dolduktan sonra da kullanılabilir kalabilir.
+- Ses, hikâyeyle birlikte duraklar ve devam eder.
+
+SANA ÖZEL SOHBETLER
+- Her sohbeti fotoğraflar, renkler veya yeni arka plan temalarıyla kişiselleştir.
+- Arka planın kadrajını ve karartmasını ayarla, baloncuk rengini seç.
+- Görünüm yalnızca sana özeldir; herkes sohbetini kendi tarzına göre düzenleyebilir.
+- Yenilenen tepki animasyonları ve en çok kullandığın emojileri gösteren seçici.
+- Klavye açıkken de daha rahat kullanılan işlem menüsü.
+
+FOTOĞRAFLAR, VİDEOLAR VE PAYLAŞILAN İÇERİKLER
+- Sohbet fotoğraflarını iki parmakla veya çift dokunarak büyüt.
+- Düzenleyiciden sohbette kalması için gönderilen içerikler, galeride de metin ve çıkartmalarını korur.
+- Yükleme sırasında daha kararlı önizlemeler.
+
+HARİTALAR
+- Bir anın konumunu açarken ve haritayı keşfederken yenilenen gezinme.
+- Yere göre gruplanan Moments ve hikâyeler; bölgedeki hikâyelere erişim.
+- Baktığın anın bağlamını kaybetmeden haritaya dön.
+
+HEDEF KİTLE, AYARLAR VE BİLDİRİMLER
+- Hedef kitle listelerini daha kolay yönet.
+- Profil, içerik, mesaj ve hesap ayarları yeniden düzenlendi.
+- Geçerli oturum ve çıkış durumu daha güvenilir şekilde belirlenir.
+- Zincir bildirimlerinde daha net küçük resimler.
+- Yinelenen Echo önerileri düzeltildi.
+
+UYGULAMA İÇİ BİLDİRİMLER
+- Yenilenen bildirim şeridi; kaydetme, paylaşma, silme ve tercih değişikliklerinin uyarı ve onaylarını bir araya getirir.
+- İşlemler için ilerleme göstergesi, daha anlaşılır hatalar ve yeni onay animasyonu.
+- Sırayla gösterilen uyarılar ve bazı işlemleri şeritten geri alma seçeneği.
+- Gizli modun zamanlayıcısı şeritle bütünleşir ve bir uyarı geldiğinde uyum sağlar.
+
+DAHA AKICI KULLANIM
+- Daha kompakt akış seçici, daha rahat yorumlar ve daha iyi mesaj isteği yönetimi.
+- Moments’ı açarken veya sessiz içeriklere bakarken müziğin çalmaya devam eder.
+- Daha uyumlu ses ve sohbet, hikâye, arşiv ve öne çıkanlarda daha akıcı yükleme.
+</tr>
+
+<hi>
+Moments में नया (v2.31)
+
+Moments अब iPhone Duo पर! अपनी पसंद के चैट, स्टोरी पर ज़्यादा नियंत्रण, मूल ऑडियो और नए अंदाज़ में मैप।
+
+इस संस्करण में:
+
+IPHONE DUO
+- एक स्क्रीन पर फ़ीड, दूसरी पर कमेंट। पढ़ते और जवाब देते समय भी मोमेंट देखें।
+- इनबॉक्स और बातचीत साथ में, ताकि चैट बदलते समय सूची दिखती रहे।
+- एक्सप्लोर और प्रोफ़ाइल में ग्रिड के साथ खुला मोमेंट दिखता है; जानकारी दूसरी स्क्रीन पर।
+- Echoes में कंटेंट के साथ उसके अलग-अलग नज़रियों के कार्ड दिखते हैं।
+- बनाते समय गैलरी और प्रीव्यू साथ देखें; एडिट करते समय फ़ोटो और टूल सामने रहें।
+- बाहरी स्क्रीन पर कैमरा प्रीव्यू, चैट से फ़ोटो या वीडियो लेते समय भी।
+- स्टोरी, जवाब, रिएक्शन और एक बार देखने वाला कंटेंट उपलब्ध जगह के हिसाब से ढलते हैं।
+- दो कॉलम में सेटिंग: एक तरफ़ श्रेणियाँ, दूसरी तरफ़ चुना विकल्प।
+- साइड नेविगेशन और लेआउट, खुले, बंद या आधे खुले Duo के मुताबिक।
+- Duo खोलें या बंद करें और वहीं से जारी रखें: मोमेंट, फ़ीड की जगह और बातचीत बनी रहती है।
+
+स्टोरी पोस्ट करना
+- पोस्ट करने से पहले नई स्क्रीन पर स्टोरी का प्रीव्यू और विकल्प एक साथ देखें।
+- तय करें कौन देख सकता है और स्टोरी 24 या 48 घंटे उपलब्ध रहेगी।
+- चुनें कि मैसेज, रिएक्शन और गायब होने वाली फ़ोटो से जवाब की अनुमति है या नहीं।
+- हर स्टोरी के अपने विकल्प हैं; सामान्य प्राथमिकताएँ नहीं बदलतीं।
+- चेन के लिए भी यही स्क्रीन है, जहाँ आगे बढ़ाने की सेटिंग मिलती है। चेन सार्वजनिक रहती हैं और 48 घंटे चलती हैं।
+- टेक्स्ट और ड्रॉइंग टूल के नए आइकन।
+
+स्टोरी में मूल ऑडियो
+- सार्वजनिक स्टोरी का मूल ऑडियो सेव करें और ऑडियो स्टिकर के सेव किए गए टैब से फिर इस्तेमाल करें।
+- पोस्ट करते समय तय करें कि दूसरे आपका ऑडियो सेव और दोबारा इस्तेमाल कर सकते हैं या नहीं। यह सिर्फ़ सार्वजनिक अकाउंट की सार्वजनिक स्टोरी में उपलब्ध है।
+- सेव किया ऑडियो स्टोरी की अवधि खत्म होने के बाद भी उपलब्ध रह सकता है।
+- ऑडियो स्टोरी के साथ रुकता और फिर चलता है।
+
+अपने अंदाज़ के चैट
+- हर बातचीत का बैकग्राउंड फ़ोटो, रंग या नए थीम से सजाएँ।
+- बैकग्राउंड का फ़्रेम और गहरापन बदलें, और मैसेज बबल का रंग चुनें।
+- यह स्टाइल सिर्फ़ आपको दिखता है; हर व्यक्ति अपना चैट लुक चुन सकता है।
+- नए रिएक्शन एनिमेशन और सबसे ज़्यादा इस्तेमाल किए इमोजी का चयन।
+- कीबोर्ड खुला होने पर भी सुविधाजनक ऐक्शन मेन्यू।
+
+फ़ोटो, वीडियो और साझा कंटेंट
+- चैट की फ़ोटो दो उँगलियों या डबल टैप से बड़ी करें।
+- एडिटर से चैट में रखने के लिए भेजे गए मीडिया के टेक्स्ट और स्टिकर गैलरी में भी बने रहते हैं।
+- कंटेंट लोड होते समय ज़्यादा स्थिर प्रीव्यू।
+
+मैप
+- मोमेंट की जगह खोलने और मैप देखने के लिए बेहतर नेविगेशन।
+- जगह के हिसाब से Moments और स्टोरी, साथ में आसपास की स्टोरी तक पहुँच।
+- देखे जा रहे मोमेंट का संदर्भ बनाए रखते हुए मैप पर वापस जाएँ।
+
+दर्शक, सेटिंग और नोटिफ़िकेशन
+- दर्शकों की सूचियाँ सँभालना आसान।
+- प्रोफ़ाइल, कंटेंट, मैसेज और अकाउंट की सेटिंग नए क्रम में।
+- मौजूदा सेशन और साइन आउट की स्थिति की बेहतर पहचान।
+- चेन नोटिफ़िकेशन में साफ़ थंबनेल।
+- दोहराए गए Echo सुझाव ठीक किए गए।
+
+ऐप के अंदर नोटिफ़िकेशन
+- नया बैनर: सेव करने, पोस्ट करने, हटाने और प्राथमिकताएँ बदलने के अलर्ट व पुष्टि एक जगह।
+- काम का प्रोग्रेस, साफ़ एरर मैसेज और पुष्टि का नया एनिमेशन।
+- अलर्ट बारी-बारी से आते हैं; कुछ ऐक्शन बैनर से वापस लिए जा सकते हैं।
+- Incognito का टाइमर बैनर में जुड़ता है और अलर्ट आने पर ढल जाता है।
+
+ज़्यादा सहज अनुभव
+- छोटा फ़ीड चयन मेन्यू, आसान कमेंट और बेहतर मैसेज रिक्वेस्ट प्रबंधन।
+- Moments खोलने या बिना आवाज़ वाला कंटेंट देखने पर आपका संगीत चलता रहता है।
+- ऑडियो का बेहतर तालमेल; चैट, स्टोरी, आर्काइव और हाइलाइट ज़्यादा आसानी से लोड होते हैं।
+</hi>
+
+<id>
+Yang baru di Moments (v2.31)
+
+Moments hadir di iPhone Duo! Chat sesuai gayamu, kontrol story lebih lengkap, audio asli, dan peta yang diperbarui.
+
+Di versi ini:
+
+IPHONE DUO
+- Feed di satu layar, komentar di layar lainnya. Tetap lihat momen sambil membaca dan membalas.
+- Kotak masuk dan percakapan berdampingan, jadi kamu bisa pindah chat sambil melihat daftarnya.
+- Jelajahi dan profil menampilkan grid di samping momen yang dibuka, dengan detail di layar kedua.
+- Echoes menampilkan konten bersama kartu dari berbagai sudut pandangnya.
+- Saat membuat konten, lihat galeri di samping pratinjau; saat mengedit, foto dan alat tetap terlihat.
+- Pratinjau kamera di layar luar, termasuk saat mengambil foto atau video dari chat.
+- Story, balasan, reaksi, dan konten sekali lihat menyesuaikan ruang yang tersedia.
+- Pengaturan dua kolom: kategori di satu sisi, opsi yang dipilih di sisi lain.
+- Navigasi samping dan tata letak menyesuaikan Duo saat terbuka, tertutup, atau terbuka sebagian.
+- Buka atau tutup Duo dan lanjutkan dari posisi terakhir: momen, posisi feed, dan percakapan tetap terjaga.
+
+MEMBAGIKAN STORY
+- Layar baru menyatukan pratinjau dan opsi story sebelum dibagikan.
+- Periksa siapa yang bisa melihatnya dan pilih durasi 24 atau 48 jam.
+- Pilih apakah pesan, reaksi, dan balasan dengan foto sementara diizinkan.
+- Setiap story punya opsi sendiri, tanpa mengubah preferensi umum.
+- Rantai story juga memakai layar ini, dengan akses ke opsi untuk melanjutkannya. Tetap publik dan berlangsung 48 jam.
+- Ikon baru untuk alat teks dan menggambar.
+
+AUDIO ASLI DI STORY
+- Simpan audio asli dari story publik dan gunakan lagi lewat tab Tersimpan di stiker audio.
+- Saat membagikan story, tentukan apakah orang lain boleh menyimpan dan memakai ulang audiomu. Hanya tersedia untuk story publik dari akun publik.
+- Audio yang disimpan bisa tetap tersedia setelah story berakhir.
+- Audio mengikuti story dengan lebih baik: dijeda dan dilanjutkan bersamaan.
+
+CHAT SESUAI GAYAMU
+- Sesuaikan setiap percakapan dengan foto, warna, atau tema latar baru.
+- Atur potongan dan peredupan latar, lalu pilih warna gelembung pesanmu.
+- Gaya ini hanya terlihat olehmu: setiap orang bisa mengatur tampilan chat sendiri.
+- Animasi reaksi baru dan pemilih emoji yang paling sering kamu gunakan.
+- Menu tindakan lebih nyaman, bahkan saat keyboard terbuka.
+
+FOTO, VIDEO, DAN KONTEN YANG DIBAGIKAN
+- Perbesar foto chat dengan dua jari atau ketuk dua kali.
+- Media yang dikirim dari editor untuk tetap disimpan di chat mempertahankan teks dan stiker, termasuk di galeri.
+- Pratinjau lebih stabil saat konten dimuat.
+
+PETA
+- Navigasi diperbarui saat membuka lokasi momen dan menjelajahi peta.
+- Moments dan story dikelompokkan berdasarkan tempat, dengan akses ke story di sekitar.
+- Kembali ke peta tanpa kehilangan konteks momen yang sedang dilihat.
+
+AUDIENS, PENGATURAN, DAN NOTIFIKASI
+- Daftar audiens lebih mudah dikelola.
+- Pengaturan ditata ulang: profil, konten, pesan, dan akun.
+- Pengenalan sesi saat ini dan status keluar akun lebih andal.
+- Thumbnail lebih jelas untuk notifikasi rantai story.
+- Usulan Echo yang terduplikasi sudah diperbaiki.
+
+NOTIFIKASI DALAM APLIKASI
+- Banner baru menyatukan pemberitahuan dan konfirmasi: menyimpan, membagikan, menghapus, atau mengubah preferensi.
+- Progres tindakan yang sedang berjalan, pesan kesalahan lebih jelas, dan animasi konfirmasi baru.
+- Pemberitahuan muncul berurutan, dengan opsi membatalkan tindakan tertentu dari banner.
+- Timer mode Incognito menyatu dengan banner dan menyesuaikan saat ada pemberitahuan.
+
+MAKIN LANCAR
+- Pemilih feed lebih ringkas, komentar lebih nyaman, dan pengelolaan permintaan pesan lebih baik.
+- Musikmu tetap diputar saat membuka Moments atau melihat konten tanpa suara.
+- Audio lebih selaras dan pemuatan chat, story, arsip, serta sorotan lebih lancar.
+</id>
+
+<ja>
+Momentsの新機能（v2.31）
+
+MomentsがiPhone Duoに対応！チャットの着せ替え、ストーリーごとの設定、オリジナル音声、使いやすくなった地図をお楽しみください。
+
+今回のアップデート：
+
+IPHONE DUO
+- 一方の画面にフィード、もう一方にコメントを表示。モーメントを見ながら読んだり返信したりできます。
+- 受信トレイと会話を並べて表示。チャット一覧を見ながら会話を切り替えられます。
+- 「見つける」とプロフィールでは、一覧と開いたモーメントを同時に表示。詳細はもう一方の画面に開きます。
+- Echoesのコンテンツと、さまざまな視点のカードを並べて表示します。
+- 作成時はギャラリーとプレビューを、編集時は写真とツールを一緒に表示します。
+- 外側の画面にカメラのプレビューを表示。チャットからの撮影にも対応しています。
+- ストーリー、返信、リアクション、1回だけ表示するコンテンツが画面の広さに合わせて表示されます。
+- 設定は2列表示。片側にカテゴリ、もう片側に選択した項目が表示されます。
+- サイドナビゲーションとレイアウトが、Duoの開いた状態、閉じた状態、途中まで開いた状態に対応します。
+- Duoを開閉しても続きから。表示中のモーメント、フィードの位置、会話を保持します。
+
+ストーリーの投稿
+- 投稿前の新しい画面に、プレビューとストーリーの設定をまとめました。
+- 公開範囲を確認し、表示期間を24時間または48時間から選べます。
+- メッセージ、リアクション、消える写真での返信を許可するか選べます。
+- アカウント全体の設定を変えずに、ストーリーごとに設定できます。
+- チェーンもこの画面から投稿し、続けるための設定を確認できます。公開範囲は全員、表示期間は48時間のままです。
+- テキストと描画ツールのアイコンを刷新しました。
+
+ストーリーのオリジナル音声
+- 公開ストーリーのオリジナル音声を保存し、音声ステッカーの「保存済み」タブから再利用できます。
+- 投稿時に、自分の音声の保存と再利用を許可するか選べます。公開アカウントの公開ストーリーでのみ利用できます。
+- 保存した音声は、ストーリーの表示期間が終わった後も利用できる場合があります。
+- 音声がストーリーに合わせて一時停止・再開するようになりました。
+
+自分らしいチャット
+- 写真、色、新しい背景テーマで会話をカスタマイズできます。
+- 背景の切り取り位置や暗さを調整し、吹き出しの色を選べます。
+- スタイルが変わるのは自分の画面だけ。それぞれ好きな見た目にできます。
+- リアクションのアニメーションを刷新。よく使う絵文字を選びやすくしました。
+- キーボードを開いたままでも使いやすい操作メニューになりました。
+
+写真・動画・共有コンテンツ
+- チャットの写真をピンチ操作やダブルタップで拡大できます。
+- エディタからチャットに残す形で送ったメディアは、ギャラリーでもテキストとステッカーを保持します。
+- 読み込み中のプレビューを安定させました。
+
+地図
+- モーメントの位置を開くときや、地図を探索するときの操作を見直しました。
+- Momentsとストーリーを場所ごとに表示し、周辺のストーリーにアクセスできます。
+- 見ていたモーメントの流れを保ったまま地図に戻れます。
+
+公開範囲・設定・通知
+- 公開範囲のリストを管理しやすくしました。
+- プロフィール、コンテンツ、メッセージ、アカウントの設定を整理しました。
+- 現在のセッションとログアウト状態をより正確に識別します。
+- チェーン通知のサムネイルを見やすくしました。
+- Echoの提案が重複する問題を修正しました。
+
+アプリ内通知
+- バナーを刷新。保存、投稿、削除、設定変更のお知らせと確認を1か所にまとめました。
+- 処理中の進捗、わかりやすいエラー表示、新しい完了アニメーションを追加しました。
+- お知らせを順番に表示し、一部の操作はバナーから取り消せます。
+- シークレットモードのタイマーがバナーに組み込まれ、お知らせに合わせて表示が変わります。
+
+よりスムーズに
+- フィードの切り替えをコンパクトにし、コメントとメッセージリクエストの操作を改善しました。
+- Momentsを開いたときや、消音中のコンテンツを見ているときも、再生中の音楽は止まりません。
+- 音声の連携を改善し、チャット、ストーリー、アーカイブ、ハイライトの読み込みをスムーズにしました。
+</ja>
+
+<ko>
+Moments의 새로운 기능 (v2.31)
+
+Moments가 iPhone Duo를 지원해요! 나만의 채팅 스타일, 더 세밀한 스토리 설정, 오리지널 오디오와 새로워진 지도를 만나보세요.
+
+이번 업데이트:
+
+IPHONE DUO
+- 한 화면에는 피드, 다른 화면에는 댓글을 표시해요. 모먼트를 보면서 읽고 답할 수 있어요.
+- 받은 편지함과 대화를 나란히 표시해 채팅 목록을 보며 대화를 바꿀 수 있어요.
+- 탐색과 프로필에서는 그리드 옆에 열린 모먼트가 표시되고, 상세 내용은 두 번째 화면에 열려요.
+- Echoes 콘텐츠와 다양한 관점의 카드를 함께 보여줘요.
+- 만들 때는 갤러리와 미리보기를, 편집할 때는 사진과 도구를 함께 볼 수 있어요.
+- 바깥 화면에 카메라 미리보기를 표시해요. 채팅에서 촬영할 때도 지원해요.
+- 스토리, 답장, 반응, 한 번 보기 콘텐츠가 화면 공간에 맞춰 표시돼요.
+- 설정을 두 열로 표시해요. 한쪽에는 카테고리, 다른 쪽에는 선택한 항목이 보여요.
+- 측면 탐색과 화면 구성이 Duo의 펼친 상태, 접힌 상태, 일부 펼친 상태에 맞춰 바뀌어요.
+- Duo를 펼치거나 접어도 이어서 볼 수 있어요. 모먼트, 피드 위치, 대화가 유지돼요.
+
+스토리 게시
+- 게시 전 새 화면에서 미리보기와 스토리 옵션을 한 번에 확인해요.
+- 공개 대상을 확인하고 24시간 또는 48시간 동안 표시할지 선택해요.
+- 메시지, 반응, 사라지는 사진으로 답장을 허용할지 선택해요.
+- 전체 설정을 바꾸지 않고 스토리마다 옵션을 따로 정할 수 있어요.
+- 체인도 이 화면에서 게시하며 이어가기 설정을 확인할 수 있어요. 체인은 계속 전체 공개이고 48시간 동안 유지돼요.
+- 텍스트와 그리기 도구의 아이콘을 새롭게 바꿨어요.
+
+스토리의 오리지널 오디오
+- 공개 스토리의 오리지널 오디오를 저장하고 오디오 스티커의 저장됨 탭에서 다시 사용할 수 있어요.
+- 게시할 때 다른 사람이 오디오를 저장하고 재사용할 수 있는지 정해요. 공개 계정의 공개 스토리에서만 사용할 수 있어요.
+- 저장된 오디오는 스토리 게시 기간이 끝난 뒤에도 이용할 수 있어요.
+- 오디오가 스토리와 함께 멈추고 다시 재생돼요.
+
+나만의 채팅
+- 사진, 색상, 새 배경 테마로 대화마다 스타일을 꾸며보세요.
+- 배경의 구도와 어두운 정도를 조절하고 말풍선 색상을 선택해요.
+- 스타일은 내 화면에만 적용돼요. 각자 원하는 채팅 화면을 만들 수 있어요.
+- 반응 애니메이션을 새롭게 바꾸고 자주 쓰는 이모지를 쉽게 고를 수 있게 했어요.
+- 키보드가 열린 상태에서도 동작 메뉴를 더 편하게 사용할 수 있어요.
+
+사진, 동영상, 공유 콘텐츠
+- 채팅 사진을 두 손가락으로 벌리거나 두 번 탭해 확대할 수 있어요.
+- 편집기에서 채팅에 남도록 보낸 미디어는 갤러리에서도 텍스트와 스티커가 유지돼요.
+- 콘텐츠를 불러오는 동안 미리보기가 더 안정적으로 표시돼요.
+
+지도
+- 모먼트의 위치를 열거나 지도를 탐색할 때 더 편하게 이동할 수 있어요.
+- 장소별로 Moments와 스토리를 모아 보여주고 주변 스토리를 볼 수 있어요.
+- 보고 있던 모먼트의 흐름을 유지하면서 지도로 돌아갈 수 있어요.
+
+공개 대상, 설정, 알림
+- 공개 대상 목록을 더 편하게 관리할 수 있어요.
+- 프로필, 콘텐츠, 메시지, 계정 설정을 새롭게 정리했어요.
+- 현재 세션과 로그아웃 상태를 더 정확하게 파악해요.
+- 체인 알림의 미리보기 이미지를 더 명확하게 표시해요.
+- Echo 제안이 중복되는 문제를 수정했어요.
+
+앱 내 알림
+- 새 배너에 저장, 게시, 삭제, 설정 변경에 대한 알림과 확인을 모았어요.
+- 작업 진행 상태, 더 명확한 오류 안내, 새로운 확인 애니메이션을 추가했어요.
+- 알림을 차례로 표시하며 일부 작업은 배너에서 실행 취소할 수 있어요.
+- 시크릿 모드 타이머가 배너에 통합되고 알림이 오면 표시 방식이 바뀌어요.
+
+더 부드러운 사용 경험
+- 피드 선택기를 간결하게 바꾸고 댓글과 메시지 요청 관리를 더 편하게 했어요.
+- Moments를 열거나 음소거된 콘텐츠를 볼 때도 듣고 있던 음악이 계속 재생돼요.
+- 오디오 연동을 개선하고 채팅, 스토리, 보관함, 하이라이트를 더 부드럽게 불러와요.
+</ko>
+
+<zh-Hant>
+Moments 最新功能（v2.31）
+
+Moments 支援 iPhone Duo 了！打造專屬聊天風格、更靈活地設定限時動態，還有原創音訊與全新地圖體驗。
+
+本次更新：
+
+IPHONE DUO
+- 一邊顯示動態消息，一邊顯示留言。閱讀和回覆時，仍能看著同一則 Moment。
+- 收件匣與對話並排顯示，切換聊天時也能看到對話清單。
+- 探索和個人檔案會在網格旁顯示開啟的 Moment，詳細內容則在另一個螢幕展開。
+- Echoes 會同時顯示內容與不同視角的卡片。
+- 建立內容時，圖庫與預覽並排；編輯時，照片與工具都能看見。
+- 外側螢幕顯示相機預覽，也支援從聊天中拍攝。
+- 限時動態、回覆、表情回應及只能查看一次的內容，會配合可用空間調整。
+- 設定分成兩欄：一邊是分類，另一邊是你選取的選項。
+- 側邊導覽與版面會配合 Duo 完全展開、闔上或部分展開的狀態。
+- 展開或闔上 Duo，都能接著使用：目前的 Moment、動態消息位置和對話會保留。
+
+發佈限時動態
+- 發佈前的新畫面，集中顯示預覽與限時動態選項。
+- 確認誰能查看，並選擇保留 24 或 48 小時。
+- 選擇是否允許訊息、表情回應，以及用閱後即焚照片回覆。
+- 每則限時動態都能獨立設定，不影響整體偏好設定。
+- 接龍也會使用這個畫面，並可調整接續設定。接龍仍為公開，保留 48 小時。
+- 文字與繪圖工具換上新圖示。
+
+限時動態的原創音訊
+- 儲存公開限時動態中的原創音訊，並從音訊貼圖的「已儲存」分頁再次使用。
+- 發佈時，由你決定是否允許他人儲存及重複使用音訊。僅適用於公開帳號的公開限時動態。
+- 儲存的音訊在限時動態到期後，仍可能繼續使用。
+- 音訊會隨限時動態一起暫停和繼續播放。
+
+專屬聊天風格
+- 使用照片、色彩或新背景主題，為每段對話打造不同風格。
+- 調整背景裁切與暗度，並選擇訊息泡泡的顏色。
+- 樣式只會套用在你的畫面：每個人都能自行設定聊天外觀。
+- 更新表情回應動畫，並提供常用表情符號選單。
+- 即使鍵盤開啟，也能更方便地使用操作選單。
+
+照片、影片與分享內容
+- 用雙指縮放或點兩下，放大聊天中的照片。
+- 從編輯器傳送並保留在聊天中的媒體，會保留文字和貼圖，在圖庫中也一樣。
+- 內容載入時，預覽顯示更穩定。
+
+地圖
+- 開啟 Moment 的位置或探索地圖時，導覽更順手。
+- 依地點整理 Moments 和限時動態，也能查看附近的限時動態。
+- 返回地圖時，保留正在查看的 Moment 脈絡。
+
+觀看對象、設定與通知
+- 更方便地管理觀看對象清單。
+- 重新整理個人檔案、內容、訊息與帳號設定。
+- 更準確地辨識目前的登入工作階段與登出狀態。
+- 接龍通知中的縮圖更清楚。
+- 修正重複提出 Echo 建議的問題。
+
+APP 內通知
+- 全新橫幅集中顯示儲存、發佈、刪除及偏好設定變更的提醒和確認。
+- 顯示操作進度，提供更清楚的錯誤訊息與新的確認動畫。
+- 提醒依序顯示，部分操作可直接從橫幅復原。
+- 無痕模式計時器整合到橫幅中，收到提醒時會調整顯示方式。
+
+使用更流暢
+- 更精簡的動態消息選單、更方便的留言操作，以及更完善的訊息邀請管理。
+- 開啟 Moments 或瀏覽靜音內容時，你正在聽的音樂會繼續播放。
+- 改善音訊協調，讓聊天、限時動態、封存與精選動態載入更流暢。
+</zh-Hant>

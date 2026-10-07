@@ -1,33 +1,33 @@
 Novedades de Moments (v2.31)
 
-¡Moments se prepara para el iPhone Duo! También llegan chats más tuyos, un nuevo paso antes de publicar historias, audio original y mapas renovados.
+¡Moments llega al iPhone Duo! Chats más tuyos, historias con más control, audio original y mapas renovados.
 
 En esta versión:
 
 IPHONE DUO
 - Feed en una pantalla y comentarios en la otra: sigue viendo el momento mientras lees y respondes.
 - Inbox y conversación a la vez, para cambiar de chat con la lista a la vista.
-- En Explorar y en los perfiles, la rejilla y el momento abierto comparten espacio. Los detalles y perfiles se abren en la segunda pantalla.
+- Explorar y perfiles muestran la rejilla junto al momento abierto, con detalles en la segunda pantalla.
 - Echoes muestra el contenido junto a las tarjetas de sus distintas perspectivas.
 - Al crear, ves la galería junto a la preview y editas con la foto y las herramientas a la vista.
 - Cámara con preview en la pantalla exterior, también al capturar desde el chat.
 - Historias, respuestas, reacciones y contenido de «ver una vez» adaptados al espacio disponible.
 - Ajustes en dos columnas: categorías a un lado y la opción que cambias al otro.
 - Navegación lateral y distribución adaptadas al Duo abierto, cerrado y parcialmente abierto.
-- Abre o cierra el Duo y sigue donde estabas: conservamos el momento, la posición del feed y la conversación. (Que abrirlo no signifique empezar de nuevo.)
+- Abre o cierra el Duo y sigue donde estabas: conservamos el momento, la posición del feed y la conversación.
 
 PUBLICAR HISTORIAS
 - Antes de publicar, una nueva pantalla reúne la preview y las opciones de tu historia.
 - Revisa quién puede verla y elige si estará disponible durante 24 o 48 horas.
-- Activa o desactiva mensajes, reacciones y respuestas con fotos efímeras para esa historia.
-- Estos cambios no modifican tus preferencias generales. Cada historia puede tener sus propias opciones.
+- Elige si permites mensajes, reacciones y respuestas con fotos efímeras.
+- Cada historia tiene sus opciones, sin cambiar tus preferencias generales.
 - Las cadenas también pasan por esta pantalla, con acceso a sus ajustes de continuación. Siguen siendo públicas y duran 48 horas.
 - Herramientas de texto y dibujo con iconos renovados.
 
 AUDIO ORIGINAL EN HISTORIAS
 - Guarda audios originales de historias públicas y reutilízalos desde la pestaña Guardados del sticker de audio.
 - Al publicar, decides si permites guardar y reutilizar tu audio. Solo se ofrece en historias públicas de cuentas públicas.
-- Los audios guardados pueden seguir disponibles cuando caduque la historia original.
+- Los audios guardados pueden seguir disponibles cuando caduque la historia.
 - El audio acompaña mejor a la historia: se pausa y continúa con ella.
 
 CHATS MÁS TUYOS
@@ -49,16 +49,18 @@ MAPAS
 
 AUDIENCIAS, AJUSTES Y NOTIFICACIONES
 - Gestión de listas de audiencia más cómoda.
-- Ajustes reorganizados para encontrar mejor las opciones de perfil, contenido, mensajes y cuenta.
+- Ajustes reorganizados: perfil, contenido, mensajes y cuenta.
 - Identificación más fiable de la sesión actual y del estado al cerrar sesión.
 - Miniaturas más claras para las notificaciones de cadenas.
 - Corrección de propuestas duplicadas de Echoes.
 
+NOTIFICACIONES DENTRO DE LA APP
+- Banner renovado con avisos y confirmaciones en el mismo lugar: guardar, publicar, borrar o cambiar preferencias.
+- Progreso mientras se completa una acción, errores más claros y una nueva animación de confirmación.
+- Avisos en cola y opción de deshacer ciertas acciones desde el banner.
+- El temporizador de Incógnito se integra con el banner y se adapta cuando llega un aviso.
+
 FLUIDEZ Y PULIDO
 - Selector del feed más compacto, comentarios más cómodos y mejor gestión de solicitudes de mensajes.
-- Hemos renovado el banner de notificaciones dentro de la app.
-- Confirmaciones más claras al guardar, borrar o cambiar preferencias.
 - Tu música sigue sonando al entrar en Moments o navegar por contenido silenciado.
 - Mejor coordinación del audio y carga más fluida de chats, historias, archivo y destacadas.
-
-Si echáis de menos algo o encontráis algún fallo… ¡avisadme!

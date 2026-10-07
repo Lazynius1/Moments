@@ -755,40 +755,45 @@ class ChatService: ObservableObject {
             switch result {
             case .success(let uploadResult):
                 let finalMessageId = messageId ?? UUID().uuidString
-                let message = EnhancedMessage(
-                    id: finalMessageId,
-                    conversationId: conversationId,
-                    senderId: senderId,
-                    type: type,
-                    content: nil, // No text content to encrypt
-                    mediaUrl: uploadResult.mediaUrl,
-                    thumbnailUrl: uploadResult.thumbnailUrl,
-                    mediaObjectPath: uploadResult.mediaObjectPath,
-                    thumbnailObjectPath: uploadResult.thumbnailObjectPath,
-                    mediaEncryption: uploadResult.mediaEncryption,
-                    thumbnailEncryption: uploadResult.thumbnailEncryption,
-                    duration: nil,
-                    fileName: fileName,
-                    fileSize: Int64(mediaData.count),
-                    latitude: nil,
-                    longitude: nil,
-                    timestamp: Date(),
-                    status: .sending,
-                    isRead: false,
-                    isDeleted: false,
-                    deletedAt: nil,
-                    editedAt: nil,
-                    reactions: nil,
-                    replyTo: replyTo,
-                    expirationDate: nil,
-                    isViewed: false,
-                    mediaBatchId: mediaBatchId,
-                    textOverlays: textOverlays, stickers: stickers,
-                    isVanishModeMessage: isVanishModeMessage ? true : nil,
-                    vanishExpiresAt: vanishExpiresAt
-                )
+                Task { @MainActor in
+                    let dimensions = await ChatMediaFileDimensions.read(localURL: uploadResult.mediaUrl)
+                    let message = EnhancedMessage(
+                        id: finalMessageId,
+                        conversationId: conversationId,
+                        senderId: senderId,
+                        type: type,
+                        content: nil, // No text content to encrypt
+                        mediaUrl: uploadResult.mediaUrl,
+                        thumbnailUrl: uploadResult.thumbnailUrl,
+                        mediaObjectPath: uploadResult.mediaObjectPath,
+                        thumbnailObjectPath: uploadResult.thumbnailObjectPath,
+                        mediaEncryption: uploadResult.mediaEncryption,
+                        thumbnailEncryption: uploadResult.thumbnailEncryption,
+                        duration: nil,
+                        fileName: fileName,
+                        fileSize: Int64(mediaData.count),
+                        mediaWidth: dimensions.map { Int($0.width) },
+                        mediaHeight: dimensions.map { Int($0.height) },
+                        latitude: nil,
+                        longitude: nil,
+                        timestamp: Date(),
+                        status: .sending,
+                        isRead: false,
+                        isDeleted: false,
+                        deletedAt: nil,
+                        editedAt: nil,
+                        reactions: nil,
+                        replyTo: replyTo,
+                        expirationDate: nil,
+                        isViewed: false,
+                        mediaBatchId: mediaBatchId,
+                        textOverlays: textOverlays, stickers: stickers,
+                        isVanishModeMessage: isVanishModeMessage ? true : nil,
+                        vanishExpiresAt: vanishExpiresAt
+                    )
 
-                self?.sendMessage(message, useServerTimestamp: true, completion: completion)
+                    self?.sendMessage(message, useServerTimestamp: true, completion: completion)
+                }
                 
             case .failure(let error):
                 completion(.failure(error))

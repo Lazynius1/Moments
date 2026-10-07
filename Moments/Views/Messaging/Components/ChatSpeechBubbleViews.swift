@@ -118,6 +118,32 @@ enum ChatBubbleLayoutWidth {
     }
 }
 
+/// Encuadre de miniaturas de chat; el detalle conserva la proporción del archivo.
+enum ChatMediaCardLayout {
+    static let standaloneMaxWidth: CGFloat = 240
+    static let standaloneMaxHeight: CGFloat = 272
+    static let clusterMaxWidth: CGFloat = 220
+    static let clusterMaxHeight: CGFloat = 244
+
+    static func standaloneSize(width: Int?, height: Int?, bubbleMaxWidth: CGFloat) -> CGSize {
+        let isLandscape = (width ?? 0) > 0 && (height ?? 0) > 0 && (width ?? 0) > (height ?? 0)
+        return fittedSize(
+            width: width, height: height,
+            maxWidth: isLandscape ? bubbleMaxWidth : min(standaloneMaxWidth, bubbleMaxWidth),
+            maximumAspect: isLandscape ? 1.5 : nil
+        )
+    }
+
+    static func fittedSize(width: Int?, height: Int?, maxWidth: CGFloat, maxHeight: CGFloat = standaloneMaxHeight, maximumAspect: CGFloat? = nil) -> CGSize {
+        let sourceWidth = CGFloat(width.flatMap { $0 > 0 ? $0 : nil } ?? 208)
+        let sourceHeight = CGFloat(height.flatMap { $0 > 0 ? $0 : nil } ?? 272)
+        // Las miniaturas muy verticales se recortan a 3:4; el visor conserva el archivo completo.
+        let previewAspect = min(max(sourceWidth / sourceHeight, 3.0 / 4.0), maximumAspect ?? .greatestFiniteMagnitude)
+        let fittedWidth = min(maxWidth, maxHeight * previewAspect)
+        return CGSize(width: fittedWidth, height: fittedWidth / previewAspect)
+    }
+}
+
 /// Ancho/alto de diseño, nunca más anchos que la columna del chat.
 private struct ChatCappedCardFrame: ViewModifier {
     let designWidth: CGFloat

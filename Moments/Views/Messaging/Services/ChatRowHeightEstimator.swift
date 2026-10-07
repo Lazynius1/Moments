@@ -119,13 +119,17 @@ enum ChatRowHeightEstimator {
             if messages.allSatisfy(\.isDeleted) {
                 return deletedRowHeight
             }
-            return estimatedClusterHeight(count: messages.filter { !$0.isDeleted }.count)
+            return estimatedClusterHeight(messages: messages.filter { !$0.isDeleted }, bubbleWidth: bubbleWidth)
         }
     }
 
-    private static func estimatedClusterHeight(count: Int) -> CGFloat {
-        let visible = min(max(count, 1), ClusterMediaLayout.maxVisible)
-        return ClusterMediaLayout.frontHeight
+    private static func estimatedClusterHeight(messages: [EnhancedMessage], bubbleWidth: CGFloat) -> CGFloat {
+        let visible = min(max(messages.count, 1), ClusterMediaLayout.maxVisible)
+        let maxWidth = max(1, min(ChatMediaCardLayout.clusterMaxWidth, bubbleWidth - ClusterMediaLayout.fanSidePadding(for: visible) * 2))
+        let height = messages.prefix(visible).map {
+            ChatMediaCardLayout.fittedSize(width: $0.mediaWidth, height: $0.mediaHeight, maxWidth: maxWidth, maxHeight: ChatMediaCardLayout.clusterMaxHeight).height
+        }.max() ?? ChatMediaCardLayout.clusterMaxHeight
+        return height
             + ClusterMediaLayout.fanTopPadding(for: visible)
             + ClusterMediaLayout.fanBottomPadding
             + 6
@@ -142,7 +146,7 @@ enum ChatRowHeightEstimator {
         case .text:
             return textHeight(for: message, bubbleWidth: bubbleWidth)
         case .image, .video:
-            var height = photoVideoHeight
+            var height = ChatMediaCardLayout.standaloneSize(width: message.mediaWidth, height: message.mediaHeight, bubbleMaxWidth: bubbleWidth).height
             if let caption = message.content, !caption.isEmpty {
                 height += textHeight(for: message, bubbleWidth: bubbleWidth) - textVerticalPadding
             }

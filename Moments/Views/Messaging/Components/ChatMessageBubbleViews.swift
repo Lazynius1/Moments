@@ -388,11 +388,17 @@ struct GlassmorphicMessageBubble: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.chatListContainerWidth) private var chatListContainerWidth
 
+    @State private var localMediaDimensions: CGSize?
+
     private var photoVideoSize: CGSize {
-        ChatBubbleLayoutWidth.cappedSize(
-            width: 208,
-            height: 272,
-            chatListWidth: chatListContainerWidth
+        ChatMediaCardLayout.standaloneSize(
+            width: message.mediaWidth ?? localMediaDimensions.map { Int($0.width) },
+            height: message.mediaHeight ?? localMediaDimensions.map { Int($0.height) },
+            bubbleMaxWidth: ChatBubbleLayoutWidth.capped(
+                ChatBubbleLayoutWidth.maxTextBubbleWidth(chatListWidth: chatListContainerWidth),
+                chatListWidth: chatListContainerWidth,
+                gutter: isCurrentUser ? 64 : 88
+            )
         )
     }
 
@@ -515,6 +521,13 @@ struct GlassmorphicMessageBubble: View {
                                 progress: progress
                             )
                             .frame(width: photoVideoSize.width, height: photoVideoSize.height)
+                            .task(id: "\(message.mediaUrl ?? "")|\(message.thumbnailUrl ?? "")") {
+                                if message.mediaWidth == nil || message.mediaHeight == nil {
+                                    let primary = await ChatMediaFileDimensions.read(localURL: message.mediaUrl)
+                                    let thumbnail = primary == nil ? await ChatMediaFileDimensions.read(localURL: message.thumbnailUrl) : nil
+                                    localMediaDimensions = primary ?? thumbnail
+                                }
+                            }
                             .overlay { ChatMessageStaticOverlay(message: message) }
                             .clipShape(mediaBubbleShape(cornerRadius: 16))
                         )
@@ -555,6 +568,13 @@ struct GlassmorphicMessageBubble: View {
                                 progress: progress
                             )
                             .frame(width: photoVideoSize.width, height: photoVideoSize.height)
+                            .task(id: "\(message.mediaUrl ?? "")|\(message.thumbnailUrl ?? "")") {
+                                if message.mediaWidth == nil || message.mediaHeight == nil {
+                                    let primary = await ChatMediaFileDimensions.read(localURL: message.mediaUrl)
+                                    let thumbnail = primary == nil ? await ChatMediaFileDimensions.read(localURL: message.thumbnailUrl) : nil
+                                    localMediaDimensions = primary ?? thumbnail
+                                }
+                            }
                             .overlay { ChatMessageStaticOverlay(message: message) }
                             .clipShape(mediaBubbleShape(cornerRadius: 16))
                         )

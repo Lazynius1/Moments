@@ -3,6 +3,7 @@ import FirebaseAuth
 import FirebaseStorage
 import AVFoundation
 import UIKit
+import ImageIO
 
 extension ChatService {
     // MARK: - Media Upload
@@ -482,5 +483,30 @@ extension ChatService {
                 "originalContentType": originalContentType
             ]
         )
+    }
+}
+
+/// Metadatos del archivo local: no descarga ni decodifica la imagen completa.
+enum ChatMediaFileDimensions {
+    nonisolated static func read(localURL: String?) async -> CGSize? {
+        guard let localURL, let url = URL(string: localURL), url.isFileURL else { return nil }
+        return await Task.detached(priority: .utility) {
+            if let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+               let width = properties[kCGImagePropertyPixelWidth] as? NSNumber,
+               let height = properties[kCGImagePropertyPixelHeight] as? NSNumber {
+                let orientation = (properties[kCGImagePropertyOrientation] as? NSNumber)?.intValue ?? 1
+                let swapsAxes = (5...8).contains(orientation)
+                return CGSize(width: swapsAxes ? height.doubleValue : width.doubleValue,
+                              height: swapsAxes ? width.doubleValue : height.doubleValue)
+            }
+            let asset = AVURLAsset(url: url)
+            guard let track = try? await asset.loadTracks(withMediaType: .video).first,
+                  let size = try? await track.load(.naturalSize),
+                  let transform = try? await track.load(.preferredTransform) else { return nil }
+            let rect = CGRect(origin: .zero, size: size).applying(transform)
+            guard rect.width > 0, rect.height > 0 else { return nil }
+            return rect.size
+        }.value
     }
 }

@@ -2298,6 +2298,8 @@ struct FullScreenMediaView: View {
     @State private var seekTarget: Double? = nil
     @State private var sharedPlayer: AVPlayer? = nil
     @State private var isVideoPaused = false
+    @State private var showsVideoControls = true
+    @State private var videoControlsInteraction = 0
     @State private var isMuted = false
     @State private var expandedVideoURL: URL?
     @State private var showExpandedVideo = false
@@ -2457,8 +2459,17 @@ struct FullScreenMediaView: View {
             videoCurrentTime = 0
             videoDuration = 0
             isVideoPaused = false
+            showsVideoControls = true
+            videoControlsInteraction += 1
             showingReactionBarForMessageId = nil
             restartEphemeralCountdownIfNeeded()
+        }
+        .task(id: "\(selectedMediaId)|\(isVideoPaused)|\(showsVideoControls)|\(videoControlsInteraction)|\(showExpandedVideo)") {
+            guard isVideo, !isVideoPaused, showsVideoControls, !showExpandedVideo else { return }
+            do {
+                try await Task.sleep(for: .seconds(2.5))
+                withAnimation(.easeOut(duration: 0.2)) { showsVideoControls = false }
+            } catch { }
         }
         .onAppear {
             GlobalVideoManager.shared.pauseAllVideos()
@@ -2551,7 +2562,17 @@ struct FullScreenMediaView: View {
                         .clipShape(mediaClipShape)
 
                         if isActive {
+                            Color.clear
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    withAnimation(.easeOut(duration: 0.2)) { showsVideoControls.toggle() }
+                                    videoControlsInteraction += 1
+                                }
+                        }
+
+                        if isActive && showsVideoControls {
                             videoControlsOverlay
+                                .transition(.opacity)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .zIndex(2)
                         }
@@ -2728,6 +2749,7 @@ struct FullScreenMediaView: View {
                 HapticManager.shared.lightImpact()
                 withAnimation(.spring(response: 0.24, dampingFraction: 0.82)) {
                     isVideoPaused.toggle()
+                    videoControlsInteraction += 1
                 }
             } label: {
                 Image(systemName: isVideoPaused ? "play.fill" : "pause.fill")
@@ -2735,8 +2757,7 @@ struct FullScreenMediaView: View {
                     .foregroundStyle(primaryOverlayColor)
                     .frame(width: 64, height: 64)
                     .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
-                    .padding(60)
-                    .contentShape(Rectangle())
+                    .contentShape(Circle())
             }
             .buttonStyle(.momentsPressSubtle)
 
@@ -2748,6 +2769,7 @@ struct FullScreenMediaView: View {
                         Button {
                             HapticManager.shared.lightImpact()
                             isMuted.toggle()
+                            videoControlsInteraction += 1
                         } label: {
                             Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                                 .font(.system(size: 15, weight: .semibold))
@@ -2797,6 +2819,7 @@ struct FullScreenMediaView: View {
                     onSeek: { targetTime in
                         videoCurrentTime = targetTime
                         seekTarget = targetTime
+                        videoControlsInteraction += 1
                     }
                 )
                 .padding(.bottom, 16)
