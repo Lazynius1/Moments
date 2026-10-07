@@ -245,11 +245,9 @@ service cloud.firestore {
     function canCreateDirectConversation(conversationData) {
       let participants = conversationData.participants;
       let otherUserId = participants[0] == request.auth.uid ? participants[1] : participants[0];
-      return participants.size() > 2
-        || (
-          participants.size() == 2
-          && exists(/databases/$(database)/documents/users/$(request.auth.uid)/mutuals/$(otherUserId))
-        );
+      // `conversations` es solo 1:1; los grupos van por `groupConversations` (Cloud Function).
+      return participants.size() == 2
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid)/mutuals/$(otherUserId));
     }
     
         // ✅ NUEVA: Función para validar memoria categorizada de Nova
@@ -360,7 +358,7 @@ service cloud.firestore {
                 && request.resource.data.username is string
                 && request.resource.data.username.size() > 0
                 && request.resource.data.interests is list
-                && request.resource.data.isPlusSubscriber is bool
+                && request.resource.data.isPlusSubscriber == false
                 && request.resource.data.blockedUsers is list
                 && request.resource.data.isPrivate is bool
                 && request.resource.data.showMutuals is bool
@@ -370,7 +368,7 @@ service cloud.firestore {
                 && request.resource.data.get('isActive', true) == true  // ✅ Asegurar que sea true
                 && request.resource.data.get('showBadge', true) is bool
                 && request.resource.data.get('showPlusBadge', true) is bool
-                && request.resource.data.get('isVerified', false) is bool
+                && request.resource.data.get('isVerified', false) == false
                 && request.resource.data.get('onlineStatus', 'offline') is string
                 && request.resource.data.get('isOnline', false) is bool
                 // Contadores derivados: nacen a cero y solo Admin SDK los mantiene.
@@ -380,8 +378,11 @@ service cloud.firestore {
                 && request.resource.data.get('mutualsCount', 0) == 0
                 && request.resource.data.get('profileVisitorsCount', 0) == 0
                 // Campos opcionales
-                && (!("ownedBadges" in request.resource.data) || request.resource.data.ownedBadges is list)
-                && (!("plusSubscription" in request.resource.data) || request.resource.data.plusSubscription is map)
+                // Privilegios (Plus, verificado, insignias, rol): nacen vacíos y solo Admin SDK/consola los asigna.
+                && (!("ownedBadges" in request.resource.data) || (request.resource.data.ownedBadges is list && request.resource.data.ownedBadges.size() == 0))
+                && !("plusSubscription" in request.resource.data)
+                && !("primaryBadgeId" in request.resource.data)
+                && !("role" in request.resource.data)
                 && (!("profileImagePath" in request.resource.data) || request.resource.data.profileImagePath is string)
                 && (!("bio" in request.resource.data) || request.resource.data.bio is string)
                 && (!("profileNote" in request.resource.data) || (
@@ -391,7 +392,6 @@ service cloud.firestore {
                 && (!("activeHoursStart" in request.resource.data) || request.resource.data.activeHoursStart is string)
                 && (!("activeHoursEnd" in request.resource.data) || request.resource.data.activeHoursEnd is string)
                 && (!("notificationPreferences" in request.resource.data) || request.resource.data.notificationPreferences is map)
-                && (!("primaryBadgeId" in request.resource.data) || request.resource.data.primaryBadgeId is string)
                 && (!("selectedProfileTheme" in request.resource.data) || request.resource.data.selectedProfileTheme is string)
                 && (!("lastSeen" in request.resource.data) || request.resource.data.lastSeen is timestamp)
                     && (!("encryptionPublicKeyBase64" in request.resource.data) || request.resource.data.encryptionPublicKeyBase64 is string)
@@ -411,6 +411,10 @@ service cloud.firestore {
             ])
             && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
               'followersCount', 'followingCount', 'momentsCount', 'mutualsCount', 'profileVisitorsCount'
+            ])
+            // Privilegios: solo Admin SDK/consola.
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+              'isPlusSubscriber', 'plusSubscription', 'isVerified', 'ownedBadges', 'primaryBadgeId', 'role'
             ])
             && (
               !request.resource.data.diff(resource.data).affectedKeys().hasAny(['profileNote'])
@@ -1233,9 +1237,10 @@ service cloud.firestore {
       }
 
       match /visits/{visitId} {
+        // El dueño ve todas; un visitante solo sus propias visitas (deduplicación en registerVisit).
         allow list: if request.auth != null && (
           request.auth.uid == userId ||
-          request.auth.uid != userId
+          resource.data.visitorId == request.auth.uid
         );
         
         allow get: if request.auth != null && (
@@ -1263,8 +1268,8 @@ service cloud.firestore {
 
       match /visitSummaries/{summaryId} {
         allow read: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null;
-        allow update: if request.auth != null;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId;
         allow delete: if request.auth != null && request.auth.uid == userId;
       }
 
@@ -1373,8 +1378,8 @@ service cloud.firestore {
 
       match /userActivity/{activityId} {
         allow read: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null;
-        allow update: if request.auth != null;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId;
         allow delete: if false;
       }
 
@@ -1895,16 +1900,11 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.auth.uid in request.resource.data.participants
         && canParticipateInConversations(request.auth.uid)
-        && request.resource.data.participants.size() >= 2
+        && request.resource.data.participants.size() == 2
         && canCreateDirectConversation(request.resource.data)
-        && (
-          request.resource.data.participants.size() > 2
-          || (
-            request.resource.data.get('wrappedKeys', {}) is map
-            && request.resource.data.get('wrappedKeys', {}).keys().hasAll(request.resource.data.participants)
-            && request.resource.data.get('encryptionVersion', '') == '3.0'
-          )
-        )
+        && request.resource.data.get('wrappedKeys', {}) is map
+        && request.resource.data.get('wrappedKeys', {}).keys().hasAll(request.resource.data.participants)
+        && request.resource.data.get('encryptionVersion', '') == '3.0'
         && (!('encryptionKey' in request.resource.data) || request.resource.data.encryptionKey is string)
         && (!('encryptionKeyCreatedAt' in request.resource.data) || request.resource.data.encryptionKeyCreatedAt is timestamp)
         && (!('encryptionVersion' in request.resource.data) || request.resource.data.encryptionVersion is string)
@@ -2160,8 +2160,9 @@ service cloud.firestore {
           && timestampUnchanged()
           && (!('statusUpdatedAt' in request.resource.data) || request.resource.data.statusUpdatedAt is timestamp);
 
-        allow delete: if request.auth != null
-          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+        // Ningún cliente borra mensajes: "eliminar para todos/para mí", efímeros y vanish son updates;
+        // el borrado físico lo hacen las Cloud Functions (Admin SDK).
+        allow delete: if false;
 
         match /messageReactions/{userId} {
           allow read: if request.auth != null

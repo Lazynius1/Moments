@@ -2,6 +2,7 @@ import WidgetKit
 import FirebaseAuth
 @preconcurrency import FirebaseFirestore
 import FirebaseStorage
+import FirebaseFunctions
 import Combine
 import Foundation
 import UIKit
@@ -69,12 +70,24 @@ class AuthService: ObservableObject {
             .evaluate(with: email.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
-    /// ¿Hay ya una cuenta con este correo? Se consulta el índice `usernames`, donde
-    /// el alta guarda el email junto al userId. Permite avisar en el propio paso del
+    /// ¿Hay ya una cuenta con este correo? Lo responde la Cloud Function
+    /// `checkEmailAvailable` (Firebase Auth). Permite avisar en el propio paso del
     /// correo en vez de dejar que el registro falle al final, al pulsar "crear cuenta".
     static func isEmailAlreadyRegistered(_ email: String) async -> Bool {
         let clean = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return false }
+        do {
+            let result = try await Functions.functions(region: "europe-southwest1")
+                .httpsCallable("checkEmailAvailable")
+                .call(["email": clean])
+            if let available = (result.data as? [String: Any])?["available"] as? Bool {
+                return !available
+            }
+        } catch {
+            // Función sin desplegar o caída: respaldo con el índice `usernames` mientras
+            // admita consultas. Si también falla, no bloquear el alta: ya lo resuelve
+            // `register(...)` con su recuperación de conflicto.
+        }
         do {
             let snapshot = try await Firestore.firestore()
                 .collection("usernames")
@@ -83,8 +96,6 @@ class AuthService: ObservableObject {
                 .getDocuments()
             return !snapshot.documents.isEmpty
         } catch {
-            // Sin red o consulta rechazada: no bloquear el alta, ya lo resuelve
-            // `register(...)` con su recuperación de conflicto.
             return false
         }
     }
@@ -1109,20 +1120,12 @@ class AuthService: ObservableObject {
                         }
                     }
                 } else {
-                    // No hay caché, consultar Firestore
-                    Firestore.firestore().collection("usernames").document(identifier.lowercased()).getDocument { document, error in
-                        if let error = error {
+                    // No hay caché: resolver el email en servidor (`resolveLoginEmail`).
+                    resolveLoginEmail(forUsername: identifier) { result in
+                        switch result {
+                        case .failure(let error):
                             completion(.failure(error))
-                            return
-                        }
-
-                        guard let data = document?.data() else {
-                            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.usernameNotFound", comment: "Username not found")])))
-                            return
-                        }
-
-                        // Flujo principal: usernames/{username}.email
-                        if let email = data["email"] as? String, !email.isEmpty {
+                        case .success(let email):
                             Auth.auth().signIn(withEmail: email, password: password) { result, error in
                                 if let error = error {
                                     completion(.failure(self.mapAuthError(error)))
@@ -1135,49 +1138,52 @@ class AuthService: ObservableObject {
                                     completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("login.error.unknown", comment: "Unknown login error")])))
                                 }
                             }
-                            return
-                        }
-
-                        // Fallback resiliente: si falta email pero existe userId, buscar email en users/{userId}
-                        guard let userId = data["userId"] as? String, !userId.isEmpty else {
-                            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.usernameNotFound", comment: "Username not found")])))
-                            return
-                        }
-
-                        Firestore.firestore().collection("users").document(userId).getDocument { userDoc, userError in
-                            if let userError = userError {
-                                completion(.failure(userError))
-                                return
-                            }
-
-                            guard let userEmail = userDoc?.data()?["email"] as? String, !userEmail.isEmpty else {
-                                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.usernameNotFound", comment: "Username not found")])))
-                                return
-                            }
-
-                            // Auto-repair del índice usernames para próximos logins
-                            Firestore.firestore().collection("usernames").document(identifier.lowercased()).setData([
-                                "email": userEmail,
-                                "updatedAt": FieldValue.serverTimestamp()
-                            ], merge: true)
-
-                            Auth.auth().signIn(withEmail: userEmail, password: password) { result, error in
-                                if let error = error {
-                                    completion(.failure(self.mapAuthError(error)))
-                                } else if let user = result?.user {
-                                    UserDefaults.standard.set(userEmail, forKey: "cachedEmail_\(identifier.lowercased())")
-                                    DispatchQueue.main.async {
-                                        self.finishCredentialLogin(for: user, completion: completion)
-                                    }
-                                } else {
-                                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("login.error.unknown", comment: "Unknown login error")])))
-                                }
-                            }
                         }
                     }
                 }
             }
         }
+
+    /// username → email vía Cloud Function, para no depender del email guardado en el
+    /// índice público `usernames`. Si la función no responde (sin desplegar, caída), se
+    /// usa el índice como respaldo mientras siga guardando el email.
+    private func resolveLoginEmail(forUsername identifier: String, completion: @escaping (Result<String, Error>) -> Void) {
+        let username = identifier.lowercased()
+        let notFound = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.usernameNotFound", comment: "Username not found")])
+
+        Functions.functions(region: "europe-southwest1")
+            .httpsCallable("resolveLoginEmail")
+            .call(["username": username]) { result, error in
+                if let email = (result?.data as? [String: Any])?["email"] as? String, !email.isEmpty {
+                    completion(.success(email))
+                    return
+                }
+
+                let nsError = error as NSError?
+                if nsError?.domain == FunctionsErrorDomain {
+                    switch FunctionsErrorCode(rawValue: nsError?.code ?? -1) {
+                    case .notFound, .invalidArgument:
+                        completion(.failure(notFound))
+                        return
+                    case .resourceExhausted:
+                        completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.tooManyRequests", comment: "Too many requests")])))
+                        return
+                    default:
+                        break
+                    }
+                }
+
+                Firestore.firestore().collection("usernames").document(username).getDocument { document, error in
+                    if let error = error {
+                        completion(.failure(error))
+                    } else if let email = document?.data()?["email"] as? String, !email.isEmpty {
+                        completion(.success(email))
+                    } else {
+                        completion(.failure(notFound))
+                    }
+                }
+            }
+    }
 
     private func finishCredentialLogin(for user: User, completion: @escaping (Result<Void, Error>) -> Void) {
         authQueue.async {
