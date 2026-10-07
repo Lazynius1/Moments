@@ -37,18 +37,32 @@ const {
   GENTLE_REMINDER_LIMITS
 } = b;
 
+const {
+  effectiveUnreadCount,
+  countUnreadMessagesBounded
+} = require('./unread-counters');
+
 function validateUserData(userData, requiredFields = ['username', 'isActive']) {
   return requiredFields.every(field => userData[field] !== undefined && userData[field] !== null);
 }
 
 // ✅ FUNCIÓN auxiliar para manejar tokens inválidos
+// Solo borra si el token guardado sigue siendo el que falló (evita pisar un token
+// recién renovado por el cliente mientras se enviaba el push).
 async function removeInvalidToken(userId, fcmToken) {
   try {
-    await admin.firestore().collection('users').doc(userId).update({
-      fcmToken: admin.firestore.FieldValue.delete(),
-      fcmTokenUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+    const userRef = admin.firestore().collection('users').doc(userId);
+    const removed = await admin.firestore().runTransaction(async (tx) => {
+      const snap = await tx.get(userRef);
+      if (!snap.exists) return false;
+      if (fcmToken && snap.get('fcmToken') !== fcmToken) return false;
+      tx.update(userRef, {
+        fcmToken: admin.firestore.FieldValue.delete(),
+        fcmTokenUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      return true;
     });
-    console.log(`✅ Token inválido eliminado para usuario: ${userId}`);
+    if (removed) console.log(`✅ Token inválido eliminado para usuario: ${userId}`);
   } catch (error) {
     console.error(`❌ Error eliminando token inválido para ${userId}:`, error);
   }
@@ -581,81 +595,20 @@ function withAndroidShade(message, { collapseKey, threadId, channel } = {}) {
 }
 
 // ✅ Contar mensajes no leídos EN UNA CONVERSACIÓN ESPECÍFICA
+// Usa el contador desnormalizado `unreadCounts.{uid}`; si la conversación es antigua
+// y no lo tiene, cae a una consulta acotada (timestamp > lastReadAt, limit 100).
 async function getUnreadMessagesInConversation(conversationId, userId) {
   try {
-    const conversationSnap = await admin.firestore()
-      .collection('conversations')
-      .doc(conversationId)
-      .get();
-
+    const conversationRef = admin.firestore().collection('conversations').doc(conversationId);
+    const conversationSnap = await conversationRef.get();
     const conversationData = conversationSnap.data() || {};
-    const lastReadAt = conversationData.lastReadAt || {};
-    const lastReadValue = lastReadAt[userId];
-    const lastReadMillis = lastReadValue && typeof lastReadValue.toMillis === 'function'
-      ? lastReadValue.toMillis()
-      : null;
 
-    const messagesSnap = await admin.firestore()
-      .collection('conversations')
-      .doc(conversationId)
-      .collection('messages')
-      .orderBy('timestamp', 'desc')
-      .get();
-
-    const visibleIncomingMessages = messagesSnap.docs.filter(doc => {
-      const data = doc.data() || {};
-      if (data.senderId === userId) return false;
-      if (data.isDeleted === true) return false;
-
-      const deletedFor = Array.isArray(data.deletedFor) ? data.deletedFor : [];
-      if (deletedFor.includes(userId)) return false;
-
-      return true;
-    });
-
-    if (lastReadMillis) {
-      const unreadCount = visibleIncomingMessages.filter(doc => {
-        const data = doc.data() || {};
-        const timestampMillis = data.timestamp && typeof data.timestamp.toMillis === 'function'
-          ? data.timestamp.toMillis()
-          : null;
-
-        return !timestampMillis || timestampMillis > lastReadMillis;
-      }).length;
-
-      return Math.max(1, unreadCount);
+    const counter = effectiveUnreadCount(conversationData, userId);
+    if (counter !== null && counter > 0) {
+      return counter;
     }
 
-    // Fallback para conversaciones antiguas sin lastReadAt:
-    // contamos solo la racha mas reciente de mensajes entrantes no leidos.
-    let unreadCount = 0;
-    for (const doc of messagesSnap.docs) {
-      const data = doc.data() || {};
-
-      if (data.isDeleted === true) {
-        continue;
-      }
-
-      const deletedFor = Array.isArray(data.deletedFor) ? data.deletedFor : [];
-      if (deletedFor.includes(userId)) {
-        continue;
-      }
-
-      if (data.senderId === userId) {
-        break;
-      }
-
-      const readBy = Array.isArray(data.readBy) ? data.readBy : [];
-      const isExplicitlyRead = readBy.includes(userId) || data.isRead === true || data.status === 'read';
-
-      if (isExplicitlyRead) {
-        break;
-      }
-
-      unreadCount += 1;
-    }
-
-    return Math.max(1, unreadCount);
+    return await countUnreadMessagesBounded(conversationRef, userId, conversationData);
   } catch (error) {
     return 1;
   }
@@ -1168,39 +1121,43 @@ async function getPendingFollowRequestCount(userId) {
 // ✅ NUEVO: Función para obtener todos los conteos pendientes de un usuario
 async function getUnreadCounts(userId, triggerContext = {}) {
   try {
-    const [messagesSnap, notificationsSnap, groupsSnap] = await Promise.all([
-      admin.firestore().collection('conversations')
-        .where('participants', 'array-contains', userId)
+    const db = admin.firestore();
+    // Conversaciones 1:1 no leídas = readStatus.{uid} == false. Agregación count():
+    // 1 lectura por cada 1000 coincidencias en vez de leer todas las conversaciones.
+    // Equivale al filtro anterior por participants: readStatus solo tiene claves de
+    // participantes y en 1:1 los participantes no cambian.
+    const [unreadConversationsAgg, notificationsSnap, groupsSnap] = await Promise.all([
+      db.collection('conversations')
+        .where(new admin.firestore.FieldPath('readStatus', userId), '==', false)
+        .count()
         .get(),
-      admin.firestore().collection(`users/${userId}/notifications`)
+      db.collection(`users/${userId}/notifications`)
         .where('isPending', '==', true)
         .get(),
-      admin.firestore().collection('groupConversations')
+      // Grupos: pocos por usuario; se mantiene el filtro por participants para no
+      // contar grupos de los que salió. select() reduce el payload.
+      db.collection('groupConversations')
         .where('participants', 'array-contains', userId)
+        .select('readStatus')
         .get()
     ]);
 
-    const unreadGroupMessages = groupsSnap.docs.filter(doc => (doc.data().readStatus || {})[userId] === false).length;
-    let unreadMessages = 0;
+    const unreadGroupMessages = groupsSnap.docs.filter(doc => (doc.get('readStatus') || {})[userId] === false).length;
+    let unreadMessages = unreadConversationsAgg.data().count || 0;
     let unreadInConversation = 0;
-    let foundCurrentConversation = false;
 
-    messagesSnap.forEach(doc => {
-      const data = doc.data();
-      const readStatus = data.readStatus || {};
-      if (readStatus[userId] === false) {
-        unreadMessages++;
-        if (triggerContext.type === 'message' && doc.id === triggerContext.conversationId) {
-          unreadInConversation++;
-          foundCurrentConversation = true;
-        }
+    // ✅ En un trigger de mensaje la conversación actual siempre cuenta como no leída.
+    // Si el llamador no garantiza que ya está marcada (readStatus false) se comprueba.
+    if (triggerContext.type === 'message') {
+      unreadInConversation = 1;
+      let alreadyCounted = triggerContext.conversationMarkedUnread === true;
+      if (!alreadyCounted && triggerContext.conversationId) {
+        const currentSnap = await db.doc(`conversations/${triggerContext.conversationId}`).get();
+        alreadyCounted = (currentSnap.get('readStatus') || {})[userId] === false;
       }
-    });
-
-    // ✅ SIEMPRE sumamos 1 si es un trigger de mensaje y no lo encontramos aún
-    if (triggerContext.type === 'message' && !foundCurrentConversation) {
-      unreadMessages++;
-      unreadInConversation++;
+      if (!alreadyCounted) {
+        unreadMessages++;
+      }
     }
 
     let unreadNotifications = notificationsSnap.size;

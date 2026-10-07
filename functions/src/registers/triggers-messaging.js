@@ -128,6 +128,9 @@ const {
   purgeSocialNotifications,
   reconcileMutualConnection,
   removeInvalidToken,
+  effectiveUnreadCount,
+  nextUnreadCount,
+  countUnreadMessagesBounded,
   resolveIncognitoState,
   resolveStorageObjectNameFromClientMediaReference,
   rowsToCsv,
@@ -384,6 +387,7 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
   const snap = event.data;
   const { conversationId, messageId } = event.params;
   const message = snap.data();
+  let countersCommitted = false;
 
   try {
     const conversationDoc = await admin.firestore().doc(`conversations/${conversationId}`).get();
@@ -408,26 +412,48 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
 
     if (!senderData.isActive) return null;
 
-    // ✅ Idempotencia por mensaje
-    const messageRef = admin.firestore().doc(`conversations/${conversationId}/messages/${messageId}`);
-    const handled = await admin.firestore().runTransaction(async (tx) => {
-      const mSnap = await tx.get(messageRef);
-      if (!mSnap.exists) return true;
-      if (mSnap.get('processed') === true) return true;
-      tx.update(messageRef, { processed: true });
-      return false;
-    });
-    if (handled) return null;
+    // ✅ Idempotencia por mensaje: `processed` se marca en la misma transacción que
+    // actualiza readStatus y los contadores, así un reintento nunca incrementa dos veces.
+    const db = admin.firestore();
+    const messageRef = db.doc(`conversations/${conversationId}/messages/${messageId}`);
+    const conversationRef = conversationDoc.ref;
 
-    // Mantener los contadores de no leídos sin permitir que el cliente escriba
-    // el estado de lectura de otros participantes en Firestore Rules.
-    const readStatusUpdate = {
-      [`readStatus.${message.senderId}`]: true
-    };
-    receivers.forEach((receiverId) => {
-      readStatusUpdate[`readStatus.${receiverId}`] = false;
+    // Conversaciones antiguas sin `unreadCounts.{uid}`: se calcula una vez con una
+    // consulta acotada (incluye este mensaje) y a partir de ahí se incrementa.
+    const legacyFallbacks = {};
+    if (message.processed !== true) {
+      await Promise.all(receivers.map(async (receiverId) => {
+        if (effectiveUnreadCount(conversationData, receiverId) !== null) return;
+        try {
+          legacyFallbacks[receiverId] = await countUnreadMessagesBounded(conversationRef, receiverId, conversationData);
+        } catch (error) {
+          console.warn(`⚠️ Fallback de no leídos falló en ${conversationId}:`, error.message);
+        }
+      }));
+    }
+
+    // Mantener readStatus y contadores sin permitir que el cliente escriba el estado
+    // de lectura de otros participantes en Firestore Rules.
+    const unreadByReceiver = await db.runTransaction(async (tx) => {
+      const [mSnap, cSnap] = await Promise.all([tx.get(messageRef), tx.get(conversationRef)]);
+      if (!mSnap.exists || mSnap.get('processed') === true || !cSnap.exists) return null;
+      const freshConversation = cSnap.data() || {};
+      const counts = {};
+      const conversationUpdate = {
+        [`readStatus.${message.senderId}`]: true,
+        [`unreadCounts.${message.senderId}`]: 0
+      };
+      receivers.forEach((receiverId) => {
+        counts[receiverId] = nextUnreadCount(freshConversation, receiverId, legacyFallbacks[receiverId]);
+        conversationUpdate[`readStatus.${receiverId}`] = false;
+        conversationUpdate[`unreadCounts.${receiverId}`] = counts[receiverId];
+      });
+      tx.update(messageRef, { processed: true });
+      tx.update(conversationRef, conversationUpdate);
+      return counts;
     });
-    await conversationDoc.ref.update(readStatusUpdate);
+    if (!unreadByReceiver) return null;
+    countersCommitted = true;
 
     // ✅ Batch fetch de receptores para reducir lecturas
     const receiverRefs = receivers.map((receiverId) => admin.firestore().doc(`users/${receiverId}`));
@@ -483,11 +509,14 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
         ? senderData.profileImagePath.replace(':443', '')
         : null;
 
-      // ✅ Obtener conteos actualizados para el receptor
-      const [counts, unreadInConvo] = await Promise.all([
-        getUnreadCounts(receiverId, { type: 'message', conversationId: conversationId }),
-        getUnreadMessagesInConversation(conversationId, receiverId)
-      ]);
+      // ✅ Conteos para el receptor: badge global con count() y no leídos de esta
+      // conversación desde el contador recién actualizado (sin leer los mensajes).
+      const counts = await getUnreadCounts(receiverId, {
+        type: 'message',
+        conversationId: conversationId,
+        conversationMarkedUnread: true
+      });
+      const unreadInConvo = Math.max(1, unreadByReceiver[receiverId] || 1);
 
       // Determinar clave de localización según el tipo de mensaje.
       // sharedStory + isStoryMention no entra al switch: message.type sigue siendo
@@ -628,6 +657,8 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
 
   } catch (error) {
     console.error('Error sending message notification:', error);
+    // Si aún no se confirmaron readStatus/contadores, reintentar (retry: true) es seguro.
+    if (!countersCommitted) throw error;
   }
 });
 
@@ -1471,18 +1502,8 @@ async function purgeVanishMessagesForConversation(conversationId) {
   }
 }
 
-const onConversationVanishModeChanged = onDocumentWritten(
-  'conversations/{conversationId}',
-  async (event) => {
-    const before = event.data?.before?.data();
-    const after = event.data?.after?.data();
-    if (!before || !after) return null;
-    if (before.vanishModeActive === true && after.vanishModeActive === false) {
-      await purgeVanishMessagesForConversation(event.params.conversationId);
-    }
-    return null;
-  }
-);
+// La purga al desactivar vanish la dispara cleanupDeletedConversation (http-auth-cleanup.js),
+// que es ahora el único onDocumentWritten sobre conversations/{id}.
 
 // ⏳ Borrado server-side de mensajes vanish vencidos (timers 24h/7d) por `vanishExpiresAt`.
 // Antes solo se ocultaban en cliente; ahora se eliminan de verdad en ambos extremos.
@@ -1595,7 +1616,8 @@ module.exports = {
   onStoryReactionAdded,
   onFollowRequestReceived,
   onFollowRequestRemoved,
-  onConversationVanishModeChanged,
+  // Compartida con http-auth-cleanup (trigger unificado de conversaciones)
+  purgeVanishMessagesForConversation,
   deleteExpiredVanishMessages,
   cleanupExpiredBuzzEvents,
 };

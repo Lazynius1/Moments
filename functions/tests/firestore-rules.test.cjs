@@ -11,7 +11,8 @@ const {
   initializeTestEnvironment, assertSucceeds, assertFails
 } = require('@firebase/rules-unit-testing');
 const {
-  doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, Timestamp
+  doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limitToLast, Timestamp,
+  arrayUnion, deleteField, serverTimestamp, writeBatch
 } = require('firebase/firestore');
 
 let env;
@@ -155,4 +156,125 @@ test('usernames: get público para comprobar disponibilidad', { skip }, async ()
     await setDoc(doc(db, 'usernames/alice'), { userId: 'alice', email: 'alice@example.com' });
   });
   await assertSucceeds(getDoc(doc(env.unauthenticatedContext().firestore(), 'usernames/alice')));
+});
+
+// ─── Chat: contadores, eliminar para todos y estado de entrega ───────────────
+
+const seedChat = (message = {}, conversation = {}) => seed(async db => {
+  await setDoc(doc(db, 'conversations/c1'), {
+    participants: ['alice', 'bob'], encryptionVersion: '3.0',
+    readStatus: { alice: true, bob: false }, unreadCounts: { alice: 0, bob: 3 }, ...conversation
+  });
+  await setDoc(doc(db, 'conversations/c1/messages/m1'), {
+    id: 'm1', conversationId: 'c1', senderId: 'alice', type: 'image', status: 'sent',
+    isRead: false, isDeleted: false, isViewed: false, timestamp: Timestamp.now(),
+    content: 'cifrado', mediaUrl: 'https://x', thumbnailUrl: 'https://t',
+    mediaObjectPath: 'users/alice/chat/c1/m1/a.enc', thumbnailObjectPath: 'users/alice/chat/c1/m1/thumbnails/t.jpg',
+    mediaEncryption: { v: 1 }, thumbnailEncryption: { v: 1 },
+    textOverlayLive: true, textOverlays: [{ t: 1 }], stickers: [{ s: 1 }], ...message
+  });
+});
+const m1 = uid => doc(as(uid), 'conversations/c1/messages/m1');
+
+test('conversations: unreadCounts solo lo escribe el servidor', { skip }, async () => {
+  await seedChat();
+  const db = as('bob');
+  await assertFails(updateDoc(doc(db, 'conversations/c1'), { 'unreadCounts.bob': 0 }));
+  await assertFails(updateDoc(doc(db, 'conversations/c1'), { 'unreadCounts.alice': 9 }));
+  // Marcar leído como hoy (iOS/Android) sigue funcionando con el campo presente.
+  await assertSucceeds(updateDoc(doc(db, 'conversations/c1'), {
+    'readStatus.bob': true, 'lastReadAt.bob': serverTimestamp()
+  }));
+  // Y "marcar como no leído".
+  await assertSucceeds(updateDoc(doc(db, 'conversations/c1'), { 'readStatus.bob': false }));
+  // Ni siquiera al crear la conversación.
+  await seed(async sdb => setDoc(doc(sdb, 'users/alice/mutuals/carol'), { userId: 'carol' }));
+  await assertFails(setDoc(doc(as('alice'), 'conversations/c2'), {
+    encryptionVersion: '3.0', participants: ['alice', 'carol'], wrappedKeys: { alice: 'k', carol: 'k' },
+    unreadCounts: { carol: 0 }
+  }));
+});
+
+const deleteForEveryone = (extra = {}) => ({
+  isDeleted: true, deletedAt: serverTimestamp(),
+  content: deleteField(), mediaUrl: deleteField(), thumbnailUrl: deleteField(),
+  mediaObjectPath: deleteField(), thumbnailObjectPath: deleteField(),
+  mediaEncryption: deleteField(), thumbnailEncryption: deleteField(),
+  textOverlayLive: deleteField(), textOverlays: deleteField(), stickers: deleteField(), drawingData: deleteField(),
+  ...extra
+});
+
+test('messages: eliminar para todos borra también capas de edición (iOS/Android)', { skip }, async () => {
+  await seedChat();
+  await assertFails(updateDoc(m1('bob'), deleteForEveryone()));
+  await assertFails(updateDoc(m1('alice'), deleteForEveryone({ senderId: 'bob' })));
+  await assertSucceeds(updateDoc(m1('alice'), deleteForEveryone()));
+});
+
+test('messages: eliminar para todos ligero (avisos vanish) sigue permitido', { skip }, async () => {
+  await seedChat({ type: 'chatNotice' });
+  await assertSucceeds(updateDoc(m1('alice'), {
+    isDeleted: true, deletedAt: serverTimestamp(), content: deleteField(), mediaUrl: deleteField()
+  }));
+});
+
+test('messages: el estado solo avanza sent < delivered < read', { skip }, async () => {
+  await seedChat();
+  await assertFails(updateDoc(m1('bob'), { status: 'failed' }));
+  await assertFails(updateDoc(m1('bob'), { status: 'sending' }));
+  await assertFails(updateDoc(m1('bob'), { status: 'pending' }));
+  await assertSucceeds(updateDoc(m1('bob'), { status: 'delivered' }));
+  await assertSucceeds(updateDoc(m1('bob'), {
+    readBy: arrayUnion('bob'), isRead: true, status: 'read', 'readAtBy.bob': serverTimestamp()
+  }));
+  // Retrocesos: delivered tardío, rama view-once y 'sent' del receptor.
+  await assertFails(updateDoc(m1('bob'), { status: 'delivered' }));
+  await assertFails(updateDoc(m1('bob'), { isViewed: true, status: 'delivered' }));
+  await assertFails(updateDoc(m1('bob'), { status: 'sent' }));
+  await assertFails(updateDoc(m1('alice'), { status: 'failed' }));
+  // Recibos desactivados: solo readBy, sin tocar status.
+  await assertSucceeds(updateDoc(m1('bob'), { readBy: arrayUnion('carol') }));
+});
+
+test('messages: compat del sent redundante del remitente tras crear', { skip }, async () => {
+  await seedChat({ status: 'delivered' });
+  // Android publicado no captura este error: se tolera solo {status:'sent'} del remitente.
+  await assertFails(updateDoc(m1('alice'), { status: 'sent', isViewed: true }));
+  await assertSucceeds(updateDoc(m1('alice'), { status: 'sent' }));
+});
+
+test('messages: estados legacy fuera de rango pueden avanzar', { skip }, async () => {
+  await seedChat({ status: 'failed' });
+  await assertSucceeds(updateDoc(m1('bob'), { status: 'delivered' }));
+});
+
+test('messages: batch de leído (mensajes + conversación) pasa con unreadCounts presente', { skip }, async () => {
+  await seedChat({ status: 'delivered' });
+  const db = as('bob');
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'conversations/c1/messages/m1'), {
+    readBy: arrayUnion('bob'), isRead: true, status: 'read', 'readAtBy.bob': serverTimestamp()
+  });
+  batch.update(doc(db, 'conversations/c1'), {
+    'readStatus.bob': true, 'lastReadAt.bob': serverTimestamp(), 'lastMessageSeenAt.bob': serverTimestamp()
+  });
+  await assertSucceeds(batch.commit());
+});
+
+test('groups: el historial previo a memberJoinedAt sigue legible (sin cambio, ver informe)', { skip }, async () => {
+  const gid = 'group-00000000-0000-0000-0000-000000000001';
+  const joinedAt = Timestamp.fromMillis(Date.now());
+  await seed(async db => {
+    await setDoc(doc(db, `groupConversations/${gid}`), {
+      participants: ['alice', 'bob'], memberJoinedAt: { bob: joinedAt }, readStatus: { alice: true, bob: true }
+    });
+    await setDoc(doc(db, `groupConversations/${gid}/groupMessages/old`), {
+      senderId: 'alice', type: 'text', timestamp: Timestamp.fromMillis(joinedAt.toMillis() - 60000)
+    });
+  });
+  const messages = collection(as('bob'), `groupConversations/${gid}/groupMessages`);
+  // Consultas sin corte por joinedAt (galería, stats, get puntual) que usan los clientes publicados.
+  await assertSucceeds(getDoc(doc(messages, 'old')));
+  await assertSucceeds(getDocs(query(messages, orderBy('timestamp'), limitToLast(50))));
+  await assertFails(getDocs(collection(as('carol'), `groupConversations/${gid}/groupMessages`)));
 });

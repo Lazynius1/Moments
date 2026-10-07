@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const { onRequest, onCall, HttpsError, onDocumentCreated, admin } = require('../bootstrap');
-const { setProxyCors, parseJsonBody, verifyFirebaseAuth, isDoNotDisturbActive, shouldSilenceNotificationForUser, getUnreadCounts, withAndroidShade, ANDROID_FCM_CHANNELS } = require('../helpers');
+const { setProxyCors, parseJsonBody, verifyFirebaseAuth, isDoNotDisturbActive, shouldSilenceNotificationForUser, getUnreadCounts, withAndroidShade, ANDROID_FCM_CHANNELS,
+  effectiveUnreadCount, isInvalidFcmTokenError, removeInvalidToken } = require('../helpers');
 const validId = id => typeof id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(id);
 const validBase64 = (value, byteCount) => {
   if (typeof value !== 'string' || value.length > 1024) return false;
@@ -268,7 +269,8 @@ async function applyGroupCommand(db, uid, body) {
     } else if (action === 'read') {
       // A late read acknowledgement must never mark a newer message as read.
       if (body.messageId === (group.lastMessageId || '')) {
-        tx.update(ref, { readStatus: { ...group.readStatus, [uid]: true } });
+        // Reset del contador por miembro junto con readStatus (mismo write).
+        tx.update(ref, { readStatus: { ...group.readStatus, [uid]: true }, [`unreadCounts.${uid}`]: 0 });
       }
     } else if (action === 'rename') {
       const name = typeof body.name === 'string' ? body.name.trim() : '';
@@ -437,13 +439,23 @@ const sendGroupMessage = onRequest({ timeoutSeconds: 60, memory: '256MiB', concu
         return;
       }
       const timestamp = admin.firestore.FieldValue.serverTimestamp();
+      // Contador por miembro (`unreadCounts.{uid}`), idempotente: un reintento sale
+      // arriba por `existing.exists`. Igual que readStatus, se reescribe el mapa
+      // completo con los participantes actuales; sin contador previo y con
+      // readStatus false (dato antiguo) se omite hasta su próxima lectura.
+      const unreadCounts = {};
+      for (const memberId of group.participants) {
+        if (memberId === uid) { unreadCounts[memberId] = 0; continue; }
+        const current = effectiveUnreadCount(group, memberId);
+        if (current !== null) unreadCounts[memberId] = current + 1;
+      }
       tx.create(messageRef, { ...message, id: body.messageId, conversationId: body.groupId, senderId: uid,
         senderName: actor.get('username') || '', recipientIds: group.participants.filter(id => id !== uid),
         status: 'sent', isRead: false, isDeleted: false, isViewed: false, viewedBy: [], replayedBy: [], consumedBy: [],
         isViewOnce: ['viewOnceImage', 'viewOnceVideo'].includes(message.type), timestamp });
       tx.update(ref, { timestamp, lastMessageId: body.messageId, lastMessage: message.content || '', lastMessageType: message.type,
         lastMessageSenderId: uid, lastMessageSeenAt: {}, lastMessageReaction: admin.firestore.FieldValue.delete(),
-        readStatus: Object.fromEntries(group.participants.map(id => [id, id === uid])) });
+        readStatus: Object.fromEntries(group.participants.map(id => [id, id === uid])), unreadCounts });
     });
     res.status(200).json({ messageId: body.messageId });
   } catch (error) {
@@ -471,17 +483,23 @@ const onGroupMessageAdded = onDocumentCreated({ document: 'groupConversations/{g
   const mentioned = Array.isArray(message.mentionedUserIds) ? message.mentionedUserIds : [];
   const originalRecipients = Array.isArray(message.recipientIds) ? message.recipientIds : group.participants;
   const recipients = group.participants.filter(id => id !== message.senderId && originalRecipients.includes(id) && !isGroupMuted(group, id));
-  const senderUser = (await db.doc(`users/${message.senderId}`).get()).data() || {};
+  // Remitente y receptores en una sola lectura por lotes.
+  const [senderDoc, ...recipientDocs] = await db.getAll(
+    db.doc(`users/${message.senderId}`),
+    ...recipients.map(uid => db.doc(`users/${uid}`))
+  );
+  const senderUser = senderDoc.data() || {};
   const senderImage = typeof senderUser.profileImagePath === 'string' ? senderUser.profileImagePath : '';
   const senderName = message.senderName || senderUser.username || '';
   const messageType = message.type || 'text';
   const isVanish = message.isVanishModeMessage === true;
   const groupImage = typeof group.groupImagePath === 'string' ? group.groupImagePath : '';
-  await Promise.all(recipients.map(async uid => {
-    const user = (await db.doc(`users/${uid}`).get()).data();
+  const pushes = (await Promise.all(recipientDocs.map(async userDoc => {
+    const uid = userDoc.id;
+    const user = userDoc.data();
     if (!user || user.isActive === false || !user.fcmToken ||
-        isDoNotDisturbActive(user)) return;
-    if (shouldSilenceNotificationForUser(user, { senderId: message.senderId, candidateTexts: [message.type] })) return;
+        isDoNotDisturbActive(user)) return null;
+    if (shouldSilenceNotificationForUser(user, { senderId: message.senderId, candidateTexts: [message.type] })) return null;
     const counts = await getUnreadCounts(uid);
     const isMention = mentioned.includes(uid);
     const baseData = {
@@ -536,14 +554,26 @@ const onGroupMessageAdded = onDocumentCreated({ document: 'groupConversations/{g
       data: { ...baseData, encryptedContent },
       apns: { payload: apnsPayload }
     };
-    try {
-      await admin.messaging().send(withAndroidShade(push, {
-        threadId: `conversation_${groupId}`,
-        channel: ANDROID_FCM_CHANNELS.messages
-      }));
-    } catch (error) {
-      console.error('Group notification failed', error.code || 'unknown');
-    }
+    return {
+      uid,
+      token: user.fcmToken,
+      message: withAndroidShade(push, { threadId: `conversation_${groupId}`, channel: ANDROID_FCM_CHANNELS.messages })
+    };
+  }))).filter(Boolean);
+  if (!pushes.length) return;
+  // Un único sendEach (≤ 50 miembros < límite de 500) y limpieza de tokens caducados.
+  let result;
+  try {
+    result = await admin.messaging().sendEach(pushes.map(push => push.message));
+  } catch (error) {
+    console.error('Group notification failed', error.code || 'unknown');
+    return;
+  }
+  await Promise.all(result.responses.map(async (response, index) => {
+    if (response.success) return;
+    const { uid, token } = pushes[index];
+    if (isInvalidFcmTokenError(response.error)) await removeInvalidToken(uid, token);
+    else console.error('Group notification failed', response.error?.code || 'unknown');
   }));
 });
 const consumeGroupViewOnceMessage = onCall(async request => {

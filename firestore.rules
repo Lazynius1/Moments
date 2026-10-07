@@ -1711,7 +1711,12 @@ service cloud.firestore {
           'mediaObjectPath',
           'thumbnailObjectPath',
           'mediaEncryption',
-          'thumbnailEncryption'
+          'thumbnailEncryption',
+          // iOS y Android también borran las capas de edición al eliminar para todos.
+          'textOverlayLive',
+          'textOverlays',
+          'stickers',
+          'drawingData'
         ]);
     }
 
@@ -1765,6 +1770,31 @@ service cloud.firestore {
 
     function onlyStatusFieldsUpdated() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead','status','isViewed','statusUpdatedAt','readBy','readAtBy']);
+    }
+
+    // Orden del estado de entrega; valores desconocidos/legacy (p. ej. 'failed') = -1.
+    function messageStatusRank(status) {
+      return {'sending': 0, 'sent': 1, 'delivered': 2, 'read': 3}.get(status, -1);
+    }
+
+    // Se aplica a cualquier update de mensaje que toque `status` (también la rama
+    // view-once). Solo avanza sent < delivered < read; nunca 'failed'/'sending'/'pending'.
+    // Excepción de compatibilidad: las apps publicadas reescriben {status:'sent'} como
+    // remitente justo tras crear el mensaje y Android no captura ese error; si el
+    // receptor ya marcó delivered/read, denegarlo haría fallar el envío en Android.
+    function messageStatusTransitionAllowed() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status'])
+        || (
+          request.resource.data.status in ['sent', 'delivered', 'read']
+          && (
+            messageStatusRank(request.resource.data.status) >= messageStatusRank(resource.data.get('status', ''))
+            || (
+              request.resource.data.status == 'sent'
+              && resource.data.senderId == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+            )
+          )
+        );
     }
     // status opcional: markViewOnceAsViewed a veces también marca read; la CF consume lo setea con admin.
     function onlyViewOnceFieldsUpdated() {
@@ -1901,6 +1931,8 @@ service cloud.firestore {
         && request.auth.uid in request.resource.data.participants
         && canParticipateInConversations(request.auth.uid)
         && request.resource.data.participants.size() == 2
+        // unreadCounts lo mantienen solo las Cloud Functions.
+        && !('unreadCounts' in request.resource.data)
         && canCreateDirectConversation(request.resource.data)
         && request.resource.data.get('wrappedKeys', {}) is map
         && request.resource.data.get('wrappedKeys', {}).keys().hasAll(request.resource.data.participants)
@@ -2158,6 +2190,7 @@ service cloud.firestore {
             || isViewOnceCleanup()
           )
           && timestampUnchanged()
+          && messageStatusTransitionAllowed()
           && (!('statusUpdatedAt' in request.resource.data) || request.resource.data.statusUpdatedAt is timestamp);
 
         // Ningún cliente borra mensajes: "eliminar para todos/para mí", efímeros y vanish son updates;

@@ -1,5 +1,6 @@
 const b = require('../bootstrap');
 const h = require('../helpers');
+const { purgeVanishMessagesForConversation } = require('./triggers-messaging');
 const {
   onDocumentCreated,
   onDocumentDeleted,
@@ -92,6 +93,11 @@ const {
   getPendingStoryReactionCount,
   getUnreadCounts,
   getUnreadMessagesInConversation,
+  participantsAllDeleted,
+  shouldRunConversationCleanup,
+  vanishModeTurnedOff,
+  staleUnreadCounterUids,
+  resetReadUnreadCounters,
   getUnreadReactionSummary,
   hasPostedToday,
   hasVisibleMediaItem,
@@ -239,33 +245,10 @@ const cleanupIncompleteAuthAccounts = onSchedule(
 //   3. El documento de la conversación.
 // Limpieza de datos de cuenta al eliminar usuario.
 // ─────────────────────────────────────────────────────────────────────────────
-const cleanupDeletedConversation = onDocumentWritten(
-  {
-    document: 'conversations/{conversationId}',
-    memory: '512MiB',
-    timeoutSeconds: 540
-  },
-  async (event) => {
+async function runDeletedConversationCleanup(conversationId, data) {
     const db = admin.firestore();
     const bucket = admin.storage().bucket();
-    const conversationId = event.params.conversationId;
-
-    // Solo actuar en documentos que siguen existiendo (no en borrados físicos)
-    const after = event.data?.after;
-    if (!after || !after.exists) return;
-
-    const data = after.data();
-    if (!data) return;
-
     const participants = data.participants;
-    if (!Array.isArray(participants) || participants.length === 0) return;
-
-    const deletedFor = data.deletedFor;
-    if (!Array.isArray(deletedFor) || deletedFor.length === 0) return;
-
-    // Comprobar que TODOS los participantes están en deletedFor
-    const allDeleted = participants.every((uid) => deletedFor.includes(uid));
-    if (!allDeleted) return;
 
     console.log(`[cleanupDeletedConversation] All participants deleted conversation ${conversationId}. Starting full cleanup.`);
 
@@ -414,6 +397,53 @@ const cleanupDeletedConversation = onDocumentWritten(
     // ─── 4. Borrar el documento de la conversación ───────────────────────────
     await db.collection('conversations').doc(conversationId).delete();
     console.log(`[cleanupDeletedConversation] Conversation ${conversationId} fully deleted (Firestore + Storage).`);
+}
+
+// Único trigger onDocumentWritten sobre conversations/{id} (antes eran dos: este y
+// onConversationVanishModeChanged). Cada escritura de conversación invoca una sola
+// función, que sale sin lecturas salvo que cambie algo relevante:
+//   1. deletedFor/participants → todos la borraron: limpieza total (y nada más).
+//   2. vanishModeActive true → false: purga de mensajes vanish.
+//   3. readStatus.{uid} true con unreadCounts.{uid} > 0: reset del contador.
+// Todas las tareas son idempotentes (retry: true).
+const cleanupDeletedConversation = onDocumentWritten(
+  {
+    document: 'conversations/{conversationId}',
+    memory: '512MiB',
+    timeoutSeconds: 540
+  },
+  async (event) => {
+    const conversationId = event.params.conversationId;
+
+    // Solo actuar en documentos que siguen existiendo (no en borrados físicos)
+    const after = event.data?.after;
+    if (!after || !after.exists) return;
+
+    const data = after.data();
+    if (!data) return;
+    const before = event.data?.before?.exists ? event.data.before.data() : null;
+
+    if (participantsAllDeleted(data)) {
+      // Solo en la transición; escrituras posteriores sobre un doc ya marcado
+      // (p. ej. mientras dura la limpieza) no relanzan otra limpieza en paralelo.
+      if (shouldRunConversationCleanup(before, data)) {
+        await runDeletedConversationCleanup(conversationId, data);
+      }
+      return;
+    }
+
+    const tasks = [];
+    if (vanishModeTurnedOff(before, data)) {
+      tasks.push(purgeVanishMessagesForConversation(conversationId));
+    }
+    if (staleUnreadCounterUids(data).length > 0) {
+      tasks.push(resetReadUnreadCounters(after.ref));
+    }
+    if (tasks.length === 0) return;
+
+    const results = await Promise.allSettled(tasks);
+    const failure = results.find((result) => result.status === 'rejected');
+    if (failure) throw failure.reason;
   }
 );
 
