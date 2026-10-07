@@ -42,7 +42,13 @@ class NotificationService: UNNotificationServiceExtension {
         }
 
         if ChatNotificationThread.isChatMessagePush(userInfo["type"] as? String) {
-            bestAttemptContent.body = ChatNotificationThread.previewLabel(messageType: userInfo["messageType"] as? String)
+            let messageType = userInfo["messageType"] as? String
+            let hasSender = !((userInfo["senderUsername"] as? String) ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            // 1:1 con remitente en el título: ver una vez → "Te ha enviado una foto/un vídeo".
+            bestAttemptContent.body = hasSender && !ChatNotificationThread.isGroupPush(userInfo)
+                ? ChatNotificationThread.notificationBody(messageType: messageType)
+                : ChatNotificationThread.previewLabel(messageType: messageType)
             if userInfo["isMention"] as? String == "1" || userInfo["isMention"] as? Bool == true {
                 bestAttemptContent.body = String(format: localizedString("groups.notification.mention"), userInfo["senderUsername"] as? String ?? "")
             }

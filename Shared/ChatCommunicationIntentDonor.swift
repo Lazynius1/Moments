@@ -112,6 +112,16 @@ enum ChatNotificationThread {
         return localized(key)
     }
 
+    /// Cuerpo del aviso cuando el título ya muestra al remitente (1:1):
+    /// ver una vez se describe como "Te ha enviado una foto/un vídeo"; el resto, igual que previewLabel.
+    static func notificationBody(messageType: String?) -> String {
+        switch messageType {
+        case "viewOnceImage": return localized("notification.message.viewOncePhoto")
+        case "viewOnceVideo": return localized("notification.message.viewOnceVideo")
+        default: return previewLabel(messageType: messageType)
+        }
+    }
+
     static func localized(_ key: String) -> String {
         let main = Bundle.main
         let hostURL = main.bundleURL.deletingLastPathComponent().deletingLastPathComponent()
