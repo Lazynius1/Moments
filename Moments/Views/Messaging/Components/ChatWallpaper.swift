@@ -171,6 +171,27 @@ struct ChatWallpaperCanvas: View {
     }
 }
 
+extension ChatWallpaper {
+    /// Color de burbuja guardado en este dispositivo para un chat (sin lecturas de red); por defecto si nunca se abrió.
+    static func cachedBubbleColor(conversationId: String) -> Color {
+        guard let uid = Auth.auth().currentUser?.uid, !conversationId.isEmpty,
+              let data = UserDefaults.standard.data(forKey: "chatWallpaper.\(uid).\(conversationId)"),
+              let cached = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+            return Color(hex: ChatWallpaper().bubbleColorHex)
+        }
+        return Color(hex: ChatWallpaper(data: cached).bubbleColorHex)
+    }
+
+    /// Fotos y presets: blanco con sombra; color liso: el que contraste.
+    var floatingTextColor: Color? {
+        switch kind {
+        case "photo", "preset": return .white
+        case "color": return chatBubbleTextColor(for: Color(hex: colorHex))
+        default: return nil
+        }
+    }
+}
+
 struct ChatWallpaperPreset: Identifiable {
     let id: String
     let bubble: String

@@ -205,7 +205,8 @@ extension CachedMessage {
             conversationId: message.conversationId,
             senderId: message.senderId,
             typeString: message.type.rawValue,
-            content: message.content,
+            // Nunca persistir ciphertext ni el texto de sustitución como contenido.
+            content: message.isUndecryptable ? nil : message.content,
             mediaUrl: sanitizedMediaURL(message.mediaUrl, type: message.type),
             thumbnailUrl: sanitizedMediaURL(message.thumbnailUrl, type: message.type),
             mediaObjectPath: message.mediaObjectPath,
@@ -318,12 +319,17 @@ extension CachedMessage {
             return try? decoder.decode([String: Date].self, from: data)
         }()
         
-        return EnhancedMessage(
+        // Texto sin contenido legible (nunca descifrado o ciphertext de cachés antiguas):
+        // se muestra el aviso localizado y queda marcado para rehidratar.
+        let isUndecryptable = type == .text && !isDeleted
+            && (content == nil || ChatCiphertextHeuristics.looksLikeCiphertext(content))
+
+        let message = EnhancedMessage(
             id: id,
             conversationId: conversationId,
             senderId: senderId,
             type: type,
-            content: content,
+            content: isUndecryptable ? EnhancedMessage.undecryptablePlaceholder : content,
             mediaUrl: Self.sanitizedMediaURL(mediaUrl, type: type),
             thumbnailUrl: Self.sanitizedMediaURL(thumbnailUrl, type: type),
             mediaObjectPath: mediaObjectPath,
@@ -372,5 +378,7 @@ extension CachedMessage {
             vanishedFor: vanishedFor.isEmpty ? nil : vanishedFor,
             vanishExpiresAt: vanishExpiresAt
         )
+        message.isUndecryptable = isUndecryptable
+        return message
     }
 }

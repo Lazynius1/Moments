@@ -24,7 +24,7 @@ struct ChatBubbleShape: Shape {
     let side: Side
     var position: ChatMessageGroupPosition = .single
     var cornerRadius: CGFloat = 17
-    var joinedRadius: CGFloat = 4
+    var joinedRadius: CGFloat = ChatTextBubbleMetrics.joinedRadius
 
     func path(in rect: CGRect) -> Path {
         let r = cornerRadius
@@ -64,7 +64,8 @@ enum ChatTextBubbleMetrics {
     static let verticalPadding: CGFloat = 12
     static let lineSpacing: CGFloat = 2
     static let cornerRadius: CGFloat = 20
-    static let joinedRadius: CGFloat = 4
+    /// Radio de las esquinas unidas en ráfagas; común a texto, media, audio y borrados.
+    static let joinedRadius: CGFloat = 5
     /// Fracción del ancho del **contenedor del chat** (no de la escena Duo).
     static let maxWidthScreenFraction: CGFloat = 0.78
 }
@@ -121,24 +122,27 @@ enum ChatBubbleLayoutWidth {
 /// Encuadre de miniaturas de chat; el detalle conserva la proporción del archivo.
 enum ChatMediaCardLayout {
     static let standaloneMaxWidth: CGFloat = 240
-    static let standaloneMaxHeight: CGFloat = 272
+    static let standaloneMaxHeight: CGFloat = 240
+    static let landscapeMaxWidth: CGFloat = 260
     static let clusterMaxWidth: CGFloat = 220
     static let clusterMaxHeight: CGFloat = 244
 
+    /// Verticales recortadas a 4:5 y horizontales enteras hasta 16:9.
     static func standaloneSize(width: Int?, height: Int?, bubbleMaxWidth: CGFloat) -> CGSize {
         let isLandscape = (width ?? 0) > 0 && (height ?? 0) > 0 && (width ?? 0) > (height ?? 0)
         return fittedSize(
             width: width, height: height,
-            maxWidth: isLandscape ? bubbleMaxWidth : min(standaloneMaxWidth, bubbleMaxWidth),
-            maximumAspect: isLandscape ? 1.5 : nil
+            maxWidth: min(isLandscape ? landscapeMaxWidth : standaloneMaxWidth, bubbleMaxWidth),
+            minimumAspect: 4.0 / 5.0,
+            maximumAspect: isLandscape ? 16.0 / 9.0 : nil
         )
     }
 
-    static func fittedSize(width: Int?, height: Int?, maxWidth: CGFloat, maxHeight: CGFloat = standaloneMaxHeight, maximumAspect: CGFloat? = nil) -> CGSize {
+    static func fittedSize(width: Int?, height: Int?, maxWidth: CGFloat, maxHeight: CGFloat = standaloneMaxHeight, minimumAspect: CGFloat = 3.0 / 4.0, maximumAspect: CGFloat? = nil) -> CGSize {
         let sourceWidth = CGFloat(width.flatMap { $0 > 0 ? $0 : nil } ?? 208)
         let sourceHeight = CGFloat(height.flatMap { $0 > 0 ? $0 : nil } ?? 272)
-        // Las miniaturas muy verticales se recortan a 3:4; el visor conserva el archivo completo.
-        let previewAspect = min(max(sourceWidth / sourceHeight, 3.0 / 4.0), maximumAspect ?? .greatestFiniteMagnitude)
+        // Las miniaturas muy verticales se recortan (3:4 en ráfagas, 4:5 sueltas); el visor conserva el archivo completo.
+        let previewAspect = min(max(sourceWidth / sourceHeight, minimumAspect), maximumAspect ?? .greatestFiniteMagnitude)
         let fittedWidth = min(maxWidth, maxHeight * previewAspect)
         return CGSize(width: fittedWidth, height: fittedWidth / previewAspect)
     }
@@ -197,12 +201,19 @@ struct ChatBubbleWidthCapLayout: Layout {
 
 /// Fuente de mensaje: ~15pt por defecto, escalada con Ajustes → Tamaño del texto.
 enum ChatMessageFont {
-    static var bubble: Font {
-        Font(
-            UIFontMetrics(forTextStyle: .body).scaledFont(
-                for: UIFont.systemFont(ofSize: 16, weight: .regular)
-            )
+    private static var bubbleUIFont: UIFont {
+        UIFontMetrics(forTextStyle: .body).scaledFont(
+            for: UIFont.systemFont(ofSize: 16, weight: .regular)
         )
+    }
+
+    static var bubble: Font {
+        Font(bubbleUIFont)
+    }
+
+    /// Tamaño en puntos de `bubble`, para el composer UIKit.
+    static var bubblePointSize: CGFloat {
+        bubbleUIFont.pointSize
     }
 }
 
@@ -474,7 +485,8 @@ struct ChatTextBubbleView: View {
     }
 
     var body: some View {
-        let maxW = maxBubbleWidth
+        // Con enlace la burbuja no se estira más allá de la tarjeta.
+        let maxW = hasLink ? min(maxBubbleWidth, LinkPreviewCard.embeddedMaxWidth) : maxBubbleWidth
         // Igual que el audio: tamaño intrínseco, no flexible. `frame(maxWidth:)`
         // se come el Spacer de la fila y deja outgoing a la izquierda.
         ChatBubbleWidthCapLayout(maxWidth: maxW) {
@@ -550,7 +562,7 @@ struct ChatTextBubbleView: View {
             }
 
             if let linkURL = ChatLinkOpener.firstURL(in: text) {
-                LinkPreviewCard(url: linkURL, embedded: true, isOutgoing: isOutgoing)
+                LinkPreviewCard(url: linkURL, embedded: true, isOutgoing: isOutgoing, messageId: messageId)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
@@ -559,10 +571,10 @@ struct ChatTextBubbleView: View {
                     maxWidth: (hasReply || hasLink) ? .infinity : nil,
                     alignment: contentFrameAlignment
                 )
-                .padding(.horizontal, hasReply ? 4 : 0)
+                .padding(.horizontal, hasReply ? 4 : (hasLink ? max(0, horizontalPadding - LinkPreviewCard.embeddedInset) : 0))
         }
-            .padding(.horizontal, hasReply ? 6 : horizontalPadding)
-            .padding(.top, hasReply ? 6 : verticalPadding)
+            .padding(.horizontal, hasReply ? 6 : (hasLink ? LinkPreviewCard.embeddedInset : horizontalPadding))
+            .padding(.top, hasReply ? 6 : (hasLink ? LinkPreviewCard.embeddedInset : verticalPadding))
             .padding(.bottom, hasReply ? 8 : verticalPadding)
             .padding(
                 MessageReactionMetrics.bubbleContentInsets(

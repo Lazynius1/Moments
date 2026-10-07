@@ -963,7 +963,7 @@
 /* Chat */
 "chat.moment.loadError" = "Could not load moment";
 "chat.input.placeholder" = "Message...";
-"chat.input.vanish.placeholder" = "Disappearing message...";
+"chat.input.vanish.placeholder" = "Temporary message...";
 "chat.input.attach.accessibility" = "Attach media";
 "chat.input.voice.accessibility" = "Record voice message";
 "chat.attach.sendMedia.one" = "Send 1 item";
@@ -976,13 +976,11 @@
 "chat.vanish.swipe.hint.off" = "Swipe up to turn off disappearing messages";
 "chat.vanish.swipe.release" = "Release to turn on disappearing messages";
 "chat.vanish.swipe.release.off" = "Release to turn off disappearing messages";
-"chat.vanish.notice.enabled.prefix" = "You turned on disappearing messages. New messages and reactions will disappear";
-"chat.vanish.notice.enabled.prefix.self" = "You turned on disappearing messages. New messages and reactions will disappear";
-"chat.vanish.notice.enabled.prefix.other" = "%@ turned on disappearing messages. New messages and reactions will disappear";
 "chat.vanish.notice.duration.onceSeen" = "once everyone has seen them";
 "chat.vanish.notice.duration.24h" = "24 hours after everyone has seen them";
 "chat.vanish.notice.duration.7d" = "7 days after everyone has seen them";
-"chat.vanish.notice.enabled.suffix" = ".";
+"chat.vanish.notice.enabled.self.format" = "You turned on disappearing messages. New messages and reactions will disappear %@.";
+"chat.vanish.notice.enabled.other.format" = "%1$@ turned on disappearing messages. New messages and reactions will disappear %2$@.";
 "chat.vanish.notice.change" = "Change";
 "chat.vanish.notice.disabled" = "You turned off disappearing messages.";
 "chat.vanish.notice.preview.enabled" = "Disappearing messages are on";
@@ -1159,6 +1157,11 @@
 "chat.preview.sharedMoment" = "Shared moment";
 "chat.preview.viewOncePhoto" = "Photo (view once)";
 "chat.preview.viewOnceVideo" = "Video (view once)";
+"chat.preview.viewOnceTapPhoto" = "View photo";
+"chat.preview.viewOnceTapVideo" = "View video";
+"chat.viewOnce.inboxAction" = "Play";
+"chat.preview.viewOnceSentPhoto" = "Sent a photo";
+"chat.preview.viewOnceSentVideo" = "Sent a video";
 "chat.preview.text" = "New message";
 "chat.status.sending" = "Sending";
 "chat.status.sent" = "Sent";
@@ -2854,8 +2857,8 @@
 
 /* Whats New v2.16 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Groups at last — plus a more personal For You, a sharper chat, and polished Echoes & Stories.";
-"whatsNew.button" = "Explore Moments 2.30";
+"whatsNew.subtitle" = "Moments comes to iPhone Duo, with chats that feel more yours, more control over stories, original audio, and refreshed maps.";
+"whatsNew.button" = "Explore Moments 2.31";
 /* Best Friends */
 "bestFriends.title" = "Best Friends";
 "bestFriends.empty.title" = "No best friends";
@@ -3130,6 +3133,8 @@
 "notification.message.single.video" = "Sent you a video 🎥";
 "notification.message.single.audio" = "Sent you an audio 🎵";
 "notification.message.single.viewOnce" = "Sent you a message";
+"notification.message.viewOncePhoto" = "Sent you a photo";
+"notification.message.viewOnceVideo" = "Sent you a video";
 "notification.message.single.moment" = "Sent you a moment 📸";
 "notification.message.single.default" = "Sent you a message";
 "notification.message.single.storyMention" = "Mentioned you in their story";
@@ -4297,6 +4302,7 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "messaging.message.unsupportedFile" = "Unsupported file type";
 "messaging.message.fileTooLarge" = "File is too large";
 "messaging.message.connectionError" = "Connection error";
+"messaging.message.undecryptable" = "This message can't be displayed";
 "messaging.request.status.pending" = "Pending";
 "messaging.request.status.accepted" = "Accepted";
 "messaging.request.status.rejected" = "Rejected";
@@ -5046,3 +5052,24 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "settings.group.profileContent" = "Profile and content";
 
 "settings.group.messagingPrivacy" = "Messages and interactions";
+
+/* What's New 2.31 */
+"whatsNew.section231.title" = "Moments 2.31";
+"whatsNew.duo231.title" = "Made for iPhone Duo";
+"whatsNew.duo231.description" = "Feed and comments, inbox and conversation, or grid and detail: each on its own screen. Open or close your Duo and pick up where you left off.";
+"whatsNew.storyPublish231.title" = "Before you post a story";
+"whatsNew.storyPublish231.description" = "A new screen with the preview and its options: who sees it, 24 or 48 hours, and whether it allows messages, reactions, and replies.";
+"whatsNew.originalAudio231.title" = "Original audio";
+"whatsNew.originalAudio231.description" = "Save audio from public stories and reuse it from Saved in the audio sticker. You decide whether yours can be reused.";
+"whatsNew.chatStyle231.title" = "Chats your way";
+"whatsNew.chatStyle231.description" = "Backgrounds with photos, colors, or themes, adjustable intensity, and your own bubble color. Only you see it.";
+"whatsNew.chatMedia231.title" = "Photos, videos, and replies";
+"whatsNew.chatMedia231.description" = "Thumbnails in their real proportions, a clearer play button, pinch to zoom, and replies that preview what you're quoting.";
+"whatsNew.maps231.title" = "Refreshed maps";
+"whatsNew.maps231.description" = "Moments and stories grouped by place, and back to the map without losing context.";
+"whatsNew.banner231.title" = "Clearer alerts";
+"whatsNew.banner231.description" = "A redesigned banner with progress, confirmations, and undo for some actions.";
+"whatsNew.settings231.title" = "Settings and audiences";
+"whatsNew.settings231.description" = "Settings organized by profile, content, messages, and account, and audience lists that are easier to manage.";
+"whatsNew.fluid231.title" = "Smoother";
+"whatsNew.fluid231.description" = "Your music keeps playing while you browse muted content, and chats, stories, and your archive load more smoothly.";

@@ -37,6 +37,7 @@ final class MessageIngestService {
         recentlyIngestedKeys.removeAll()
         MessageSyncCursorStore.clearAll()
         LocalPersistenceService.shared.clearAllChatCache()
+        MessageCatchUpService.shared.forgetSyncedConversationTimestamps()
     }
 
     func drainPendingQueue() async {

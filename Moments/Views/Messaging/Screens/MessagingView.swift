@@ -88,6 +88,10 @@ struct MessagingView: View {
     @State private var groupRequestsStartSent = false
     @State private var selectedConversation: Conversation?
     @State private var pendingChatContext: PendingChatContext?
+    /// Ver una vez lanzado desde el botón de la fila: preparación, visor y cámara pendiente.
+    @State private var viewOncePreparation: InboxViewOncePreparation?
+    @State private var inboxViewOncePresentation: InboxViewOncePresentation?
+    @State private var pendingViewOnceCameraConversation: Conversation?
     @Binding var targetConversationId: String?
     var onDismiss: (() -> Void)? = nil
 
@@ -130,7 +134,11 @@ struct MessagingView: View {
             .onChange(of: selectedConversation?.id) { _, conversationId in
                 if conversationId != nil {
                     preferredCompactColumn = .detail
+                    viewOncePreparation = nil
                 }
+            }
+            .fullScreenCover(item: $inboxViewOncePresentation, onDismiss: handleInboxViewOnceDismiss) { presentation in
+                inboxViewOnceViewer(presentation)
             }
             .onChange(of: pendingChatContext?.id) { _, contextId in
                 if contextId != nil {
@@ -1136,8 +1144,7 @@ struct MessagingView: View {
             profileZoomNamespace: profileZoomNamespace,
             onOpenProfile: { openConversationProfile(userId: conversation.otherParticipantId) },
             onTap: {
-                selectedConversation = conversation
-                preferredCompactColumn = .detail
+                openConversationFromList(conversation)
             },
             onLongPress: {
                 guard let conversationId = conversation.id,
@@ -1148,12 +1155,97 @@ struct MessagingView: View {
                     rowFrame: frame
                 )
             },
+            onPlayViewOnce: { playInboxViewOnce(conversation) },
+            isPreparingViewOnce: viewOncePreparation?.conversationId == conversation.id,
             onNeedsParticipantState: { viewModel.loadParticipantState(for: conversation) }
         )
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
         .zIndex(isMenuSelected ? 1 : 0)
+    }
+
+    private func openConversationFromList(_ conversation: Conversation) {
+        selectedConversation = conversation
+        preferredCompactColumn = .detail
+    }
+
+    /// "Reproducir" de la fila: prepara el ver una vez y lo abre sobre la lista;
+    /// si no hay pendiente, falla o tarda demasiado, abre el chat.
+    private func playInboxViewOnce(_ conversation: Conversation) {
+        guard viewOncePreparation == nil,
+              inboxViewOncePresentation == nil,
+              let conversationId = conversation.id, !conversationId.isEmpty else { return }
+        let preparation = InboxViewOncePreparation(conversationId: conversationId)
+        viewOncePreparation = preparation
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + InboxViewOncePlayback.preparationTimeout) {
+            guard viewOncePreparation == preparation else { return }
+            viewOncePreparation = nil
+            openConversationFromList(conversation)
+        }
+
+        Task { @MainActor in
+            let message = await InboxViewOncePlayback.prepare(conversationId: conversationId)
+            // Cancelada (timeout o el usuario abrió otro chat): se descarta el resultado.
+            guard viewOncePreparation == preparation else { return }
+            viewOncePreparation = nil
+            guard let message else {
+                openConversationFromList(conversation)
+                return
+            }
+            inboxViewOncePresentation = InboxViewOncePresentation(
+                conversation: conversation,
+                message: message,
+                authorName: inboxViewOnceAuthorName(for: message, in: conversation)
+            )
+        }
+    }
+
+    private func inboxViewOnceAuthorName(for message: EnhancedMessage, in conversation: Conversation) -> String {
+        let fallback = NSLocalizedString("messaging.user.default", comment: "Default user name")
+        if conversation.isGroup {
+            return UserCacheService.shared.getCachedUser(userId: message.senderId)?.username
+                ?? groupDirectory.groups[conversation.id ?? ""]?.allMemberNames[message.senderId]
+                ?? fallback
+        }
+        let live = viewModel.participantStates[conversation.otherParticipantId]?.username
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !live.isEmpty { return live }
+        return conversation.otherParticipantUsername ?? fallback
+    }
+
+    private func inboxViewOnceViewer(_ presentation: InboxViewOncePresentation) -> some View {
+        ViewOnceImmersiveViewer(
+            message: presentation.message,
+            authorName: presentation.authorName,
+            onViewed: {
+                InboxViewOncePlayback.markViewed(presentation.message)
+                if let conversationId = presentation.conversation.id {
+                    viewModel.clearViewOncePending(conversationId: conversationId)
+                }
+            },
+            onSendReply: { text in
+                InboxViewOncePlayback.sendReply(text, to: presentation)
+            },
+            onSendReaction: { emoji in
+                InboxViewOncePlayback.sendReply(emoji, to: presentation)
+            },
+            onOpenCameraReply: {
+                // La cámara de respuesta vive en el chat: al cerrar el visor se abre la conversación.
+                pendingViewOnceCameraConversation = presentation.conversation
+            }
+        )
+        .interactiveDismissDisabled(true)
+        .onDisappear {
+            InboxViewOncePlayback.finishSession(presentation.message)
+        }
+    }
+
+    private func handleInboxViewOnceDismiss() {
+        guard let conversation = pendingViewOnceCameraConversation else { return }
+        pendingViewOnceCameraConversation = nil
+        openConversationFromList(conversation)
     }
 
     private func resolvedGroupMemberIds(for conversation: Conversation) -> [String] {
@@ -1243,6 +1335,9 @@ struct ConversationPressableRow: View {
     let onOpenProfile: () -> Void
     let onTap: () -> Void
     let onLongPress: () -> Void
+    /// Botón "Reproducir" del ver una vez; nil → abre el chat como la fila.
+    var onPlayViewOnce: (() -> Void)? = nil
+    var isPreparingViewOnce = false
     let onNeedsParticipantState: () -> Void
 
     @State private var isPressing = false
@@ -1269,6 +1364,8 @@ struct ConversationPressableRow: View {
                     }
                 }
             ),
+            onPlayViewOnce: onPlayViewOnce,
+            isPreparingViewOnce: isPreparingViewOnce,
             onNeedsParticipantState: onNeedsParticipantState
         )
         .background {
@@ -1387,6 +1484,9 @@ struct GlassmorphicConversationRow: View {
     let onOpenProfile: () -> Void
     let onTap: () -> Void
     var listInteraction: ConversationListInteraction? = nil
+    /// Botón "Reproducir" del ver una vez; nil → abre el chat como la fila.
+    var onPlayViewOnce: (() -> Void)? = nil
+    var isPreparingViewOnce = false
     let onNeedsParticipantState: () -> Void
     @Environment(\.colorScheme) var colorScheme
 
@@ -1487,6 +1587,10 @@ struct GlassmorphicConversationRow: View {
 
     @ViewBuilder
     private var rowContent: some View {
+        // La capa de gestos de la fila tapa todo el contenido: el botón de ver una vez
+        // se dibuja por encima de ella para recibir su propio toque (el hueco reserva su sitio).
+        let liftsViewOnceAction = listInteraction != nil
+            && conversation.showsViewOnceInboxPlayButton(for: Auth.auth().currentUser?.uid ?? "")
         let content = HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 usernameRow
@@ -1494,17 +1598,24 @@ struct GlassmorphicConversationRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            conversationTrailingIndicator
+            if liftsViewOnceAction {
+                conversationTrailingIndicator.hidden()
+            } else {
+                conversationTrailingIndicator
+            }
         }
 
         if let listInteraction {
-            ZStack {
+            ZStack(alignment: .trailing) {
                 content
                 ProfileMomentThumbnailGestureOverlay(
                     onTap: listInteraction.onTap,
                     onLongPress: listInteraction.onLongPress,
                     onPressingChanged: listInteraction.onPressingChanged
                 )
+                if liftsViewOnceAction {
+                    conversationTrailingIndicator
+                }
             }
         } else {
             content
@@ -1605,14 +1716,17 @@ struct GlassmorphicConversationRow: View {
         }()
         let relativeTime = MomentsFormat.relativeTime(from: relativeTimeSource, style: .compactBare)
 
+        // Ver una vez recibido sin abrir: "Ver foto"/"Ver vídeo" destacado, como un no leído.
+        let emphasizesViewOnce = !showsDraftPreview && conversation.showsViewOnceInboxPlayButton(for: currentUserId)
+
         let row = HStack(spacing: 6) {
             Text(
                 showsUnavailablePreview
                     ? NSLocalizedString("messaging.profileUnavailable.preview", comment: "Unavailable profile preview")
                     : resolvedPreview
             )
-            .font(.system(size: 14, weight: (isUnread && !showsDraftPreview) ? .semibold : .regular))
-            .foregroundStyle(previewColor)
+            .font(.system(size: 14, weight: ((isUnread || emphasizesViewOnce) && !showsDraftPreview) ? .semibold : .regular))
+            .foregroundStyle(emphasizesViewOnce ? (colorScheme == .dark ? .white : .black) : previewColor)
             .lineLimit(1)
             .layoutPriority(-1)
 
@@ -1638,7 +1752,12 @@ struct GlassmorphicConversationRow: View {
         let isUnread = !(conversation.readStatus[currentUserId] ?? true)
 
         if conversation.showsViewOnceInboxPlayButton(for: currentUserId) {
-            ChatViewOnceInboxIndicator()
+            ChatViewOnceInboxAction(
+                isVideo: conversation.lastMessageType == .viewOnceVideo,
+                tintColor: ChatWallpaper.cachedBubbleColor(conversationId: conversation.id ?? ""),
+                isLoading: isPreparingViewOnce,
+                action: onPlayViewOnce ?? onTap
+            )
         } else if conversation.vanishModeActive == true {
             ChatVanishInboxIndicator(isUnread: isUnread)
         } else if isUnread {

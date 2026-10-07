@@ -411,7 +411,8 @@ private struct ChatMessagePressClassifierModifier: ViewModifier {
         content
             .onLongPressGesture(minimumDuration: 0.32, maximumDistance: 18, perform: {
                 suppressNextTap = true
-                HapticManager.shared.heavyImpact()
+                // Medium como Mensajes: heavy resultaba brusco al abrir el menú.
+                HapticManager.shared.mediumImpact()
                 onLongPress()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     suppressNextTap = false

@@ -632,7 +632,7 @@ struct GlassmorphicAudioMessage: View {
             side: isCurrentUser ? .trailing : .leading,
             position: groupPosition,
             cornerRadius: 18,
-            joinedRadius: 6
+            joinedRadius: ChatTextBubbleMetrics.joinedRadius
         )
     }
 
@@ -690,10 +690,8 @@ struct GlassmorphicAudioMessage: View {
         .padding(.vertical, VoiceMessageLayout.verticalPadding)
         .frame(width: VoiceMessageLayout.bubbleWidth(containerWidth: layoutContainerWidth), alignment: .leading)
         .background(bubbleBackground)
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(bubbleStrokeColor, lineWidth: 0.5)
-        )
+        // Misma forma que el relleno para que el borde siga las esquinas unidas.
+        .overlay(bubbleShape.stroke(bubbleStrokeColor, lineWidth: 0.5))
         .onAppear {
             refreshWaveformLevels()
             checkAudioAvailability()
@@ -842,8 +840,10 @@ struct GlassmorphicAudioMessage: View {
         Button(action: cyclePlaybackRate) {
             Text(speedLabel)
                 .font(.system(size: 10, weight: .bold))
+                .monospacedDigit()
                 .foregroundStyle(contentColor)
-                .padding(.horizontal, 6)
+                // Ancho fijo (el reservado en el layout) para que no salte entre 1× y 1.5×.
+                .frame(width: VoiceMessageLayout.speedControlWidth)
                 .padding(.vertical, 4)
                 .background(contentColor.opacity(colorScheme == .dark ? 0.15 : 0.12))
                 .clipShape(Capsule())

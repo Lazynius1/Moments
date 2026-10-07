@@ -208,6 +208,13 @@ class OfflineSyncService: ObservableObject {
             case CachedAction.ActionType.message.rawValue:
                 // Retomar envío de mensaje
                 if let payload = try? JSONDecoder().decode(MessagePayload.self, from: action.payloadData) {
+                    // El SDK pudo completar la escritura original tras el timeout: no reenviar.
+                    if await ChatService.shared.confirmQueuedMessageIfAlreadyOnServer(
+                        conversationId: payload.message.conversationId,
+                        messageId: payload.message.id
+                    ) {
+                        break
+                    }
                     await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
                         ChatService.shared.sendMessage(payload.message, useServerTimestamp: payload.useServerTimestamp) { result in
                             // .pending = volvió a encolarse (sin red o timeout); conservar la acción.
@@ -226,6 +233,12 @@ class OfflineSyncService: ObservableObject {
                 // Retomar envío de media: los bytes originales siguen en el cache local
                 if let payload = try? JSONDecoder().decode(MediaMessagePayload.self, from: action.payloadData),
                    let type = MessageType(rawValue: payload.typeRaw) {
+                    if await ChatService.shared.confirmQueuedMessageIfAlreadyOnServer(
+                        conversationId: payload.conversationId,
+                        messageId: payload.messageId
+                    ) {
+                        break
+                    }
                     let fileURL = ChatCacheStore.decryptedMediaURL(
                         conversationId: payload.conversationId,
                         messageId: payload.messageId,

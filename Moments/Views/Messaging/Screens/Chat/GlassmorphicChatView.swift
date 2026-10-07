@@ -307,6 +307,7 @@ struct GlassmorphicChatView: View {
     var baseChatView: some View {
         chatRootContent
             .environment(\.chatOutgoingBubbleColor, Color(hex: wallpaperStore.wallpaper.bubbleColorHex))
+            .environment(\.chatFloatingTextColor, wallpaperStore.wallpaper.floatingTextColor)
             .task(id: "\(Auth.auth().currentUser?.uid ?? ""):\(conversationId)") { wallpaperStore.start(conversationId: conversationId) }
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)

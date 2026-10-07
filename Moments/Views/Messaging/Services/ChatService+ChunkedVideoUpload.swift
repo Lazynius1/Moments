@@ -62,7 +62,7 @@ extension ChatService {
 
         if let thumbnailData = try await generateVideoThumbnailData(from: preparedURL) {
             do {
-                let thumbId = UUID().uuidString
+                let thumbId = chatStorageFileId(conversationId: conversationId, role: "thumb")
                 let thumbBase = StoragePathBuilder.build(
                     userId: senderId,
                     domain: .chatThumbnail(

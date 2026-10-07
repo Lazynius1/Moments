@@ -13,6 +13,42 @@ extension EnvironmentValues {
     }
 }
 
+private struct ChatFloatingTextColorKey: EnvironmentKey {
+    static let defaultValue: Color? = nil
+}
+
+extension EnvironmentValues {
+    /// Color de los textos sueltos sobre el fondo (citas, "Editado", horas) cuando hay
+    /// fondo personalizado; `nil` con el fondo por defecto.
+    var chatFloatingTextColor: Color? {
+        get { self[ChatFloatingTextColorKey.self] }
+        set { self[ChatFloatingTextColorKey.self] = newValue }
+    }
+}
+
+/// Legibilidad de textos sueltos sobre fondos personalizados: más opacos
+/// y con sombra suave; con el fondo por defecto se mantiene `fallback`.
+private struct ChatFloatingTextModifier: ViewModifier {
+    let fallback: Color
+    @Environment(\.chatFloatingTextColor) private var floatingTextColor
+
+    func body(content: Content) -> some View {
+        if let floatingTextColor {
+            content
+                .foregroundStyle(floatingTextColor.opacity(0.9))
+                .shadow(color: (floatingTextColor == .white ? Color.black : Color.white).opacity(0.45), radius: 2, x: 0, y: 0.5)
+        } else {
+            content.foregroundStyle(fallback)
+        }
+    }
+}
+
+extension View {
+    func chatFloatingText(_ fallback: Color) -> some View {
+        modifier(ChatFloatingTextModifier(fallback: fallback))
+    }
+}
+
 private struct ChatMessageRowFrameKey: EnvironmentKey {
     static let defaultValue: CGRect = .zero
 }
@@ -75,8 +111,14 @@ extension AdaptiveColors {
         colorScheme == .dark ? Color(hex: "2C3235") : Color(hex: "E9E9E6")
     }
 
+    /// Borde casi imperceptible: en claro el relleno ya contrasta con el fondo.
     var messageBubbleStroke: Color {
-        colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.15)
+        colorScheme == .dark ? Color.white.opacity(0.06) : Color.clear
+    }
+
+    /// Borde fino de miniaturas de foto/vídeo.
+    var mediaBubbleStroke: Color {
+        colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.08)
     }
 
     var messageTextColor: Color {

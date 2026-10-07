@@ -20,6 +20,22 @@ class ChatService: ObservableObject {
     @Published var activeListeners: [String: ListenerRegistration] = [:]
     @Published var typingUsers: [String: Set<String>] = [:] // conversationId: Set<userId>
     private var listenerGenerations: [String: Int] = [:]
+    /// Orden de snapshots del chat abierto: cada snapshot se procesa en su propio Task
+    /// y uno viejo puede terminar después que uno nuevo; ese resultado se descarta.
+    private var messageSnapshotSequence: [String: Int] = [:]
+    private var deliveredMessageSnapshotSequence: [String: Int] = [:]
+    /// Reprocesa el último snapshot del chat abierto (p. ej. al llegar su clave E2E).
+    private var messageSnapshotReplayers: [String: () -> Void] = [:]
+    /// Conversaciones con mensajes que no se pudieron descifrar en la última hidratación.
+    private var conversationsWithUndecryptableMessages: Set<String> = []
+    private var undecryptableRetryAttempts: [String: Int] = [:]
+    private var undecryptableRetryTasks: [String: Task<Void, Never>] = [:]
+    private var conversationKeyObserver: NSObjectProtocol?
+    /// Reacciones vivas por conversación, mantenidas por `listenToMessageReactions`.
+    var liveReactionMaps: [String: [String: [String: [String]]]] = [:]
+    private var deliveredMarksInFlight: Set<String> = []
+    /// Previews del inbox ya resueltas, por conversación, con la firma del doc que las produjo.
+    private var conversationPreviewCache: [String: (signature: String, snapshot: ConversationLatestSnapshot)] = [:]
     /// Merge vivo del inbox; si ya hay listeners, no se recrean al volver a Mensajes.
     var inboxMerge: GroupInboxMerge?
     
@@ -63,6 +79,16 @@ class ChatService: ObservableObject {
     
     init() {
         self.encryptedMediaResolver = EncryptedMediaResolver(encryptionService: EncryptionService.shared)
+        conversationKeyObserver = NotificationCenter.default.addObserver(
+            forName: .chatConversationKeyDidLoad,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let conversationId = notification.userInfo?["conversationId"] as? String else { return }
+            Task { @MainActor [weak self] in
+                self?.replayMessagesSnapshotIfUndecryptable(conversationId: conversationId)
+            }
+        }
     }
     
     
@@ -72,17 +98,70 @@ class ChatService: ObservableObject {
         activeListeners.values.forEach { $0.remove() }
         activeListeners.removeAll()
         listenerGenerations.removeAll()
+        liveReactionMaps.removeAll()
+        messageSnapshotReplayers.removeAll()
+        undecryptableRetryTasks.values.forEach { $0.cancel() }
+        undecryptableRetryTasks.removeAll()
+        undecryptableRetryAttempts.removeAll()
+        conversationsWithUndecryptableMessages.removeAll()
+        conversationPreviewCache.removeAll()
+    }
+
+    // MARK: - Orden de snapshots y reintento de descifrado
+
+    private func nextMessageSnapshotSequence(for conversationId: String) -> Int {
+        let next = messageSnapshotSequence[conversationId, default: 0] + 1
+        messageSnapshotSequence[conversationId] = next
+        return next
+    }
+
+    /// true si el snapshot es más nuevo que el último entregado a la UI.
+    private func claimMessageSnapshotDelivery(_ sequence: Int, for conversationId: String) -> Bool {
+        guard sequence > deliveredMessageSnapshotSequence[conversationId, default: 0] else { return false }
+        deliveredMessageSnapshotSequence[conversationId] = sequence
+        return true
+    }
+
+    /// Lo llama la hidratación cuando un mensaje no se pudo descifrar: se reintenta
+    /// releyendo la clave del servidor con backoff (máx. 3 intentos por apertura del chat).
+    func noteUndecryptableMessage(conversationId: String) {
+        conversationsWithUndecryptableMessages.insert(conversationId)
+        guard undecryptableRetryTasks[conversationId] == nil else { return }
+        let attempt = undecryptableRetryAttempts[conversationId, default: 0]
+        let delays: [UInt64] = [2, 8, 30]
+        guard attempt < delays.count else { return }
+        undecryptableRetryAttempts[conversationId] = attempt + 1
+        let delay = delays[attempt]
+        undecryptableRetryTasks[conversationId] = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: delay * 1_000_000_000)
+            guard !Task.isCancelled, let self else { return }
+            // Si la clave se carga, `chatConversationKeyDidLoad` dispara la rehidratación.
+            _ = await self.encryptionService.refreshConversationKeyFromServer(for: conversationId)
+            self.undecryptableRetryTasks[conversationId] = nil
+        }
+    }
+
+    private func replayMessagesSnapshotIfUndecryptable(conversationId: String) {
+        guard conversationsWithUndecryptableMessages.contains(conversationId) else { return }
+        conversationsWithUndecryptableMessages.remove(conversationId)
+        // También la preview del inbox debe volver a resolverse.
+        conversationPreviewCache.removeValue(forKey: conversationId)
+        messageSnapshotReplayers[conversationId]?()
     }
     
     func removeListener(for conversationId: String) {
         bumpListenerGeneration(for: conversationId)
         activeListeners[conversationId]?.remove()
         activeListeners.removeValue(forKey: conversationId)
+        messageSnapshotReplayers.removeValue(forKey: conversationId)
+        undecryptableRetryTasks.removeValue(forKey: conversationId)?.cancel()
+        undecryptableRetryAttempts.removeValue(forKey: conversationId)
 
         let reactionsKey = "reactions_\(conversationId)"
         bumpListenerGeneration(for: reactionsKey)
         activeListeners[reactionsKey]?.remove()
         activeListeners.removeValue(forKey: reactionsKey)
+        liveReactionMaps.removeValue(forKey: conversationId)
 
         let prefsKey = "conversation_prefs_\(conversationId)"
         bumpListenerGeneration(for: prefsKey)
@@ -155,22 +234,39 @@ class ChatService: ObservableObject {
             guard let self else { return }
             guard self.isCurrentListenerGeneration(generation, for: conversationId) else { return }
             let cutoff = self.resolvedHistoryCutoff(conversationId: conversationId, cutoffDate: cutoffDate)
+            var latestSnapshot: QuerySnapshot?
+            // Cada snapshot lleva número de secuencia; solo se entrega a la UI si es más
+            // nuevo que el último entregado (los Tasks pueden terminar desordenados).
+            let process: (QuerySnapshot?, Error?) -> Void = { [weak self] snapshot, error in
+                guard let self, self.isCurrentListenerGeneration(generation, for: conversationId) else { return }
+                let sequence = self.nextMessageSnapshotSequence(for: conversationId)
+                Task { @MainActor [weak self] in
+                    await self?.handleMessagesSnapshot(
+                        snapshot: snapshot,
+                        error: error,
+                        conversationId: conversationId,
+                        cutoffDate: cutoffDate,
+                        completion: { [weak self] result in
+                            guard let self,
+                                  self.claimMessageSnapshotDelivery(sequence, for: conversationId) else { return }
+                            completion(result)
+                        }
+                    )
+                }
+            }
             let listener = self.db.messagingThread(conversationId)
                 .messagingMessages
                 .applyingHistoryCutoff(cutoff)
                 .order(by: "timestamp", descending: false)
                 .limit(toLast: limit)
-                .addSnapshotListener { [weak self] snapshot, error in
-                    Task {
-                        await self?.handleMessagesSnapshot(
-                            snapshot: snapshot,
-                            error: error,
-                            conversationId: conversationId,
-                            cutoffDate: cutoffDate,
-                            completion: completion
-                        )
-                    }
+                .addSnapshotListener { snapshot, error in
+                    if let snapshot { latestSnapshot = snapshot }
+                    process(snapshot, error)
                 }
+            self.messageSnapshotReplayers[conversationId] = {
+                guard let latestSnapshot else { return }
+                process(latestSnapshot, nil)
+            }
             self.activeListeners[conversationId] = listener
         }
 
@@ -503,10 +599,18 @@ class ChatService: ObservableObject {
         }
 
         if hydrateReactions {
-            let fetchedReactions = await fetchReactionMap(
-                conversationId: conversationId,
-                messageIds: messages.map(\.id)
-            )
+            // Con el listener de reacciones activo ya tenemos el mapa completo en memoria;
+            // solo se consulta Firestore si aún no ha llegado su primer snapshot.
+            let fetchedReactions: [String: [String: [String]]]
+            if activeListeners["reactions_\(conversationId)"] != nil,
+               let live = liveReactionMaps[conversationId] {
+                fetchedReactions = live
+            } else {
+                fetchedReactions = await fetchReactionMap(
+                    conversationId: conversationId,
+                    messageIds: messages.map(\.id)
+                )
+            }
             messages = messages.map { message in
                 var updated = message
                 updated.reactions = mergeLegacyAndLiveReactions(
@@ -754,7 +858,7 @@ class ChatService: ObservableObject {
         uploadMedia(data: mediaData, type: type, conversationId: conversationId, messageId: finalMessageId) { [weak self] result in
             switch result {
             case .success(let uploadResult):
-                let finalMessageId = messageId ?? UUID().uuidString
+                // Mismo id que la subida: la ruta y el AAD del cifrado dependen de él.
                 Task { @MainActor in
                     let dimensions = await ChatMediaFileDimensions.read(localURL: uploadResult.mediaUrl)
                     let message = EnhancedMessage(
@@ -796,7 +900,30 @@ class ChatService: ObservableObject {
                 }
                 
             case .failure(let error):
-                completion(.failure(error))
+                Task { @MainActor in
+                    // Fallo de red en la subida: encolar en vez de perder el envío. Si ya
+                    // venía de la cola, la acción existe y es la cola quien reintenta.
+                    if let self, ChatService.isTransientNetworkError(error),
+                       !LocalPersistenceService.shared.hasPendingAction(id: finalMessageId) {
+                        let pending = self.queueOfflineMediaMessage(
+                            conversationId: conversationId,
+                            senderId: senderId,
+                            type: type,
+                            mediaData: mediaData,
+                            messageId: finalMessageId,
+                            fileName: fileName,
+                            duration: nil,
+                            mediaBatchId: mediaBatchId,
+                            isVanishModeMessage: isVanishModeMessage,
+                            vanishExpiresAt: vanishExpiresAt,
+                            replyTo: replyTo,
+                            textOverlays: textOverlays, stickers: stickers
+                        )
+                        completion(.success(pending))
+                        return
+                    }
+                    completion(.failure(error))
+                }
             }
         }
     }
@@ -1032,7 +1159,7 @@ class ChatService: ObservableObject {
         uploadMedia(data: audioData, type: .audio, conversationId: conversationId, messageId: finalMessageId) { [weak self] result in
             switch result {
             case .success(let uploadResult):
-                let finalMessageId = messageId ?? UUID().uuidString
+                // Mismo id que la subida: la ruta y el AAD del cifrado dependen de él.
                 let message = EnhancedMessage(
                     id: finalMessageId,
                     conversationId: conversationId,
@@ -1067,9 +1194,43 @@ class ChatService: ObservableObject {
                 self?.sendMessage(message, useServerTimestamp: true, completion: completion)
 
             case .failure(let error):
-                completion(.failure(error))
+                Task { @MainActor in
+                    // Igual que en media: un fallo de red encola el audio para reintentarlo.
+                    if let self, ChatService.isTransientNetworkError(error),
+                       !LocalPersistenceService.shared.hasPendingAction(id: finalMessageId) {
+                        let pending = self.queueOfflineMediaMessage(
+                            conversationId: conversationId,
+                            senderId: senderId,
+                            type: .audio,
+                            mediaData: audioData,
+                            messageId: finalMessageId,
+                            fileName: "audio_\(finalMessageId).m4a",
+                            duration: duration,
+                            audioWaveform: waveform,
+                            mediaBatchId: nil,
+                            isVanishModeMessage: isVanishModeMessage,
+                            vanishExpiresAt: nil,
+                            replyTo: nil
+                        )
+                        completion(.success(pending))
+                        return
+                    }
+                    completion(.failure(error))
+                }
             }
         }
+    }
+
+    /// Errores de red recuperables (sin conexión, timeout, reintentos de Storage agotados).
+    nonisolated static func isTransientNetworkError(_ error: Error) -> Bool {
+        var current: NSError? = error as NSError
+        while let nsError = current {
+            if nsError.domain == NSURLErrorDomain { return nsError.code != NSURLErrorCancelled }
+            // FIRStorageErrorCodeRetryLimitExceeded
+            if nsError.domain == "FIRStorageErrorDomain", nsError.code == -13030 { return true }
+            current = nsError.userInfo[NSUnderlyingErrorKey] as? NSError
+        }
+        return false
     }
 
     /// Persiste los bytes en el cache local y encola la acción para reenvío al reconectar.
@@ -1338,7 +1499,13 @@ class ChatService: ObservableObject {
                     )
                 )
             }
-            LocalPersistenceService.shared.saveMessages([pendingMessage], conversationId: conversationId, sync: false)
+            // Solo el estado: `pendingMessage.content` es ciphertext y pisaría en la caché
+            // el texto en claro que guardó el chat al enviar.
+            LocalPersistenceService.shared.updateCachedMessageStatus(
+                conversationId: conversationId,
+                messageId: messageId,
+                status: .pending
+            )
             self?.updateLocalMessageStatus(conversationId: conversationId, messageId: messageId, status: .pending)
             completion(.success(pendingMessage))
         }
@@ -1346,15 +1513,17 @@ class ChatService: ObservableObject {
         persistChatMessage(messageRef, data: messageData) { [weak self] error in
             if ackState.timedOut {
                 // El ack llegó tarde: la cola offline ya es dueña del reintento.
-                // Si al final entró, retirar la acción para no re-escribir el doc.
+                // Si al final entró, retirar la acción para no re-escribir el doc
+                // y completar lo que el envío normal habría hecho (preview del inbox).
                 if error == nil {
                     Task { @MainActor in
-                        LocalPersistenceService.shared.deleteAction(id: messageId)
-                        self?.updateLocalMessageStatus(
+                        self?.markOutgoingMessageConfirmed(conversationId: conversationId, messageId: messageId)
+                        self?.updateConversation(
                             conversationId: conversationId,
-                            messageId: messageId,
-                            status: .sent
-                        )
+                            lastMessage: self?.neutralConversationPreview(for: messageType) ?? MessageType.text.conversationPreview,
+                            senderId: senderId,
+                            messageType: messageType
+                        ) { _ in }
                     }
                 }
                 return
@@ -1362,18 +1531,14 @@ class ChatService: ObservableObject {
             ackState.completed = true
 
             if let error = error {
-                // Update status to failed if there's an error
+                // "failed" es solo estado local: el doc no existe en el servidor (o la
+                // escritura fue rechazada), así que no se escribe nada en Firestore.
                 Task { @MainActor in
                     self?.updateLocalMessageStatus(
                         conversationId: conversationId,
                         messageId: messageId,
                         status: .failed
                     )
-                    self?.updateMessageStatus(
-                        conversationId: conversationId,
-                        messageId: messageId,
-                        status: .failed
-                    ) { _ in }
                 }
                 completion(.failure(error))
                 return
@@ -1398,14 +1563,8 @@ class ChatService: ObservableObject {
                 }
             }
 
-            // ✅ Marcar como enviado inmediatamente
-            Task { @MainActor in
-                self?.updateMessageStatus(
-                    conversationId: conversationId,
-                    messageId: messageId,
-                    status: .sent
-                ) { _ in }
-            }
+            // El doc ya se escribió con status "sent"; no se reescribe aquí porque podría
+            // pisar un delivered/read que el receptor haya marcado entretanto.
 
             let updatedMessage: EnhancedMessage = {
                 let m = message
@@ -1414,6 +1573,28 @@ class ChatService: ObservableObject {
             }()
             completion(.success(updatedMessage))
         }
+    }
+
+    /// Si el mensaje encolado ya existe en el servidor (p. ej. el SDK completó la
+    /// escritura tras el timeout de ack), lo confirma en local y devuelve true para no
+    /// reenviarlo: el reenvío usa setData sin merge y pisaría delivered/read.
+    func confirmQueuedMessageIfAlreadyOnServer(conversationId: String, messageId: String) async -> Bool {
+        let reference = db.messagingThread(conversationId).messagingMessages.document(messageId)
+        guard let snapshot = try? await reference.getDocument(source: .server), snapshot.exists else {
+            return false
+        }
+        markOutgoingMessageConfirmed(conversationId: conversationId, messageId: messageId)
+        return true
+    }
+
+    /// El servidor tiene el mensaje: fuera de la cola y fuera del estado local FAILED/pending.
+    func markOutgoingMessageConfirmed(conversationId: String, messageId: String) {
+        LocalPersistenceService.shared.deleteAction(id: messageId)
+        LocalPersistenceService.shared.promoteUnconfirmedCachedMessageToSent(
+            conversationId: conversationId,
+            messageId: messageId
+        )
+        updateLocalMessageStatus(conversationId: conversationId, messageId: messageId, status: .sent)
     }
 
     // MARK: - Message Actions with Encryption
@@ -1858,10 +2039,14 @@ class ChatService: ObservableObject {
         activeListeners[listenerKey]?.remove()
         
         var snapshotRevision = 0
+        // Sin includeMetadataChanges: nada aquí depende de hasPendingWrites y cada cambio
+        // de metadatos rehidrataba todo el inbox. El límite acota lecturas en cuentas
+        // grandes; la UI aún no pagina el inbox, por eso es alto (ver inboxConversationLimit).
         let listener = db.collection("conversations")
             .whereField("participants", arrayContains: userId)
             .order(by: "timestamp", descending: true)
-            .addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
+            .limit(to: Self.inboxConversationLimit)
+            .addSnapshotListener { [weak self] snapshot, error in
                 guard let self else { return }
 
                 if let error = error {
@@ -2137,27 +2322,15 @@ class ChatService: ObservableObject {
                     finalEnabled = globalEnabled
                 }
                 
-                let batch = Firestore.firestore().batch()
-                
-                for messageId in messageIds {
-                    let messageRef = Firestore.firestore().messagingThread(conversationId)
-                        .messagingMessages
-                        .document(messageId)
-                    
-                    var messageUpdate: [String: Any] = [
-                        "readBy": FieldValue.arrayUnion([readerId])
-                    ]
-
-                    if finalEnabled {
-                        messageUpdate["isRead"] = true
-                        messageUpdate["status"] = MessageStatus.read.rawValue
-                        messageUpdate["readAtBy.\(readerId)"] = FieldValue.serverTimestamp()
-                    }
-
-                    batch.updateData(messageUpdate, forDocument: messageRef)
+                let thread = Firestore.firestore().messagingThread(conversationId)
+                var messageUpdate: [String: Any] = [
+                    "readBy": FieldValue.arrayUnion([readerId])
+                ]
+                if finalEnabled {
+                    messageUpdate["isRead"] = true
+                    messageUpdate["status"] = MessageStatus.read.rawValue
+                    messageUpdate["readAtBy.\(readerId)"] = FieldValue.serverTimestamp()
                 }
-                
-                let conversationRef = Firestore.firestore().messagingThread(conversationId)
                 var conversationUpdate: [String: Any] = [
                     "readStatus.\(readerId)": true,
                     "lastReadAt.\(readerId)": FieldValue.serverTimestamp()
@@ -2165,11 +2338,59 @@ class ChatService: ObservableObject {
                 if marksLastMessageSeen, finalEnabled {
                     conversationUpdate["lastMessageSeenAt.\(readerId)"] = FieldValue.serverTimestamp()
                 }
-                batch.updateData(conversationUpdate, forDocument: conversationRef)
 
-                batch.commit { error in
-                    completion(error)
+                // Firestore admite 500 escrituras por batch: se trocea y el doc de la
+                // conversación va en el último trozo, tras marcar todos los mensajes.
+                var writes: [(DocumentReference, [String: Any])] = messageIds.map {
+                    (thread.messagingMessages.document($0), messageUpdate)
                 }
+                writes.append((thread, conversationUpdate))
+                let chunks = ChatService.chunked(writes, size: ChatService.maxBatchWrites)
+                ChatService.commitReadChunks(chunks, index: 0, firstError: nil, completion: completion)
+            }
+        }
+    }
+
+    /// Confirma los trozos en orden. Si uno falla (p. ej. un mensaje borrado tumba el
+    /// batch entero) se reintenta escritura a escritura para no perder el resto, y se
+    /// devuelve el primer error en vez de ignorarlo.
+    private nonisolated static func commitReadChunks(
+        _ chunks: [[(DocumentReference, [String: Any])]],
+        index: Int,
+        firstError: Error?,
+        completion: @escaping (Error?) -> Void
+    ) {
+        guard index < chunks.count else {
+            completion(firstError)
+            return
+        }
+        let chunk = chunks[index]
+        let batch = Firestore.firestore().batch()
+        for (ref, data) in chunk {
+            batch.updateData(data, forDocument: ref)
+        }
+        batch.commit { error in
+            guard let error else {
+                commitReadChunks(chunks, index: index + 1, firstError: firstError, completion: completion)
+                return
+            }
+            AppLog.error("markMessagesAsRead batch falló, reintento individual: \(error.localizedDescription)")
+            let group = DispatchGroup()
+            var individualError: Error?
+            for (ref, data) in chunk {
+                group.enter()
+                ref.updateData(data) { itemError in
+                    if let itemError, individualError == nil { individualError = itemError }
+                    group.leave()
+                }
+            }
+            group.notify(queue: .main) {
+                commitReadChunks(
+                    chunks,
+                    index: index + 1,
+                    firstError: firstError ?? individualError,
+                    completion: completion
+                )
             }
         }
     }
@@ -2186,18 +2407,57 @@ class ChatService: ObservableObject {
     
     // ✅ Función para marcar mensajes como entregados automáticamente
     func markMessagesAsDelivered(messages: [EnhancedMessage], conversationId: String, currentUserId: String) {
-        let unreadMessages = messages.filter {
-            $0.senderId != currentUserId &&
-            $0.status == .sent &&
-            !$0.isRead
+        let pendingIds = messages
+            .filter {
+                $0.senderId != currentUserId &&
+                $0.status == .sent &&
+                !$0.isRead
+            }
+            .map(\.id)
+            .filter { !deliveredMarksInFlight.contains("\(conversationId)/\($0)") }
+        guard !pendingIds.isEmpty else { return }
+
+        // Un batch por snapshot (troceado al límite de Firestore) en vez de una escritura
+        // por mensaje; evita además repetir el marcado mientras el anterior está en vuelo.
+        let keys = pendingIds.map { "\(conversationId)/\($0)" }
+        deliveredMarksInFlight.formUnion(keys)
+        let thread = db.messagingThread(conversationId)
+        for chunk in Self.chunked(pendingIds, size: Self.maxBatchWrites) {
+            let batch = db.batch()
+            for messageId in chunk {
+                batch.updateData(
+                    ["status": MessageStatus.delivered.rawValue],
+                    forDocument: thread.messagingMessages.document(messageId)
+                )
+            }
+            batch.commit { [weak self] error in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    if error != nil {
+                        // Un doc inválido tumba todo el batch: degradar a escrituras sueltas.
+                        for messageId in chunk {
+                            self.updateMessageStatus(
+                                conversationId: conversationId,
+                                messageId: messageId,
+                                status: .delivered
+                            ) { _ in }
+                        }
+                    }
+                    for messageId in chunk {
+                        self.deliveredMarksInFlight.remove("\(conversationId)/\(messageId)")
+                    }
+                }
+            }
         }
-        
-        for message in unreadMessages {
-            updateMessageStatus(
-                conversationId: conversationId,
-                messageId: message.id,
-                status: .delivered
-            ) { _ in }
+    }
+
+    /// Límite de escrituras por batch de Firestore (500) con margen.
+    nonisolated static let maxBatchWrites = 450
+
+    nonisolated static func chunked<T>(_ items: [T], size: Int) -> [[T]] {
+        guard size > 0, !items.isEmpty else { return items.isEmpty ? [] : [items] }
+        return stride(from: 0, to: items.count, by: size).map {
+            Array(items[$0..<Swift.min($0 + size, items.count)])
         }
     }
     
@@ -2445,7 +2705,13 @@ class ChatService: ObservableObject {
         let senderId: String?
         let messageType: MessageType?
         let viewOncePending: Bool
+        /// Resultado provisional (p. ej. último mensaje no descifrable): no se memoriza.
+        var isProvisional: Bool = false
     }
+
+    /// Conversaciones directas que escucha el inbox. TODO: paginar (limit 50 + cargar más
+    /// al final de la lista) cuando la UI tenga hook; con más de 200 las más antiguas no salen.
+    nonisolated static let inboxConversationLimit = 200
 
     func hydrateConversationPreviews(_ conversations: [Conversation]) async -> [Conversation] {
         guard !conversations.isEmpty else { return [] }
@@ -2453,7 +2719,7 @@ class ChatService: ObservableObject {
         hydratedConversations.reserveCapacity(conversations.count)
 
         for conversation in conversations {
-            let snapshot = await resolveLatestConversationSnapshot(for: conversation)
+            let snapshot = await cachedLatestConversationSnapshot(for: conversation)
             let resolvedTimestamp = resolvedConversationTimestamp(
                 conversation: conversation,
                 latestMessageTimestamp: snapshot.timestamp
@@ -2590,6 +2856,68 @@ class ChatService: ObservableObject {
         )
     }
 
+    /// Firma de los campos desnormalizados del doc que determinan la preview.
+    private func conversationPreviewSignature(for conversation: Conversation, conversationId: String) -> String {
+        let me = Auth.auth().currentUser?.uid ?? ""
+        return [
+            String(conversation.timestamp.timeIntervalSince1970),
+            conversation.lastMessage ?? "",
+            conversation.lastMessageSenderId ?? "",
+            conversation.lastMessageType?.rawValue ?? "",
+            String(conversation.readStatus[me] ?? true),
+            String(conversation.vanishModeActive ?? false),
+            String(ChatPreviewPrivacy.isUserPreviewEnabled(for: conversationId)),
+            String(resolvedHistoryCutoff(conversationId: conversationId)?.exclusiveDate.timeIntervalSince1970 ?? 0)
+        ].joined(separator: "|")
+    }
+
+    /// Tipos cuya preview es siempre neutra: basta con los campos del doc, sin leer
+    /// ni descifrar el último mensaje.
+    private static func usesNeutralPreviewFromDocument(_ type: MessageType) -> Bool {
+        switch type {
+        case .text, .chatNotice, .sharedStory, .ephemeral, .viewOnceImage, .viewOnceVideo:
+            return false
+        default:
+            return true
+        }
+    }
+
+    /// Solo consulta (y descifra) el último mensaje cuando cambian los campos
+    /// desnormalizados del doc; si no, reutiliza la preview ya resuelta.
+    private func cachedLatestConversationSnapshot(for conversation: Conversation) async -> ConversationLatestSnapshot {
+        guard let conversationId = conversation.id else {
+            return await resolveLatestConversationSnapshot(for: conversation)
+        }
+        let signature = conversationPreviewSignature(for: conversation, conversationId: conversationId)
+        if let cached = conversationPreviewCache[conversationId], cached.signature == signature {
+            return cached.snapshot
+        }
+
+        let snapshot: ConversationLatestSnapshot
+        if let type = conversation.lastMessageType,
+           Self.usesNeutralPreviewFromDocument(type),
+           let lastMessage = conversation.lastMessage,
+           !lastMessage.isEmpty {
+            snapshot = makeConversationSnapshot(
+                preview: neutralConversationPreview(for: type),
+                timestamp: conversation.timestamp,
+                senderId: conversation.lastMessageSenderId,
+                messageType: type,
+                fallbackConversation: conversation
+            )
+        } else {
+            // Fallback: el doc no basta (texto cifrado, aviso, view-once…) → query de 5.
+            snapshot = await resolveLatestConversationSnapshot(for: conversation)
+        }
+
+        if snapshot.isProvisional || snapshot.viewOncePending {
+            conversationPreviewCache.removeValue(forKey: conversationId)
+        } else {
+            conversationPreviewCache[conversationId] = (signature, snapshot)
+        }
+        return snapshot
+    }
+
     private func resolveLatestConversationSnapshot(for conversation: Conversation) async -> ConversationLatestSnapshot {
         guard let conversationId = conversation.id else {
             return makeConversationSnapshot(
@@ -2655,7 +2983,19 @@ class ChatService: ObservableObject {
                         continue
                     }
 
-                    let decryptedContent = await decryptMessageContent(encryptedContent, for: conversationId)
+                    guard let decryptedContent = await decryptMessageContentIfPossible(encryptedContent, for: conversationId) else {
+                        // Sin clave todavía: preview neutra, nunca el ciphertext.
+                        var provisional = makeConversationSnapshot(
+                            preview: neutralConversationPreview(for: messageType),
+                            timestamp: messageTimestamp,
+                            senderId: messageSenderId,
+                            messageType: messageType,
+                            messageData: data
+                        )
+                        provisional.isProvisional = true
+                        conversationsWithUndecryptableMessages.insert(conversationId)
+                        return provisional
+                    }
                     let trimmedContent = decryptedContent.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !trimmedContent.isEmpty {
                         return makeConversationSnapshot(
@@ -2738,8 +3078,14 @@ class ChatService: ObservableObject {
         await encryptionService.preloadConversationKeys(for: [conversationId])
     }
     
+    /// Nunca devuelve ciphertext: si no se puede descifrar, devuelve el aviso localizado.
     func decryptMessageContent(_ content: String, for conversationId: String) async -> String {
-        return await encryptionService.decryptChatMessage(content, for: conversationId) ?? content
+        await decryptMessageContentIfPossible(content, for: conversationId) ?? EnhancedMessage.undecryptablePlaceholder
+    }
+
+    /// nil si `content` es ciphertext que no se pudo abrir (texto legacy en claro se devuelve tal cual).
+    func decryptMessageContentIfPossible(_ content: String, for conversationId: String) async -> String? {
+        await encryptionService.decryptChatMessage(content, for: conversationId)
     }
     
     // Fail-closed: si el cifrado falla, el envío se aborta en lugar de escribir texto en claro.

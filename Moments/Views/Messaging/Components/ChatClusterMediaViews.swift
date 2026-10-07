@@ -142,6 +142,8 @@ struct GlassmorphicClusterRow: View {
                             otherParticipantName: otherParticipantName,
                             onTap: { onReplyTap?(repliedMessage.id) }
                         )
+                        // La cita acompaña al abanico al deslizar para responder.
+                        .offset(x: dragOffset)
                     }
                     MediaGridBubble(
                         messages: messages,
@@ -301,6 +303,7 @@ struct MediaGridBubble: View {
 
         return VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 6) {
             countLabel(count: count, messages: activeMessages)
+                .offset(x: dragOffset)
 
             ChatBubbleReplySwipeContainer(
                 dragOffset: $dragOffset,
@@ -413,11 +416,20 @@ struct MediaGridBubble: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: ClusterMediaLayout.cornerRadius, style: .continuous))
-        .overlay(alignment: .bottomLeading) {
-            if message.type == .video {
-                ChatVideoPlayBadge(size: 14, padding: 6)
+        .overlay {
+            // Solo la carta frontal lleva play; las traseras apenas asoman.
+            if isFront, message.type == .video {
+                ChatVideoCenterPlayButton(diameter: 36)
             }
         }
+        .overlay {
+            // Las cartas traseras se separan con un filo del fondo del chat y sombra suave.
+            if !isFront {
+                RoundedRectangle(cornerRadius: ClusterMediaLayout.cornerRadius, style: .continuous)
+                    .strokeBorder(AdaptiveColors(colorScheme: colorScheme).chatBackground[0], lineWidth: 1.5)
+            }
+        }
+        .shadow(color: .black.opacity(isFront ? 0 : 0.12), radius: 6, x: 0, y: 2)
         .overlay(alignment: .topTrailing) {
             if isFront {
                 ClusterCountBadge()
@@ -1274,9 +1286,9 @@ struct GlassmorphicMediaSelectionSheet: View {
                             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                             .aspectRatio(1, contentMode: .fill)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .overlay(alignment: .bottomLeading) {
+                            .overlay {
                                 if message.type == .video {
-                                    ChatVideoPlayBadge(size: 18, padding: 10)
+                                    ChatVideoCenterPlayButton(diameter: 44)
                                 }
                             }
                             .overlay(

@@ -554,6 +554,12 @@ import FirebaseAuth
 import FirebaseFirestore
 
 // MARK: - EncryptionService ULTRA OPTIMIZADO para Moments 🚀
+// `Foundation.` explícito: la app define su propio tipo `Notification`.
+extension Foundation.Notification.Name {
+    /// userInfo["conversationId"]: la clave de esa conversación acaba de cargarse en memoria.
+    static let chatConversationKeyDidLoad = Foundation.Notification.Name("ChatConversationKeyDidLoad")
+}
+
 @MainActor
 class EncryptionService: ObservableObject {
     static let shared = EncryptionService()
@@ -2159,6 +2165,7 @@ class EncryptionService: ObservableObject {
         if let storedKey = try? retrieveKeyFromKeychain(tag: keyTag) {
             let cachedKey = CachedKey(key: storedKey)
             conversationKeys[conversationId] = cachedKey
+            Self.postConversationKeyDidLoad(conversationId)
             await updateMetrics { $0.keychainHits += 1 }
             return storedKey
         }
@@ -2297,27 +2304,112 @@ class EncryptionService: ObservableObject {
         participants: [String],
         currentUserId: String
     ) async throws -> SymmetricKey {
+        let docRef = db.collection("conversations").document(conversationId)
+
+        // El doc leído antes pudo venir de caché: confirmamos con el servidor
+        // antes de crear nada. Si otro dispositivo ya publicó la clave, se usa.
+        if let serverData = try? await docRef.getDocument(source: .server).data(),
+           let existing = Self.wrappedKeyMap(in: serverData, for: currentUserId) {
+            return try await adoptExistingWrappedKey(existing, conversationId: conversationId, currentUserId: currentUserId)
+        }
+
         let context = try await makeWrappedConversationKeyContext(
             participantIds: participants,
             wrappedBy: currentUserId
         )
+        let newWrappedKeys = context.wrappedKeys
 
-        let uploadData: [String: Any] = [
-            "wrappedKeys": context.wrappedKeys,
-            "conversationKeyVersion": 1,
-            "encryptionVersion": "3.0"
-        ]
-        try await db.collection("conversations")
-            .document(conversationId)
-            .setData(uploadData, merge: true)
+        // Transacción: solo escribe si nadie ha publicado wrappedKeys entretanto.
+        // Devuelve "created", el envoltorio existente de este usuario, o falla.
+        let result = try await db.runTransaction { transaction, errorPointer -> Any? in
+            do {
+                let snapshot = try transaction.getDocument(docRef)
+                guard snapshot.exists, let latest = snapshot.data() else {
+                    errorPointer?.pointee = EncryptionError.keyNotFound as NSError
+                    return nil
+                }
+                if let mine = Self.wrappedKeyMap(in: latest, for: currentUserId) {
+                    return mine
+                }
+                let others = latest["wrappedKeys"] as? [String: Any] ?? [:]
+                if !others.isEmpty {
+                    // Ya hay clave para otros participantes pero no para mí:
+                    // sobrescribirla rotaría la clave de todos sin avisar.
+                    errorPointer?.pointee = EncryptionError.keyNotFound as NSError
+                    return nil
+                }
+                transaction.setData([
+                    "wrappedKeys": newWrappedKeys,
+                    "conversationKeyVersion": 1,
+                    "encryptionVersion": "3.0"
+                ], forDocument: docRef, merge: true)
+                return "created"
+            } catch let error as NSError {
+                errorPointer?.pointee = error
+                return nil
+            }
+        }
+
+        if let existing = result as? [String: Any] {
+            return try await adoptExistingWrappedKey(existing, conversationId: conversationId, currentUserId: currentUserId)
+        }
         await cacheConversationKey(conversationId: conversationId, key: context.key)
         return context.key
     }
+
+    /// Envoltorio de la clave de conversación para `userId`, si existe en el doc.
+    nonisolated private static func wrappedKeyMap(in data: [String: Any], for userId: String) -> [String: Any]? {
+        guard let wrappedKeys = data["wrappedKeys"] as? [String: Any],
+              let map = wrappedKeys[userId] as? [String: Any],
+              !map.isEmpty else {
+            return nil
+        }
+        return map
+    }
+
+    /// Desenvuelve y cachea la clave que otro dispositivo publicó primero.
+    private func adoptExistingWrappedKey(
+        _ map: [String: Any],
+        conversationId: String,
+        currentUserId: String
+    ) async throws -> SymmetricKey {
+        guard let wrappedKey = WrappedConversationKey(map: map) else {
+            throw EncryptionError.keyNotFound
+        }
+        let key = try unwrapConversationKey(wrappedKey, for: currentUserId)
+        await cacheConversationKey(conversationId: conversationId, key: key)
+        return key
+    }
     
+    /// Avisa de que la clave de una conversación está en memoria, para que el chat
+    /// rehidrate mensajes que no se pudieron descifrar antes.
+    private static func postConversationKeyDidLoad(_ conversationId: String) {
+        NotificationCenter.default.post(
+            name: .chatConversationKeyDidLoad,
+            object: nil,
+            userInfo: ["conversationId": conversationId]
+        )
+    }
+
+    /// Relee la clave desde Firestore (p. ej. tras un fallo de descifrado por clave
+    /// ausente u obsoleta). Devuelve true si antes no había clave en memoria o cambió.
+    func refreshConversationKeyFromServer(for conversationId: String) async -> Bool {
+        guard !conversationId.isEmpty else { return false }
+        let previous = conversationKeys[conversationId]?.key.withUnsafeBytes { Data($0) }
+        guard let fresh = try? await withTimeout(seconds: 8, operation: {
+            try await self.getConversationKeyFromFirestore(conversationId: conversationId)
+        }) else {
+            return false
+        }
+        guard let previous else { return true }
+        return previous != fresh.withUnsafeBytes { Data($0) }
+    }
+
     // MARK: - 🗂️ CACHE Management
     private func cacheConversationKey(conversationId: String, key: SymmetricKey) async {
         let cachedKey = CachedKey(key: key)
         conversationKeys[conversationId] = cachedKey
+        Self.postConversationKeyDidLoad(conversationId)
         
         // Store in keychain asynchronously
         let keyTag = conversationKeysPrefix + conversationId
@@ -2436,6 +2528,13 @@ class EncryptionService: ObservableObject {
                         continue
                     }
                     
+                    // Migración: claves guardadas con WhenUnlocked no las puede leer la
+                    // extensión de notificaciones con el dispositivo bloqueado.
+                    let accessible = item[kSecAttrAccessible as String] as? String
+                    if accessible != (kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String) {
+                        Self.migrateKeychainItemToAfterFirstUnlock(service: self.keyChainService, account: account)
+                    }
+
                     // Extraer conversationId del tag
                     let conversationId = String(account.dropFirst(self.conversationKeysPrefix.count))
                     
@@ -3072,9 +3171,9 @@ class EncryptionService: ObservableObject {
         do {
             return try await decryptChatMessageStrict(encryptedText, for: conversationId)
         } catch {
-            // Compatibilidad temporal con consumidores legacy. Las solicitudes
-            // usan la variante estricta y nunca muestran este fallback.
-            return encryptedText
+            // Ciphertext que no se pudo abrir: nil para que nadie lo muestre ni lo
+            // cachee como texto. El texto legacy en claro se devuelve tal cual.
+            return ChatCiphertextHeuristics.looksLikeCiphertext(encryptedText) ? nil : encryptedText
         }
     }
     
@@ -3184,19 +3283,27 @@ class EncryptionService: ObservableObject {
     // MARK: - KEYCHAIN OPERATIONS (Mejoradas con mejor error handling)
     nonisolated private func storeKeyInKeychain(key: SymmetricKey, tag: String) throws {
         let keyData = key.withUnsafeBytes { Data($0) }
-        
-        let query: [String: Any] = [
+
+        // Las claves de conversación las lee MomentsNotificationService con el móvil
+        // bloqueado: AfterFirstUnlock. El resto sigue con WhenUnlocked.
+        let accessibility = tag.hasPrefix(conversationKeysPrefix)
+            ? kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            : kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+
+        let identity: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: keyChainService,
-            kSecAttrAccount as String: tag,
-            kSecValueData as String: keyData,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
-            kSecAttrSynchronizable as String: false // No iCloud sync for security
+            kSecAttrAccount as String: tag
         ]
-        
-        // Delete existing item first
-        SecItemDelete(query as CFDictionary)
-        
+        var query = identity
+        query[kSecValueData as String] = keyData
+        query[kSecAttrAccessible as String] = accessibility
+        query[kSecAttrSynchronizable as String] = false // No iCloud sync for security
+
+        // Borrar por identidad (sin accesibilidad/valor): si no, un ítem antiguo con
+        // otra accesibilidad no coincide y el SecItemAdd falla por duplicado.
+        SecItemDelete(identity as CFDictionary)
+
         let status = SecItemAdd(query as CFDictionary, nil)
         
         guard status == errSecSuccess else {
@@ -3204,6 +3311,22 @@ class EncryptionService: ObservableObject {
         }
     }
     
+    /// Cambia la accesibilidad de un ítem existente sin reescribir su valor.
+    nonisolated private static func migrateKeychainItemToAfterFirstUnlock(service: String, account: String) {
+        let identity: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        let update: [String: Any] = [
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        ]
+        let status = SecItemUpdate(identity as CFDictionary, update as CFDictionary)
+        if status != errSecSuccess && status != errSecItemNotFound {
+            AppLog.error("Keychain: no se pudo migrar accesibilidad de \(account): \(status)")
+        }
+    }
+
     nonisolated private func retrieveKeyFromKeychain(tag: String) throws -> SymmetricKey {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,

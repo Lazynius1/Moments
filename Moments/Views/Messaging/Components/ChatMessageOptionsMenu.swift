@@ -378,24 +378,36 @@ enum ChatBubbleAnchorMetrics {
     static let replyJumpHighlightDuration: TimeInterval = 0.7
     static let pressScale: CGFloat = 0.97
 
+    /// Radios realmente dibujados por cada burbuja (flash, lift y swipe deben coincidir).
     static func cornerRadius(for message: EnhancedMessage) -> CGFloat {
+        if message.isDeleted { return 20 }
         switch message.type {
         case .text:
-            return 20
-        case .audio:
+            // Respuesta a historia: tarjeta propia; texto normal escala con Dynamic Type.
+            if message.storyReplyData != nil { return 17 }
+            return scaledTextMetric(ChatTextBubbleMetrics.cornerRadius)
+        case .audio, .location, .ephemeral, .sharedMoment, .sharedStory, .sharedProfile:
             return 18
-        case .image, .video, .viewOnceImage, .viewOnceVideo, .location, .ephemeral, .sharedMoment, .sharedStory, .sharedProfile:
+        case .viewOnceImage, .viewOnceVideo:
+            return 22
+        case .image, .video, .gif:
             return 16
-        case .gif, .sticker:
+        case .sticker:
             return 12
         case .file:
             return 14
         default:
-            return 16
+            return 20
         }
     }
 
-    static let clusterCornerRadius: CGFloat = 16
+    /// Igual que `@ScaledMetric(relativeTo: .body)` de `ChatTextBubbleView`.
+    static func scaledTextMetric(_ value: CGFloat) -> CGFloat {
+        UIFontMetrics(forTextStyle: .body).scaledValue(for: value)
+    }
+
+    /// Coincide con `ClusterMediaLayout.cornerRadius` de las cartas del abanico.
+    static let clusterCornerRadius: CGFloat = 12
 }
 
 /// Opacidad del resto del chat mientras el menú está abierto (la burbuja seleccionada queda al 100 %).
@@ -442,6 +454,10 @@ struct ChatMessageBubbleChrome<Content: View>: View {
     let cornerRadius: CGFloat
     let colorScheme: ColorScheme
     var isFlashing: Bool = false
+    /// Forma real de la burbuja para el flash (esquinas unidas); nil = rectángulo redondeado.
+    var highlightShape: ChatBubbleShape? = nil
+    /// Hueco inferior reservado a reacciones/estrella que el flash no debe cubrir.
+    var highlightBottomInset: CGFloat = 0
     var allowsPressScale: Bool = true
     var onTap: (() -> Void)? = nil
     let onLongPress: ((ChatMessageLiftSnapshot) -> Void)?
@@ -466,11 +482,18 @@ struct ChatMessageBubbleChrome<Content: View>: View {
             content()
                 .environment(\.chatMessageBubbleCornerRadius, cornerRadius)
                 .overlay {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(highlightTintColor)
-                        .opacity(isFlashing ? 1 : 0)
-                        .allowsHitTesting(false)
-                        .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isFlashing), value: isFlashing)
+                    Group {
+                        if let highlightShape {
+                            highlightShape.fill(highlightTintColor)
+                        } else {
+                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                                .fill(highlightTintColor)
+                        }
+                    }
+                    .padding(.bottom, highlightBottomInset)
+                    .opacity(isFlashing ? 1 : 0)
+                    .allowsHitTesting(false)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.toast, value: isFlashing), value: isFlashing)
                 }
                 .modifier(ChatBubblePressClassifierModifier(
                     isEnabled: onLongPress != nil || onTap != nil,
@@ -1127,8 +1150,9 @@ struct ChatMessageContextMenuOverlay: View {
     private static let readerAvatarSize: CGFloat = 22
     private static let readerAvatarOverlap: CGFloat = 8
 
+    /// Solo quien tiene acuses activos: `readAtBy` (`readBy` incluye también a quien los desactivó).
     private func groupReaderIds(for message: EnhancedMessage) -> [String] {
-        let ids = (message.readBy ?? []).filter { $0 != message.senderId }
+        let ids = (message.readAtBy ?? [:]).keys.filter { $0 != message.senderId }
         return ids.sorted { lhs, rhs in
             let left = message.readAtBy?[lhs] ?? .distantPast
             let right = message.readAtBy?[rhs] ?? .distantPast

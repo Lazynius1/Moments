@@ -52,7 +52,8 @@ extension ChatService {
         let key = "group_conversations_\(userId)"
         var revision = 0
         activeListeners[key] = db.collection("groupConversations").whereField("participants", arrayContains: userId)
-            .addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
+            // Sin includeMetadataChanges: solo interesan cambios de datos (ver fetchDirectConversations).
+            .addSnapshotListener { [weak self] snapshot, error in
                 Task { @MainActor in
                     guard let self, self.inboxMerge === merge, Auth.auth().currentUser?.uid == userId else { return }
                     guard let snapshot, error == nil else {

@@ -946,16 +946,21 @@ struct Conversation: Identifiable, Codable, Hashable {
         return true
     }
 
-    /// Preview de lista: view-once entrante → "Foto"/"Video" genérico.
+    /// Preview de lista: view-once entrante → "Ver foto"/"Ver vídeo" sin abrir, "Ha enviado una foto/un vídeo" ya vista.
     func inboxMessagePreview(for currentUserId: String) -> String {
         if let type = lastMessageType,
            type.isViewOnce,
            !isOwnLastMessage(for: currentUserId) {
+            if !lastMessageViewOncePending {
+                return type == .viewOnceVideo
+                    ? NSLocalizedString("chat.preview.viewOnceSentVideo", comment: "Opened view-once video in inbox")
+                    : NSLocalizedString("chat.preview.viewOnceSentPhoto", comment: "Opened view-once photo in inbox")
+            }
             switch type {
             case .viewOnceVideo:
-                return NSLocalizedString("chat.preview.video", comment: "")
+                return NSLocalizedString("chat.preview.viewOnceTapVideo", comment: "Unopened view-once video in inbox")
             default:
-                return NSLocalizedString("chat.preview.photo", comment: "")
+                return NSLocalizedString("chat.preview.viewOnceTapPhoto", comment: "Unopened view-once photo in inbox")
             }
         }
         return messagePreview
@@ -1135,6 +1140,20 @@ enum MessageType: String, CaseIterable, Codable, Hashable {
         case .viewOnceVideo: return NSLocalizedString("chat.preview.video", comment: "")
         case .chatNotice: return ""
         }
+    }
+}
+
+/// Heurística para distinguir ciphertext AES-GCM (base64 de nonce+datos+tag) de texto legacy en claro.
+enum ChatCiphertextHeuristics {
+    /// 12 bytes de nonce + 16 de tag: cualquier sobre válido tiene al menos 28 bytes.
+    private static let minimumSealedBoxBytes = 28
+
+    static func looksLikeCiphertext(_ value: String?) -> Bool {
+        guard let value else { return false }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 40, !trimmed.contains(" ") else { return false }
+        guard let data = Data(base64Encoded: trimmed) else { return false }
+        return data.count >= minimumSealedBoxBytes
     }
 }
 
@@ -1343,6 +1362,18 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     let isVanishModeMessage: Bool?
     var vanishedFor: [String]?
     var vanishExpiresAt: Date?
+    /// El contenido no se pudo descifrar: `content` lleva el texto localizado de
+    /// sustitución y la caché local no debe persistirlo como contenido real.
+    var isUndecryptable: Bool = false
+
+    /// Texto mostrado en lugar de un mensaje que no se pudo descifrar.
+    static var undecryptablePlaceholder: String {
+        NSLocalizedString(
+            "messaging.message.undecryptable",
+            value: "This message can't be displayed",
+            comment: "Shown instead of a chat message that could not be decrypted"
+        )
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, conversationId, senderId, type, content, mediaUrl, thumbnailUrl
@@ -1365,6 +1396,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         case locationName, locationAddress
         case isLiveLocation, liveLocationExpiresAt, liveLocationDuration
         case liveLocationStoppedAt, liveLocationSessionId, locationUpdatedAt
+        case isUndecryptable
     }
 
     required init(from decoder: Decoder) throws {
@@ -1488,6 +1520,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         } else {
             self.vanishExpiresAt = nil
         }
+        self.isUndecryptable = try container.decodeIfPresent(Bool.self, forKey: .isUndecryptable) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -1572,6 +1605,10 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         try container.encodeIfPresent(vanishedFor, forKey: .vanishedFor)
         if let vanishExpiresAt {
             try container.encode(Timestamp(date: vanishExpiresAt), forKey: .vanishExpiresAt)
+        }
+        // Solo viaja en el JSON interno (caché/actor); nunca se escribe en Firestore.
+        if isUndecryptable {
+            try container.encode(true, forKey: .isUndecryptable)
         }
     }
 

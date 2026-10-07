@@ -39,6 +39,7 @@ struct ChatComposerReplyHeader: View {
     let mode: ChatComposerContextMode
     let onCancel: () -> Void
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
 
     /// Debe coincidir con `GlassmorphicInputBar.inputFieldShape`.
     private static let fieldCornerRadius: CGFloat = 22
@@ -65,12 +66,13 @@ struct ChatComposerReplyHeader: View {
         message.isVanishModeMessage == true
     }
 
+    /// Lo propio sigue el color de burbuja saliente elegido por el usuario.
     private var accentColor: Color {
         if mode == .edit {
-            return adaptiveColors.userAccentColor
+            return chatOutgoingBubbleColor
         }
         return message.senderId == currentUserId
-            ? adaptiveColors.userAccentColor
+            ? chatOutgoingBubbleColor
             : adaptiveColors.receivedAccentColor
     }
 
@@ -263,6 +265,18 @@ struct StackedReplyQuote: View {
         }
     }
 
+    /// La respuesta se superpone sobre el borde inferior de la cita.
+    static let textOverlap: CGFloat = 10
+    static let mediaOverlap: CGFloat = 12
+    static let mediaThumbnailSize = CGSize(width: 60, height: 80)
+
+    private var mediaThumbnailURL: URL? {
+        guard !repliedMessage.isViewOnce,
+              [.image, .video, .gif, .sharedMoment, .sharedStory].contains(repliedMessage.type),
+              let raw = repliedMessage.replyPreviewThumbnailURL else { return nil }
+        return URL(string: raw)
+    }
+
     private var content: some View {
         Button(action: {
             HapticManager.shared.lightImpact()
@@ -276,45 +290,60 @@ struct StackedReplyQuote: View {
                         .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                         .lineLimit(1)
                 }
-                .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.5))
+                .chatFloatingText(adaptiveColors.messageTextColor.opacity(0.5))
                 .padding(.horizontal, 6)
 
-                quoteSnippet
+                HStack(alignment: .top, spacing: 7) {
+                    Rectangle()
+                        .fill(adaptiveColors.messageTextColor.opacity(0.22))
+                        .frame(width: 2)
+                        .frame(maxHeight: .infinity)
+                    quoteBody
+                }
+                .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: 240, alignment: isOutgoingRow ? .trailing : .leading)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(onTap == nil)
+        .padding(.bottom, -(mediaThumbnailURL == nil ? Self.textOverlap : Self.mediaOverlap))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(captionText), \(repliedMessage.preview)")
         .accessibilityAddTraits(.isButton)
     }
 
-    private var quoteSnippet: some View {
-        HStack(spacing: 7) {
-            if !repliedMessage.isViewOnce, let mediaUrl = repliedMessage.replyPreviewThumbnailURL, let url = URL(string: mediaUrl) {
-                KFImage(url)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 26, height: 26)
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
-            }
+    @ViewBuilder
+    private var quoteBody: some View {
+        if let url = mediaThumbnailURL {
+            KFImage(url)
+                .resizable()
+                .scaledToFill()
+                .frame(width: Self.mediaThumbnailSize.width, height: Self.mediaThumbnailSize.height)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay {
+                    if repliedMessage.type == .video {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.5), radius: 3)
+                    }
+                }
+                .opacity(0.75)
+        } else {
             Text(repliedMessage.preview)
-                .font(.system(size: legacyPoppinsSize(12)))
+                .font(.system(size: legacyPoppinsSize(13)))
                 .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.65))
-                .lineLimit(1)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .padding(.top, 7)
+                .padding(.bottom, 7 + Self.textOverlap)
+                .padding(.horizontal, 11)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(adaptiveColors.messageBubbleBackground.opacity(0.7))
+                )
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 9)
-        .background(
-            RoundedRectangle(cornerRadius: 13, style: .continuous)
-                .fill(adaptiveColors.messageBubbleBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 13, style: .continuous)
-                .stroke(adaptiveColors.messageBubbleStroke.opacity(0.4), lineWidth: 0.5)
-        )
     }
 }
 
@@ -452,46 +481,61 @@ struct MessageReactionChip: View {
     let onTap: (String) -> Void
     var compact: Bool = false
     var cluster: Bool = false
+    /// Solo dibuja la silueta (ampliada `gap`) para recortar la burbuja con la misma geometría.
+    var silhouetteGap: CGFloat? = nil
 
     @Environment(\.colorScheme) private var colorScheme
 
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
     private var sortedEntries: [(emoji: String, count: Int)] {
-        reactions
-            .map { (emoji: $0.key, count: $0.value.count) }
-            .sorted {
-                if $0.count == $1.count { return $0.emoji < $1.emoji }
-                return $0.count > $1.count
-            }
+        MessageReactionMetrics.sortedEntries(reactions)
     }
 
     private var emojiSize: CGFloat {
         MessageReactionMetrics.emojiSize(compact: compact, cluster: cluster)
     }
-    private var countSize: CGFloat {
-        MessageReactionMetrics.countSize(compact: compact, cluster: cluster)
-    }
     private var badgeDiameter: CGFloat {
         MessageReactionMetrics.badgeDiameter(compact: compact, cluster: cluster)
     }
-    private var overlapSpacing: CGFloat {
-        MessageReactionMetrics.overlapSpacing(compact: compact, cluster: cluster)
+
+    /// Píldoras sin solape para que el contador no quede tapado; círculos solos se solapan como antes.
+    private var entrySpacing: CGFloat {
+        let visible = sortedEntries.prefix(5)
+        return visible.contains(where: { $0.count > 1 })
+            ? 2
+            : MessageReactionMetrics.overlapSpacing(compact: compact, cluster: cluster)
     }
 
     /// Área táctil mínima (HIG ~44pt). Solo en cluster, donde el badge de 18pt va en un overlay
     /// con offset (expandir es seguro y no altera el layout en fila de las reacciones normales).
-    private var hitTarget: CGFloat {
-        cluster ? max(44, badgeDiameter) : badgeDiameter
+    /// Inset fijo por lado: el badge queda en la misma posición sea círculo o píldora.
+    private var hitInset: CGFloat {
+        cluster ? MessageReactionMetrics.clusterHitTargetInset(compact: compact) : 0
     }
 
     var body: some View {
-        Group {
-            if sortedEntries.count == 1, let entry = sortedEntries.first {
-                singleBadge(entry)
-            } else {
-                HStack(spacing: overlapSpacing) {
-                    ForEach(Array(sortedEntries.prefix(5)), id: \.emoji) { entry in
-                        singleBadge(entry)
-                    }
+        if let silhouetteGap {
+            // Una sola cápsula para toda la fila, como el recorte anterior.
+            badgesRow
+                .hidden()
+                .background(Capsule().fill(Color.black).padding(-silhouetteGap))
+                .allowsHitTesting(false)
+        } else {
+            badgesRow
+        }
+    }
+
+    @ViewBuilder
+    private var badgesRow: some View {
+        if sortedEntries.count == 1, let entry = sortedEntries.first {
+            singleBadge(entry)
+        } else {
+            HStack(spacing: entrySpacing) {
+                ForEach(Array(sortedEntries.prefix(5)), id: \.emoji) { entry in
+                    singleBadge(entry)
                 }
             }
         }
@@ -499,26 +543,36 @@ struct MessageReactionChip: View {
 
     private func singleBadge(_ entry: (emoji: String, count: Int)) -> some View {
         Button(action: { onTap(entry.emoji) }) {
-            Group {
-                if entry.count > 1 {
-                    VStack(spacing: -1) {
-                        Text(entry.emoji)
-                            .font(.system(size: emojiSize))
-                        Text("\(entry.count)")
-                            .font(.system(size: countSize, weight: .bold))
-                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.65))
-                    }
-                } else {
-                    Text(entry.emoji)
-                        .font(.system(size: emojiSize))
-                }
-            }
-            .frame(width: badgeDiameter, height: badgeDiameter)
-            .frame(width: hitTarget, height: hitTarget)
-            .contentShape(Rectangle())
+            badgeContent(entry)
+                .padding(hitInset)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(reactionAccessibilityLabel(entry))
+    }
+
+    /// Con contador: píldora horizontal "❤️ 2". Sin contador: círculo.
+    @ViewBuilder
+    private func badgeContent(_ entry: (emoji: String, count: Int)) -> some View {
+        if entry.count > 1 {
+            HStack(spacing: 3) {
+                Text(entry.emoji)
+                    .font(.system(size: MessageReactionMetrics.pillEmojiSize(cluster: cluster)))
+                Text("\(entry.count)")
+                    .font(.system(size: MessageReactionMetrics.pillCountSize(cluster: cluster), weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.65))
+            }
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, MessageReactionMetrics.pillHorizontalPadding(cluster: cluster))
+            .frame(height: badgeDiameter)
+            .background(adaptiveColors.messageBubbleBackground, in: Capsule())
+        } else {
+            Text(entry.emoji)
+                .font(.system(size: emojiSize))
+                .frame(width: badgeDiameter, height: badgeDiameter)
+        }
     }
 
     private func reactionAccessibilityLabel(_ entry: (emoji: String, count: Int)) -> String {
@@ -527,14 +581,31 @@ struct MessageReactionChip: View {
 }
 
 enum MessageReactionMetrics {
+    static func sortedEntries(_ reactions: [String: [String]]) -> [(emoji: String, count: Int)] {
+        reactions
+            .map { (emoji: $0.key, count: $0.value.count) }
+            .sorted {
+                if $0.count == $1.count { return $0.emoji < $1.emoji }
+                return $0.count > $1.count
+            }
+    }
+
     static func emojiSize(compact: Bool, cluster: Bool) -> CGFloat {
         if cluster { return 12 }
         return compact ? 18 : 20
     }
 
-    static func countSize(compact: Bool, cluster: Bool) -> CGFloat {
-        if cluster { return 7 }
-        return compact ? 8 : 10
+    /// Píldora con contador: misma altura que el círculo (`badgeDiameter`).
+    static func pillEmojiSize(cluster: Bool) -> CGFloat {
+        cluster ? 11 : 15
+    }
+
+    static func pillCountSize(cluster: Bool) -> CGFloat {
+        cluster ? 10 : 12
+    }
+
+    static func pillHorizontalPadding(cluster: Bool) -> CGFloat {
+        cluster ? 5 : 7
     }
 
     static func badgeDiameter(compact: Bool, cluster: Bool) -> CGFloat {
@@ -666,42 +737,28 @@ extension View {
         anchoredInsideBounds: Bool = false,
         gap: CGFloat = 1.5
     ) -> some View {
-        let hasReactions = reactions.map { !$0.isEmpty } ?? false
+        if let reactions, !reactions.isEmpty {
+            let hangOffset = MessageReactionMetrics.hangOffset(compact: compact)
+            let horizontalOffset = MessageReactionMetrics.horizontalHangOffset(
+                compact: compact,
+                anchoredInsideBounds: anchoredInsideBounds
+            )
 
-        if hasReactions, let reactions = reactions {
-            let sortedEntries = reactions
-                .map { (emoji: $0.key, count: $0.value.count) }
-                .sorted {
-                    if $0.count == $1.count { return $0.emoji < $1.emoji }
-                    return $0.count > $1.count
-                }
+            // Las píldoras con contador llevan un filo de 2pt (el hueco deja ver el fondo real del chat).
+            let hasPill = reactions.values.contains { $0.count > 1 }
 
-            let visibleCount = min(5, sortedEntries.count)
-            if visibleCount > 0 {
-                let diameter = MessageReactionMetrics.badgeDiameter(compact: compact, cluster: false)
-                let overlap = MessageReactionMetrics.overlapSpacing(compact: compact, cluster: false)
-                let chipWidth = diameter + CGFloat(visibleCount - 1) * (diameter + overlap)
-                let chipHeight = diameter
-
-                let cutoutWidth = chipWidth + gap * 2
-                let cutoutHeight = chipHeight + gap * 2
-
-                let hangOffset = MessageReactionMetrics.hangOffset(compact: compact)
-                let horizontalOffset = MessageReactionMetrics.horizontalHangOffset(
+            // Misma vista que el chip en modo silueta: el recorte encaja con círculos y píldoras.
+            self.reversedMask(alignment: isOutgoing ? .bottomLeading : .bottomTrailing) {
+                MessageReactionChip(
+                    reactions: reactions,
+                    onTap: { _ in },
                     compact: compact,
-                    anchoredInsideBounds: anchoredInsideBounds
+                    silhouetteGap: hasPill ? 2 : gap
                 )
-
-                let cutoutX = isOutgoing ? (horizontalOffset - gap) : (-horizontalOffset + gap)
-                let cutoutY = anchoredInsideBounds ? (-3 + gap) : (hangOffset + gap)
-
-                self.reversedMask(alignment: isOutgoing ? .bottomLeading : .bottomTrailing) {
-                    Capsule()
-                        .frame(width: cutoutWidth, height: cutoutHeight)
-                        .offset(x: cutoutX, y: cutoutY)
-                }
-            } else {
-                self
+                .offset(
+                    x: isOutgoing ? horizontalOffset : -horizontalOffset,
+                    y: anchoredInsideBounds ? -3 : hangOffset
+                )
             }
         } else {
             self
@@ -840,13 +897,13 @@ struct MessageTimestamp: View {
         HStack(spacing: 4) {
             Text(formatTime(message.timestamp))
                 .font(.system(size: legacyPoppinsSize(11)))
-                .foregroundStyle(adaptiveColors.timestampColor)
+                .chatFloatingText(adaptiveColors.timestampColor)
 
             if isCurrentUser {
                 if showSeenLabel && displayStatus == .read {
                     Text("chat.seen")
                         .font(.system(size: legacyPoppinsSize(11), weight: .medium))
-                        .foregroundStyle(adaptiveColors.timestampColor.opacity(0.9))
+                        .chatFloatingText(adaptiveColors.timestampColor.opacity(0.9))
                 } else {
                     MessageStatusIcon(status: displayStatus)
                 }
@@ -863,6 +920,7 @@ struct MessageTimestamp: View {
 struct MessageStatusIcon: View {
     let status: MessageStatus
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -875,9 +933,10 @@ struct MessageStatusIcon: View {
                 .font(.system(size: 10))
                 .foregroundStyle(adaptiveColors.timestampColor.opacity(0.8))
         case .sending:
-            ProgressView()
-                .scaleEffect(0.45)
-                .tint(adaptiveColors.timestampColor)
+            // Mismo reloj que pending: un spinner diminuto parpadeaba y no se leía.
+            Image(systemName: "clock")
+                .font(.system(size: 10))
+                .foregroundStyle(adaptiveColors.timestampColor.opacity(0.8))
         case .sent:
             Image(systemName: "checkmark")
                 .font(.system(size: 10, weight: .medium))
@@ -895,7 +954,7 @@ struct MessageStatusIcon: View {
                 Image(systemName: "checkmark")
             }
             .font(.system(size: 10, weight: .medium))
-            .foregroundStyle(adaptiveColors.userAccentColor)
+            .foregroundStyle(chatOutgoingBubbleColor)
         case .failed:
             HStack(spacing: 2) {
                 Image(systemName: "exclamationmark.triangle.fill")

@@ -24,6 +24,8 @@
 "revealEditor.pattern.holographic" = "Olografico";
 "revealEditor.color1" = "Colore 1";
 "revealEditor.color2" = "Colore 2";
+"revealEditor.color.background" = "Sfondo";
+"revealEditor.color.effect" = "Effetto";
 "revealEditor.colorPicker.primary" = "Seleziona colore";
 "revealEditor.colorPicker.secondary" = "Seleziona colore secondario";
 "revealEditor.preset.classic" = "Classico";
@@ -91,6 +93,8 @@
 "storyChains.partShort" = "Parte %d";
 "storyChains.start" = "Inizio";
 "storyChains.end" = "Fine";
+"storyChains.previousPart" = "Parte precedente";
+"storyChains.nextPart" = "Parte successiva";
 "storyChains.loading" = "Caricamento catena...";
 "storyChains.notFound" = "Questa catena non è più disponibile";
 "storyChains.parts" = "%d/%d parti";
@@ -290,6 +294,10 @@
 "storyTextEffect.echo" = "Eco";
 "storyTextEffect.depth" = "Rilievo";
 "storyTextEffect.glitch" = "Glitch";
+"storyTextGradient.removeStop" = "Rimuovi colore";
+"storyTextGradient.preset.moments" = "Moments";
+"storyTextGradient.preset.sunset" = "Tramonto";
+"storyTextGradient.preset.ocean" = "Oceano";
 "creator.intensity" = "Intensità";
 "creator.searching" = "Ricerca in corso...";
 "creator.useCurrentLocation" = "Usa posizione attuale";
@@ -607,6 +615,9 @@
 "nova.introduction" = "Sono la tua assistente personale intelligente. Posso aiutarti a esplorare i tuoi interessi, suggerirti connessioni o rispondere alle tue domande.";
 "nova.quickSuggestions" = "Suggerimenti rapidi";
 "nova.typing" = "Nova sta scrivendo...";
+"nova.chat.encryptionNotice" = "I messaggi sono protetti dalla crittografia end-to-end. Nessuno al di fuori di questa conversazione può leggerli, nemmeno Moments.";
+"nova.image.fallbackPrompt" = "Cosa c'è in questa immagine?";
+"nova.error.generic" = "Si è verificato un problema. Riprova.";
 
 /* Nova Language Selection */
 "nova.select_language_title" = "Scegli la tua lingua";
@@ -719,6 +730,8 @@
 "settings.privacy.hideFollowers" = "Nascondi i miei follower";
 "settings.privacy.hideFollowers.description" = "Solo tu puoi vedere chi ti segue";
 "settings.privacy.hideFollowers.description.visible" = "Gli altri possono vedere chi ti segue";
+"nova.confirm.field.showFollowers" = "Mostra follower";
+"nova.confirm.field.showMutuals" = "Mostra reciproci";
 "settings.privacy.control.description" = "Quando attivi queste opzioni, gli altri utenti non potranno vedere queste liste sul tuo profilo. Puoi sempre modificare queste impostazioni.";
 "conversationSettings.title" = "Impostazioni conversazione";
 "conversationSettings.created" = "Creata";
@@ -935,7 +948,7 @@
 /* Chat */
 "chat.moment.loadError" = "Impossibile caricare il momento";
 "chat.input.placeholder" = "Messaggio...";
-"chat.input.vanish.placeholder" = "Messaggio che scompare...";
+"chat.input.vanish.placeholder" = "Messaggio effimero...";
 "chat.input.attach.accessibility" = "Allega contenuto";
 "chat.input.voice.accessibility" = "Registra messaggio vocale";
 "chat.attach.sendMedia.one" = "Invia 1 elemento";
@@ -944,33 +957,31 @@
 "chat.attach.location" = "Posizione";
 "chat.attach.buzz" = "Trillo";
 "chat.buzz.sent" = "Hai inviato un trillo";
-"chat.vanish.swipe.hint" = "Scorri verso l'alto per attivare i messaggi che scompaiono";
-"chat.vanish.swipe.hint.off" = "Scorri verso l'alto per disattivare i messaggi che scompaiono";
-"chat.vanish.swipe.release" = "Rilascia per attivare i messaggi che scompaiono";
-"chat.vanish.swipe.release.off" = "Rilascia per disattivare i messaggi che scompaiono";
-"chat.vanish.notice.enabled.prefix" = "Hai attivato i messaggi che scompaiono. I nuovi messaggi e le reazioni scompariranno";
-"chat.vanish.notice.enabled.prefix.self" = "Hai attivato i messaggi che scompaiono. I nuovi messaggi e le reazioni scompariranno";
-"chat.vanish.notice.enabled.prefix.other" = "%@ ha attivato i messaggi che scompaiono. I nuovi messaggi e le reazioni scompariranno";
+"chat.vanish.swipe.hint" = "Scorri verso l'alto per attivare i messaggi effimeri";
+"chat.vanish.swipe.hint.off" = "Scorri verso l'alto per disattivare i messaggi effimeri";
+"chat.vanish.swipe.release" = "Rilascia per attivare i messaggi effimeri";
+"chat.vanish.swipe.release.off" = "Rilascia per disattivare i messaggi effimeri";
 "chat.vanish.notice.duration.onceSeen" = "quando tutti li avranno visti";
 "chat.vanish.notice.duration.24h" = "24 ore dopo che tutti li avranno visti";
 "chat.vanish.notice.duration.7d" = "7 giorni dopo che tutti li avranno visti";
-"chat.vanish.notice.enabled.suffix" = ".";
+"chat.vanish.notice.enabled.self.format" = "Hai attivato i messaggi effimeri. I nuovi messaggi e le reazioni scompariranno %@.";
+"chat.vanish.notice.enabled.other.format" = "%1$@ ha attivato i messaggi effimeri. I nuovi messaggi e le reazioni scompariranno %2$@.";
 "chat.vanish.notice.change" = "Modifica";
-"chat.vanish.notice.disabled" = "Hai disattivato i messaggi che scompaiono.";
-"chat.vanish.notice.preview.enabled" = "I messaggi che scompaiono sono attivi";
-"chat.vanish.notice.preview.disabled" = "I messaggi che scompaiono sono disattivati";
-"chat.vanish.notice.disabled.self" = "Hai disattivato i messaggi che scompaiono.";
-"chat.vanish.notice.disabled.other" = "%@ ha disattivato i messaggi che scompaiono.";
+"chat.vanish.notice.disabled" = "Hai disattivato i messaggi effimeri.";
+"chat.vanish.notice.preview.enabled" = "I messaggi effimeri sono attivi";
+"chat.vanish.notice.preview.disabled" = "I messaggi effimeri sono disattivati";
+"chat.vanish.notice.disabled.self" = "Hai disattivato i messaggi effimeri.";
+"chat.vanish.notice.disabled.other" = "%@ ha disattivato i messaggi effimeri.";
 "chat.vanish.notice.turnOn" = "Attiva";
-"chat.vanish.timer.sheet.title" = "Timer messaggi che scompaiono";
+"chat.vanish.timer.sheet.title" = "Timer messaggi effimeri";
 "chat.vanish.timer.off" = "Disattivato";
 "chat.vanish.timer.onceSeen" = "Quando tutti li hanno visti";
 "chat.vanish.timer.24h" = "24 ore";
 "chat.vanish.timer.7d" = "7 giorni";
 "chat.vanish.screenshot" = "È stato fatto uno screenshot";
 "chat.vanish.screenRecording" = "Hai registrato lo schermo.";
-"chat.vanish.active.accessibility" = "Messaggi che scompaiono attivi";
-"chat.vanish.inactive.accessibility" = "Scorri verso l'alto per attivare i messaggi che scompaiono";
+"chat.vanish.active.accessibility" = "Messaggi effimeri attivi";
+"chat.vanish.inactive.accessibility" = "Scorri verso l'alto per attivare i messaggi effimeri";
 "chat.buzz.received" = "%@ ti ha inviato un trillo";
 "chat.buzz.cooldown" = "Attendi un po' prima di inviare un altro trillo";
 "chat.draft.preview" = "Bozza: %@";
@@ -1132,6 +1143,11 @@
 "chat.preview.sharedMoment" = "Momento condiviso";
 "chat.preview.viewOncePhoto" = "Foto (una sola visualizzazione)";
 "chat.preview.viewOnceVideo" = "Video (una sola visualizzazione)";
+"chat.preview.viewOnceTapPhoto" = "Vedi foto";
+"chat.preview.viewOnceTapVideo" = "Vedi video";
+"chat.viewOnce.inboxAction" = "Riproduci";
+"chat.preview.viewOnceSentPhoto" = "Ha inviato una foto";
+"chat.preview.viewOnceSentVideo" = "Ha inviato un video";
 "chat.preview.text" = "Nuovo messaggio";
 "chat.status.sending" = "Invio";
 "chat.status.sent" = "Inviato";
@@ -1280,6 +1296,7 @@
 /* Audience Descriptions */
 "audience.description.everyone" = "Chiunque può vedere questo contenuto";
 "audience.description.connections" = "Solo le persone che segui e che ti seguono";
+"audience.description.mutuals" = "Solo le persone che segui e che ti seguono";
 "audience.description.bestFriends" = "Solo la tua lista di amici stretti";
 "audience.description.custom" = "Scegli persone specifiche";
 "audience.description.customList" = "Usa una lista personalizzata";
@@ -1612,7 +1629,7 @@
 "conversationSettings.mediaSave.error" = "Non è stato possibile salvare questo media.";
 "conversationSettings.messages.sent" = "inviati";
 "conversationSettings.messages.received" = "ricevuti";
-"conversationSettings.vanish.title" = "Messaggi temporanei";
+"conversationSettings.vanish.title" = "Messaggi effimeri";
 "conversationSettings.vanish.no" = "No";
 "conversationSettings.vanish.description" = "Scegli quanto tempo rimangono visibili i tuoi messaggi e le tue reazioni nella chat. Puoi fare in modo che scompaiano subito dopo essere stati letti e aver chiuso la conversazione, oppure conservarli fino a 7 giorni. Per la tua privacy, verrà inviata una notifica nella chat se qualcuno fa uno screenshot o registra lo schermo.";
 
@@ -1836,6 +1853,12 @@
 "savedMoments.sort.oldest" = "Meno recenti";
 "savedMoments.sort.author" = "Autore";
 "savedMoments.search.placeholder" = "Cerca per utente, testo o posizione";
+"savedMoments.filters.button" = "Filtri";
+"savedMoments.filters.title" = "Filtri";
+"savedMoments.filters.sort" = "Ordina";
+"savedMoments.filters.contains" = "Contiene";
+"savedMoments.filters.apply" = "Applica";
+"savedMoments.filters.reset" = "Reimposta";
 "savedMoments.filter.media.all" = "Tutti";
 "savedMoments.filter.media.photos" = "Foto";
 "savedMoments.filter.media.videos" = "Video";
@@ -3066,6 +3089,8 @@
 "notification.message.single.video" = "Ti ha inviato un video 🎥";
 "notification.message.single.audio" = "Ti ha inviato un audio 🎵";
 "notification.message.single.viewOnce" = "Ti ha inviato un messaggio";
+"notification.message.viewOncePhoto" = "Ti ha inviato una foto";
+"notification.message.viewOnceVideo" = "Ti ha inviato un video";
 "notification.message.single.moment" = "Ti ha inviato un momento 📸";
 "notification.message.single.default" = "Ti ha inviato un messaggio";
 "notification.message.single.storyMention" = "Ti ha menzionato nella sua storia";
@@ -3211,6 +3236,7 @@
 "profile.ui.followers" = "Follower";
 "profile.ui.following" = "Seguiti";
 "profile.ui.mutuals" = "Reciproci";
+"profile.ui.inCommon" = "In comune";
 
 /* Messaging Errors */
 "messaging.error.startConversationFailed" = "Impossibile avviare la conversazione. Riprova.";
@@ -3343,6 +3369,8 @@
 "userActivity.event.archived.confirm.restore.title" = "Ripristina contenuti archiviati";
 "userActivity.event.archived.confirm.restore.message" = "Vuoi ripristinare i contenuti archiviati selezionati?";
 "userActivity.event.archived.success.restore" = "Contenuti archiviati ripristinati";
+"userActivity.event.archived.processing.restore" = "Ripristino dei contenuti archiviati";
+"userActivity.event.archived.processingButton.restore" = "Ripristino…";
 "userActivity.simple.stickers.confirm.delete.title" = "Elimina risposte";
 "userActivity.simple.stickers.confirm.delete.message" = "Vuoi eliminare le risposte selezionate?";
 "userActivity.simple.stickers.success.delete" = "Risposte eliminate";
@@ -3662,9 +3690,11 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 /* Social Connections */
 "socialConnections.tab.visits" = "%@ visite";
 "socialConnections.tab.followers" = "%@ follower";
+"socialConnections.tab.inCommon" = "%@ in comune";
 "socialConnections.tab.following" = "%@ seguiti";
 "socialConnections.tab.mutuals" = "%@ reciproci";
 "socialConnections.sort.by" = "Ordina per";
+"socialConnections.common.section.people" = "Persone in comune";
 "socialConnections.sort.default" = "Predefinito";
 "socialConnections.sort.alphabetical" = "Alfabetico";
 "socialConnections.sort.newest" = "Più recenti";
@@ -3675,11 +3705,20 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "socialConnections.category.leastInteracted" = "Meno interagiti";
 "socialConnections.category.mostShownInFeed" = "Più mostrati nel feed";
 "socialConnections.menu.sharedActivity" = "Vedi attività condivisa";
+"socialConnections.menu.mute" = "Silenzia";
+"socialConnections.menu.unmute" = "Riattiva";
 "socialConnections.removeFollower" = "Rimuovi";
 "socialConnections.removeFollower.confirm.title" = "Rimuovere follower?";
 "socialConnections.removeFollower.confirm.message" = "%@ verrà rimosso dai tuoi follower su Moments.";
 "socialConnections.newPosts.single" = "1 nuovo post";
 "socialConnections.newPosts.multiple" = "%d nuovi post";
+"sharedActivity.title" = "Attività condivisa";
+"sharedActivity.youAndUser" = "Tu e %@";
+"sharedActivity.subtitle" = "Controlla la tua attività con %@ e gestisci le interazioni.";
+"sharedActivity.timeline.followedYou" = "%1$@ ha iniziato a seguirti a %2$@";
+"sharedActivity.timeline.youFollowed" = "Hai iniziato a seguire %1$@ a %2$@";
+"sharedActivity.modules.likes" = "Mi piace";
+"sharedActivity.modules.placeholder" = "Questa sezione arriverà presto su Moments.";
 "userProfile.blockedByMe.title" = "Utente bloccato";
 "userProfile.blockedByMe.description" = "Hai bloccato questa persona. Non può inviarti messaggi né interagire con te.";
 "chat.blockedByMe.subtitle" = "Bloccato";
@@ -3861,6 +3900,7 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "reveal.subtitle" = "Crea un livello che i tuoi amici dovranno grattare per vedere la storia";
 "reveal.addLayer" = "AGGIUNGI LIVELLO";
 "reveal.viewerHint" = "Gratta per rivelare";
+"reveal.skip" = "Salta";
 "storyEditor.polaroid.addNote" = "Aggiungi una nota...";
 "stickerview.audio.title" = "Aggiungi la tua voce";
 "stickerview.audio.recording" = "Registrazione...";
@@ -4118,6 +4158,9 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "notificationType.mutualConnection" = "Connessioni reciproche";
 "notificationType.storyReaction" = "Reazione alla storia";
 "notificationType.message" = "Messaggi";
+"notificationType.messageReaction" = "Reazioni ai messaggi";
+"notificationType.chatBuzz" = "Trilli";
+"notificationType.gentleReminder" = "Promemoria giornalieri";
 "notificationType.photoTag" = "Tag nelle foto";
 "notificationType.echoSuggestion" = "Suggerimento Echo";
 "notificationType.dataExportReady" = "Esportazione dati";
@@ -4138,6 +4181,7 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "share.storyDenied.private" = "Segui questa persona per vedere le sue storie.";
 "share.storyDenied.restricted" = "Non hai il permesso di vedere questa storia.";
 "chat.preview.sharedStory" = "Storia condivisa";
+"share.profile.sendInChat" = "Invia su Moments";
 "chat.preview.sharedProfile" = "Shared profile";
 "chat.preview.storyKind" = "Storia";
 "chat.preview.reelKind" = "Reel";
@@ -4211,6 +4255,7 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "messaging.message.unsupportedFile" = "Tipo di file non supportato";
 "messaging.message.fileTooLarge" = "Il file è troppo grande";
 "messaging.message.connectionError" = "Errore di connessione";
+"messaging.message.undecryptable" = "Impossibile visualizzare questo messaggio";
 "messaging.request.status.pending" = "In attesa";
 "messaging.request.status.accepted" = "Accettata";
 "messaging.request.status.rejected" = "Rifiutata";
@@ -4458,6 +4503,7 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "permission.notifications.mock.now" = "ora";
 "permission.notifications.mock.sender" = "Alex";
 "permission.notifications.mock.body" = "ti ha inviato un momento ✨";
+"permission.tracking.primer.notNow" = "Non ora";
 "permission.tracking.denied.title" = "Il tracciamento è disattivato";
 "permission.tracking.denied.subtitle" = "Attiva il tracciamento in Impostazioni › Privacy › Tracciamento per vedere annunci più pertinenti.";
 "permission.tracking.denied.openSettings" = "Apri Impostazioni";
@@ -4853,6 +4899,14 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "notification.chatSummary.single" = "Nuovo messaggio";
 "notification.chatSummary.multiple" = "%@ nuovi messaggi";
 "notification.group.untitled" = "Gruppo";
+"storyEditor.toolbar.text" = "Testo";
+"storyEditor.toolbar.stickers" = "Sticker";
+"storyEditor.toolbar.draw" = "Disegna";
+"storyEditor.toolbar.filters" = "Filtri";
+"storyEditor.toolbar.mute" = "Disattiva audio video";
+"storyEditor.toolbar.unmute" = "Attiva audio";
+"storyEditor.toolbar.chain" = "Crea catena";
+"storyEditor.toolbar.duration" = "Durata";
 "whatsNew.section230.title" = "Moments 2.30";
 "whatsNew.groups.title" = "Gruppi";
 "whatsNew.groups.description" = "Chat di gruppo nella stessa inbox, con foto, inviti, ruoli admin e mute.";
@@ -5046,3 +5100,22 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 "settings.group.profileContent" = "Profilo e contenuti";
 
 "settings.group.messagingPrivacy" = "Messaggi e interazioni";
+"whatsNew.section231.title" = "Moments 2.31";
+"whatsNew.duo231.title" = "Pensato per iPhone Duo";
+"whatsNew.duo231.description" = "Feed e commenti, inbox e conversazione, o griglia e dettaglio: ognuno sul proprio schermo. Apri o chiudi il tuo Duo e riprendi da dove eri rimasto.";
+"whatsNew.storyPublish231.title" = "Prima di pubblicare la tua storia";
+"whatsNew.storyPublish231.description" = "Una nuova schermata con l'anteprima e le sue opzioni: chi la vede, 24 o 48 ore, e se consente messaggi, reazioni e risposte.";
+"whatsNew.originalAudio231.title" = "Audio originale";
+"whatsNew.originalAudio231.description" = "Salva l'audio delle storie pubbliche e riutilizzalo da Salvati nello sticker audio. Decidi tu se il tuo può essere riutilizzato.";
+"whatsNew.chatStyle231.title" = "Chat a modo tuo";
+"whatsNew.chatStyle231.description" = "Sfondi con foto, colori o temi, intensità regolabile e il colore delle tue bolle. Lo vedi solo tu.";
+"whatsNew.chatMedia231.title" = "Foto, video e risposte";
+"whatsNew.chatMedia231.description" = "Miniature nelle loro proporzioni reali, un tasto play più visibile, zoom con due dita e risposte con l'anteprima di ciò che citi.";
+"whatsNew.maps231.title" = "Mappe rinnovate";
+"whatsNew.maps231.description" = "Momenti e storie raggruppati per luogo, e ritorno alla mappa senza perdere il contesto.";
+"whatsNew.banner231.title" = "Avvisi più chiari";
+"whatsNew.banner231.description" = "Un banner rinnovato con avanzamento, conferme e la possibilità di annullare alcune azioni.";
+"whatsNew.settings231.title" = "Impostazioni e pubblico";
+"whatsNew.settings231.description" = "Impostazioni organizzate per profilo, contenuti, messaggi e account, e liste del pubblico più semplici da gestire.";
+"whatsNew.fluid231.title" = "Più fluido";
+"whatsNew.fluid231.description" = "La tua musica continua a suonare mentre scorri contenuti senza audio, e chat, storie e archivio si caricano in modo più fluido.";

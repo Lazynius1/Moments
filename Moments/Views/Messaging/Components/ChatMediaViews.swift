@@ -47,6 +47,10 @@ struct GlassmorphicImageMessage: View {
     var downloadProgress: Double? = nil
     var downsamplingSize: CGSize? = nil
     let progress: Double?
+    /// Forma de la burbuja (une esquinas en ráfagas); manda sobre cualquier radio interno.
+    var bubbleShape: ChatBubbleShape = ChatBubbleShape(side: .leading, cornerRadius: 16)
+
+    @Environment(\.colorScheme) private var colorScheme
 
     private var previewURL: URL? {
         if let previewThumbnailUrl,
@@ -67,7 +71,7 @@ struct GlassmorphicImageMessage: View {
                     } else if let imageUrl, let imageURL = URL(string: imageUrl) {
                         ChatKFImage(url: imageURL, downsamplingSize: downsamplingSize, previewURL: previewURL)
                     } else {
-                        RoundedRectangle(cornerRadius: 16)
+                        Rectangle()
                             .fill(Color.white.opacity(0.1))
                     }
                     ChatMediaDownloadProgressOverlay(
@@ -85,7 +89,7 @@ struct GlassmorphicImageMessage: View {
             } else if let imageUrl, let imageURL = URL(string: imageUrl) {
                 ChatKFImage(url: imageURL, downsamplingSize: downsamplingSize, previewURL: previewURL)
             } else {
-                RoundedRectangle(cornerRadius: 16)
+                Rectangle()
                     .fill(Color.white.opacity(0.1))
                     .overlay(
                         Image(systemName: "photo.fill")
@@ -100,17 +104,13 @@ struct GlassmorphicImageMessage: View {
                     Color.black.opacity(0.12)
                     MediaProgressRing(progress: uploadProgress, size: 60, lineWidth: 4)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 16))
             }
         }
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-        )
-        .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
-        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(bubbleShape)
+        // Sin sombra: el recorte externo la ocultaba y penalizaba el scroll.
+        .overlay(bubbleShape.stroke(AdaptiveColors(colorScheme: colorScheme).mediaBubbleStroke, lineWidth: 0.5))
+        .contentShape(bubbleShape)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(NSLocalizedString("chat.a11y.photo", comment: "Photo message")))
         .accessibilityHint(Text(NSLocalizedString("chat.a11y.openMedia", comment: "Tap to open media")))
@@ -133,6 +133,24 @@ struct ChatVideoPlayBadge: View {
     }
 }
 
+/// Play grande y centrado para vídeos sueltos en el chat.
+struct ChatVideoCenterPlayButton: View {
+    var diameter: CGFloat = 52
+
+    var body: some View {
+        Image(systemName: "play.fill")
+            .font(.system(size: diameter * 0.4, weight: .bold))
+            .foregroundStyle(.white)
+            .offset(x: diameter * 0.04)
+            .frame(width: diameter, height: diameter)
+            .background(.ultraThinMaterial.opacity(0.9), in: Circle())
+            .background(Color.black.opacity(0.28), in: Circle())
+            .overlay(Circle().stroke(Color.white.opacity(0.35), lineWidth: 0.5))
+            .shadow(color: .black.opacity(0.25), radius: 6, x: 0, y: 2)
+            .allowsHitTesting(false)
+    }
+}
+
 struct GlassmorphicVideoMessage: View {
     let videoUrl: String?
     let thumbnailUrl: String?
@@ -142,6 +160,10 @@ struct GlassmorphicVideoMessage: View {
     var downloadProgress: Double? = nil
     var downsamplingSize: CGSize? = nil
     let progress: Double?
+    /// Forma de la burbuja (une esquinas en ráfagas); manda sobre cualquier radio interno.
+    var bubbleShape: ChatBubbleShape = ChatBubbleShape(side: .leading, cornerRadius: 16)
+
+    @Environment(\.colorScheme) private var colorScheme
 
     private var previewURL: URL? {
         if let thumbnailUrl,
@@ -162,7 +184,7 @@ struct GlassmorphicVideoMessage: View {
                         ChatKFImage(url: url, downsamplingSize: downsamplingSize)
                             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                     } else {
-                        RoundedRectangle(cornerRadius: 16)
+                        Rectangle()
                             .fill(Color.white.opacity(0.1))
                             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                     }
@@ -180,7 +202,7 @@ struct GlassmorphicVideoMessage: View {
                 ChatKFImage(url: url, downsamplingSize: downsamplingSize)
                     .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
             } else {
-                RoundedRectangle(cornerRadius: 16)
+                Rectangle()
                     .fill(Color.white.opacity(0.1))
                     .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
             }
@@ -191,21 +213,17 @@ struct GlassmorphicVideoMessage: View {
                     Color.black.opacity(0.12)
                     MediaProgressRing(progress: uploadProgress, size: 60, lineWidth: 4)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 16))
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(alignment: .bottomLeading) {
-            if !isDownloadingMedia {
-                ChatVideoPlayBadge(size: 22, padding: 12)
+        .clipShape(bubbleShape)
+        .overlay {
+            if !isDownloadingMedia && !isSending && !(isResolvingMedia && previewURL == nil) {
+                ChatVideoCenterPlayButton()
             }
         }
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-        )
-        .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
-        .contentShape(RoundedRectangle(cornerRadius: 16))
+        // Sin sombra: el recorte externo la ocultaba y penalizaba el scroll.
+        .overlay(bubbleShape.stroke(AdaptiveColors(colorScheme: colorScheme).mediaBubbleStroke, lineWidth: 0.5))
+        .contentShape(bubbleShape)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(NSLocalizedString("chat.a11y.video", comment: "Video message")))
         .accessibilityHint(Text(NSLocalizedString("chat.a11y.openMedia", comment: "Tap to open media")))

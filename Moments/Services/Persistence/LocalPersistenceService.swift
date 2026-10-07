@@ -847,6 +847,24 @@ final class LocalPersistenceService: ObservableObject {
         }
     }
 
+    /// Mensajes concretos por ID leídos en el contexto de fondo (no bloquea el hilo
+    /// principal). Si no hay store de fondo, cae a la lectura en el contexto principal.
+    func loadMessagesInBackground(conversationId: String, ids: [String]) async -> [EnhancedMessage] {
+        guard !ids.isEmpty else { return [] }
+        guard let messagePersistenceStore else {
+            let wanted = Set(ids)
+            return loadMessagesFast(conversationId: conversationId).filter { wanted.contains($0.id) }
+        }
+        do {
+            let encoded = try await messagePersistenceStore.messages(conversationId: conversationId, ids: ids)
+            guard !encoded.isEmpty else { return [] }
+            return try JSONDecoder().decode([EnhancedMessage].self, from: encoded)
+        } catch {
+            AppLog.error("LocalPersistence background id fetch failed: \(error.localizedDescription)")
+            return []
+        }
+    }
+
     /// Últimos N mensajes desde SwiftData (sin cargar todo el historial en RAM).
     func loadRecentMessagesFast(
         conversationId: String,
@@ -1795,6 +1813,26 @@ final class LocalPersistenceService: ObservableObject {
         descriptor.fetchLimit = 1
         guard let message = (try? context.fetch(descriptor))?.first else { return }
         message.statusString = status.rawValue
+        saveContext()
+    }
+
+    /// Pasa a .sent un mensaje propio que seguía en pending/sending/failed, sin rebajar
+    /// estados ya más avanzados (delivered/read) que haya traído un snapshot.
+    func promoteUnconfirmedCachedMessageToSent(conversationId: String, messageId: String) {
+        guard let context = modelContext else { return }
+        let predicate = #Predicate<CachedMessage> {
+            $0.conversationId == conversationId && $0.id == messageId
+        }
+        var descriptor = FetchDescriptor<CachedMessage>(predicate: predicate)
+        descriptor.fetchLimit = 1
+        guard let message = (try? context.fetch(descriptor))?.first else { return }
+        let unconfirmed: Set<String> = [
+            MessageStatus.pending.rawValue,
+            MessageStatus.sending.rawValue,
+            MessageStatus.failed.rawValue
+        ]
+        guard unconfirmed.contains(message.statusString) else { return }
+        message.statusString = MessageStatus.sent.rawValue
         saveContext()
     }
 

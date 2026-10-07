@@ -130,22 +130,29 @@ struct GlassmorphicMessageRow: View {
                             otherParticipantName: otherParticipantName,
                             onTap: { onReplyTap?(originalMessage.id) }
                         )
+                        // La cita acompaña a la burbuja al deslizar para responder.
+                        .offset(x: dragOffset)
                     }
 
-                    if message.editedAt != nil && !message.isDeleted {
-                        Text("chat.edited")
-                            .font(.caption2)
-                            .foregroundStyle(adaptiveColors.timestampColor)
-                            .padding(.horizontal, 12)
-                    }
+                    VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 0) {
+                        incomingTextTranslation { displayedText in
+                            messageBubbleWithReactions(
+                                displayedText: displayedText,
+                                repliedMessage: repliedMessage,
+                                otherParticipantId: otherUserId,
+                                otherParticipantName: otherParticipantName
+                            )
+                        }
 
-                    incomingTextTranslation { displayedText in
-                        messageBubbleWithReactions(
-                            displayedText: displayedText,
-                            repliedMessage: repliedMessage,
-                            otherParticipantId: otherUserId,
-                            otherParticipantName: otherParticipantName
-                        )
+                        // "Editado" bajo la burbuja para no pisar la cita solapada.
+                        if message.editedAt != nil && !message.isDeleted {
+                            Text("chat.edited")
+                                .font(.system(size: 11))
+                                .chatFloatingText(adaptiveColors.timestampColor)
+                                .padding(.top, 2)
+                                .padding(.horizontal, 12)
+                                .offset(x: dragOffset)
+                        }
                     }
                 }
 
@@ -171,6 +178,38 @@ struct GlassmorphicMessageRow: View {
         .padding(.bottom, bottomRowPadding)
         .contentShape(Rectangle())
         .chatTimestampRevealGesture(state: timestampRevealState)
+    }
+
+    /// Forma real de la burbuja para el flash de "saltar a la cita" (nil = rectángulo redondeado).
+    private var flashShape: ChatBubbleShape? {
+        let side: ChatBubbleShape.Side = isCurrentUser ? .trailing : .leading
+        if message.isDeleted {
+            return ChatBubbleShape(side: side, position: groupPosition, cornerRadius: 20)
+        }
+        switch message.type {
+        case .text where message.storyReplyData == nil:
+            return ChatBubbleShape(
+                side: side,
+                position: groupPosition,
+                cornerRadius: ChatBubbleAnchorMetrics.scaledTextMetric(ChatTextBubbleMetrics.cornerRadius),
+                joinedRadius: ChatBubbleAnchorMetrics.scaledTextMetric(ChatTextBubbleMetrics.joinedRadius)
+            )
+        case .image, .video, .audio:
+            return ChatBubbleShape(
+                side: side,
+                position: groupPosition,
+                cornerRadius: ChatBubbleAnchorMetrics.cornerRadius(for: message)
+            )
+        default:
+            return nil
+        }
+    }
+
+    /// El flash no debe cubrir el hueco inferior que reservan reacciones/estrella.
+    private var flashBottomInset: CGFloat {
+        guard !message.isDeleted, hasReactions || hasStar else { return 0 }
+        let isCompact = message.type == .text && message.storyReplyData == nil
+        return MessageReactionMetrics.reactionRowSpacing(compact: isCompact)
     }
 
     private var isIncomingTextBubble: Bool {
@@ -237,6 +276,8 @@ struct GlassmorphicMessageRow: View {
                 cornerRadius: cornerRadius,
                 colorScheme: colorScheme,
                 isFlashing: isBubbleFlashing,
+                highlightShape: flashShape,
+                highlightBottomInset: flashBottomInset,
                 allowsPressScale: !message.isDeleted,
                 onTap: ChatMessageBodyOpen.isOpenable(
                     message,
@@ -292,7 +333,7 @@ struct DeletedMessageBubble: View {
             side: isCurrentUser ? .trailing : .leading,
             position: groupPosition,
             cornerRadius: 20,
-            joinedRadius: 6
+            joinedRadius: ChatTextBubbleMetrics.joinedRadius
         )
     }
 
@@ -417,7 +458,7 @@ struct GlassmorphicMessageBubble: View {
             side: isCurrentUser ? .trailing : .leading,
             position: groupPosition,
             cornerRadius: cornerRadius,
-            joinedRadius: 6
+            joinedRadius: ChatTextBubbleMetrics.joinedRadius
         )
     }
 
@@ -518,7 +559,8 @@ struct GlassmorphicMessageBubble: View {
                                 isDownloadingMedia: isDownloadingMedia,
                                 downloadProgress: downloadProgress,
                                 downsamplingSize: photoVideoSize,
-                                progress: progress
+                                progress: progress,
+                                bubbleShape: mediaBubbleShape(cornerRadius: 16)
                             )
                             .frame(width: photoVideoSize.width, height: photoVideoSize.height)
                             .task(id: "\(message.mediaUrl ?? "")|\(message.thumbnailUrl ?? "")") {
@@ -565,7 +607,8 @@ struct GlassmorphicMessageBubble: View {
                                 isDownloadingMedia: isDownloadingMedia,
                                 downloadProgress: downloadProgress,
                                 downsamplingSize: photoVideoSize,
-                                progress: progress
+                                progress: progress,
+                                bubbleShape: mediaBubbleShape(cornerRadius: 16)
                             )
                             .frame(width: photoVideoSize.width, height: photoVideoSize.height)
                             .task(id: "\(message.mediaUrl ?? "")|\(message.thumbnailUrl ?? "")") {
@@ -791,10 +834,20 @@ enum ChatLinkOpener {
 // MARK: - Link Preview Helper & View
 import LinkPresentation
 
+extension Foundation.Notification.Name {
+    /// userInfo["messageId"]: el contenido de esa fila cambió de tamaño tras cargar algo asíncrono.
+    static let chatRowContentSizeDidChange = Foundation.Notification.Name("ChatRowContentSizeDidChange")
+}
+
 class LinkMetadataCache {
     static let shared = LinkMetadataCache()
     private var cache: [URL: LPLinkMetadata] = [:]
     private var images: [URL: UIImage] = [:]
+
+    /// Lectura síncrona (hilo principal) para pintar la tarjeta ya en su tamaño final.
+    func cachedMetadata(for url: URL) -> (metadata: LPLinkMetadata, image: UIImage?)? {
+        cache[url].map { ($0, images[url]) }
+    }
 
     func fetchMetadata(for url: URL, completion: @escaping (LPLinkMetadata?, UIImage?) -> Void) {
         if let cachedMeta = cache[url] {
@@ -839,11 +892,27 @@ struct LinkPreviewCard: View {
     /// Integrado dentro de la burbuja: ancho completo y colores que combinan con la burbuja.
     var embedded: Bool = false
     var isOutgoing: Bool = false
-    @State private var title: String? = nil
-    @State private var host: String? = nil
-    @State private var image: UIImage? = nil
-    @State private var isLoading = true
+    /// Fila a re-medir cuando la tarjeta cambia de tamaño al cargar (compacta → imagen grande).
+    var messageId: String? = nil
+    @State private var title: String?
+    @State private var host: String?
+    @State private var image: UIImage?
+    @State private var isLoading: Bool
+
+    init(url: URL, embedded: Bool = false, isOutgoing: Bool = false, messageId: String? = nil) {
+        self.url = url
+        self.embedded = embedded
+        self.isOutgoing = isOutgoing
+        self.messageId = messageId
+        // Con caché se pinta directamente en su tamaño final (sin salto ni recorte al reciclar celda).
+        let cached = LinkMetadataCache.shared.cachedMetadata(for: url)
+        _title = State(initialValue: cached.map { $0.metadata.title ?? url.host ?? url.absoluteString })
+        _host = State(initialValue: url.host)
+        _image = State(initialValue: cached?.image)
+        _isLoading = State(initialValue: cached == nil)
+    }
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
 
     @Environment(\.chatListContainerWidth) private var chatListContainerWidth
 
@@ -855,13 +924,18 @@ struct LinkPreviewCard: View {
     private var imageMaxHeight: CGFloat { embedded ? 150 : 120 }
     private var cornerRadius: CGFloat { embedded ? 13 : 10 }
 
+    /// En salientes sigue el contraste del color de burbuja elegido (claro u oscuro).
+    private var outgoingTextColor: Color {
+        chatBubbleTextColor(for: chatOutgoingBubbleColor)
+    }
+
     private var titleColor: Color {
-        if embedded && isOutgoing { return .white }
+        if embedded && isOutgoing { return outgoingTextColor }
         return colorScheme == .dark ? .white : .black
     }
 
     private var hostColor: Color {
-        if embedded && isOutgoing { return .white.opacity(0.85) }
+        if embedded && isOutgoing { return outgoingTextColor.opacity(0.85) }
         return .blue
     }
 
@@ -888,7 +962,126 @@ struct LinkPreviewCard: View {
         }
     }
 
+    /// Tarjeta integrada: margen hasta el borde de la burbuja y ancho máximo de la burbuja con enlace.
+    static let embeddedInset: CGFloat = 4
+    static let embeddedMaxWidth: CGFloat = 260
+    private static let compactThumbSize: CGFloat = 52
+    private static let largeImageAspect: CGFloat = 1.91
+    private static let largeImageMaxHeight: CGFloat = 140
+
+    /// Imagen grande solo si es horizontal y con resolución suficiente; si no, fila compacta.
+    private var showsLargeImage: Bool {
+        guard let image else { return false }
+        let pixelWidth = image.size.width * image.scale
+        return pixelWidth >= 300 && image.size.width / max(image.size.height, 1) >= 1.3
+    }
+
+    private var embeddedTitleFont: Font { .system(size: 13, weight: .semibold) }
+    private var embeddedHostFont: Font { .system(size: 11, weight: .regular) }
+
+    @ViewBuilder
+    private var embeddedBody: some View {
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        Group {
+            if !isLoading, showsLargeImage, let image {
+                VStack(alignment: .leading, spacing: 0) {
+                    Color.clear
+                        .aspectRatio(Self.largeImageAspect, contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: Self.largeImageMaxHeight)
+                        .overlay {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        }
+                        .clipped()
+                    embeddedText
+                        .padding(.horizontal, 9)
+                        .padding(.top, 7)
+                        .padding(.bottom, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            } else {
+                HStack(spacing: 9) {
+                    compactThumb
+                    embeddedText
+                    Spacer(minLength: 0)
+                }
+                .padding(6)
+            }
+        }
+        .background(panelBackground)
+        .clipShape(shape)
+    }
+
+    @ViewBuilder
+    private var compactThumb: some View {
+        let thumbShape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        if let image, !isLoading {
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: Self.compactThumbSize, height: Self.compactThumbSize)
+                .clipShape(thumbShape)
+        } else {
+            ZStack {
+                thumbShape.fill(titleColor.opacity(0.1))
+                if isLoading {
+                    ProgressView().scaleEffect(0.7)
+                } else {
+                    Image(systemName: "link")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(titleColor.opacity(0.7))
+                }
+            }
+            .frame(width: Self.compactThumbSize, height: Self.compactThumbSize)
+        }
+    }
+
+    private var embeddedText: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(isLoading ? (url.host ?? url.absoluteString) : (title ?? url.host ?? url.absoluteString))
+                .font(embeddedTitleFont)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .foregroundStyle(titleColor)
+            Text(host ?? url.host ?? "")
+                .font(embeddedHostFont)
+                .lineLimit(1)
+                .foregroundStyle(isOutgoing ? outgoingTextColor.opacity(0.75) : titleColor.opacity(0.55))
+        }
+    }
+
     var body: some View {
+        if embedded {
+            Button {
+                HapticManager.shared.lightImpact()
+                ChatLinkOpener.open(url)
+            } label: {
+                embeddedBody
+            }
+            .buttonStyle(.plain)
+            .onAppear(perform: loadMetadata)
+        } else {
+            standaloneBody
+        }
+    }
+
+    private func loadMetadata() {
+        host = url.host
+        let wasLarge = !isLoading && showsLargeImage
+        let hadImage = image != nil
+        LinkMetadataCache.shared.fetchMetadata(for: url) { metadata, img in
+            self.title = metadata?.title ?? url.host ?? url.absoluteString
+            self.image = img
+            self.isLoading = false
+            // La celda de la lista no siempre se re-mide sola al crecer: pedir reconfigurarla.
+            if let messageId, showsLargeImage != wasLarge || (img != nil) != hadImage {
+                NotificationCenter.default.post(name: .chatRowContentSizeDidChange, object: nil, userInfo: ["messageId": messageId])
+            }
+        }
+    }
+
+    private var standaloneBody: some View {
         Button {
             HapticManager.shared.lightImpact()
             ChatLinkOpener.open(url)
@@ -901,7 +1094,7 @@ struct LinkPreviewCard: View {
                                 .scaleEffect(0.7)
                             Text(url.host ?? url.absoluteString)
                                 .font(.system(size: 11))
-                                .foregroundStyle(embedded && isOutgoing ? .white.opacity(0.8) : .gray)
+                                .foregroundStyle(embedded && isOutgoing ? outgoingTextColor.opacity(0.8) : .gray)
                                 .lineLimit(1)
                         }
                         .padding(.horizontal, 12)

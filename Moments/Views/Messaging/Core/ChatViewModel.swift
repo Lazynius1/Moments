@@ -1717,8 +1717,16 @@ class EnhancedChatViewModel: ObservableObject {
         if !droppedMessages.isEmpty {
             // Mensajes vanish que desaparecen del snapshot = borrados server-side (purga/expiración).
             // NO promoverlos a histórico (reaparecerían): se eliminan de verdad localmente.
+            // Excepción: con `limit(toLast:)` un mensaje también sale por el principio de la
+            // ventana cuando llegan nuevos; si es anterior o igual al más antiguo del snapshot
+            // solo ha salido de la ventana y se trata como histórico, no como borrado.
+            let oldestInWindow = messages.map(\.timestamp).min()
             let droppedVanishIds = droppedMessages
                 .filter { $0.isVanishModeMessage == true && $0.type != .chatNotice }
+                .filter { dropped in
+                    guard let oldestInWindow else { return true }
+                    return dropped.timestamp > oldestInWindow
+                }
                 .map(\.id)
             if !droppedVanishIds.isEmpty {
                 optimisticallyHiddenVanishIds.formUnion(droppedVanishIds)
@@ -1737,9 +1745,24 @@ class EnhancedChatViewModel: ObservableObject {
             historicalMessages.append(contentsOf: promotable.filter { !existingIds.contains($0.id) })
         }
 
+        // El servidor confirma mensajes propios que en local quedaron FAILED (p. ej. ack
+        // tardío): podar ese estado para que no se quede pegado sobre sent/delivered/read.
+        for incoming in messages where incoming.senderId == currentUserId
+            && localMessageStates[incoming.id] == .failed {
+            switch incoming.status {
+            case .sent, .delivered, .read:
+                localMessageStates.removeValue(forKey: incoming.id)
+                outgoingTempMessages.removeValue(forKey: incoming.id)
+                LocalPersistenceService.shared.deleteAction(id: incoming.id)
+            default:
+                break
+            }
+        }
+
         let existingById = existingMessagesById()
 
-        if !isFirstFetch, isChatVisible {
+        // Con la app en segundo plano o la pantalla bloqueada ya avisa la notificación: sin sonido del chat.
+        if !isFirstFetch, isChatVisible, UIApplication.shared.applicationState == .active {
             let hasNewIncoming = messages.contains { incoming in
                 incoming.type != .chatNotice
                     && incoming.senderId != currentUserId
@@ -1779,8 +1802,25 @@ class EnhancedChatViewModel: ObservableObject {
     // el servidor nunca escribe `isRead`), así que también cuenta como leído para este usuario.
     // `lastReadAt` sanea datos antiguos: mensajes anteriores al último "leído" de la conversación
     // cuentan como leídos aunque el doc individual quedara sin marcar.
+    /// Grupos: `status` es un único campo y el primer lector lo pone en `.read` para todos.
+    /// El check de leído solo vale si lo leyeron todos los miembros con acuses activos
+    /// (`readAtBy` solo se escribe con acuses activos).
+    private func applyGroupReadStatus(to message: EnhancedMessage) {
+        guard conversation.isGroup, message.status == .read else { return }
+        let readers = Set((message.readAtBy ?? [:]).keys)
+        let optedOut = Set((conversation.readReceiptPreferences ?? [:]).filter { !$0.value }.keys)
+        let everyoneRead = conversation.participants
+            .filter { $0 != message.senderId && !optedOut.contains($0) }
+            .allSatisfy { readers.contains($0) }
+        if !everyoneRead { message.status = .delivered }
+    }
+
     private func preserveLocalReadState(into incoming: EnhancedMessage) {
-        guard !incoming.isRead, incoming.senderId != currentUserId else { return }
+        if incoming.senderId == currentUserId {
+            applyGroupReadStatus(to: incoming)
+            return
+        }
+        guard !incoming.isRead else { return }
         if locallyReadMessageIds.contains(incoming.id) || incoming.readBy?.contains(currentUserId) == true {
             incoming.isRead = true
             return
@@ -2688,7 +2728,8 @@ class EnhancedChatViewModel: ObservableObject {
 
         switch message.type {
         case .text:
-            return !(message.content ?? "").isEmpty
+            // Un texto no descifrable lleva el aviso como contenido: no se puede reenviar.
+            return !message.isUndecryptable && !(message.content ?? "").isEmpty
         case .location:
             return message.isLiveLocation != true
                 && message.latitude != nil
@@ -2906,10 +2947,11 @@ class EnhancedChatViewModel: ObservableObject {
             message,
             currentUserId: currentUserId,
             forwardingPreferences: forwardingPreferences
-        ), let rawContent = message.content else { return }
+        ), !message.isUndecryptable, let rawContent = message.content else { return }
 
         Task {
-            let plaintext = await chatService.decryptMessageContent(rawContent, for: sourceConversationId)
+            // `content` ya suele venir descifrado; si no se puede abrir de nuevo se reenvía tal cual.
+            let plaintext = await chatService.decryptMessageContentIfPossible(rawContent, for: sourceConversationId) ?? rawContent
             chatService.forwardTextMessage(
                 plaintext: plaintext,
                 toUserIds: toUserIds,
@@ -3042,8 +3084,10 @@ class EnhancedChatViewModel: ObservableObject {
                 readerId: currentUserId,
                 marksLastMessageSeen: marksLastMessageSeen
             ) { error in
-                if error != nil {
-                    // Error marking messages as read
+                // Los fallos parciales ya se reintentan por documento en ChatService;
+                // aquí solo queda registrarlo (el siguiente mark-read vuelve a intentarlo).
+                if let error {
+                    AppLog.error("markMessagesAsRead falló: \(error.localizedDescription)")
                 }
             }
         }

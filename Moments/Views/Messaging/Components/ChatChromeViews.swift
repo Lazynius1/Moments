@@ -1091,11 +1091,12 @@ struct GlassmorphicDateHeader: View {
 
     var body: some View {
         Text(formatDate(date))
-            .font(.system(size: legacyPoppinsSize(12)))
+            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
             .foregroundStyle(adaptiveColors.dateHeaderColor)
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
-            .background(adaptiveColors.messageBubbleBackground, in: Capsule())
+            // Material siempre: la cabecera no conoce el fondo y así se lee sobre cualquier fondo de pantalla.
+            .background(.ultraThinMaterial, in: Capsule())
             // La celda del listado clava `alignment: .leading` para las burbujas;
             // sin esto la pastilla del día se queda a la izquierda.
             .frame(maxWidth: .infinity)

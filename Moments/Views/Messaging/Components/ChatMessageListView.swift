@@ -583,8 +583,23 @@ final class ChatMessageListViewController: UIViewController, UICollectionViewDel
         }
     }
 
+    /// Filas que crecen tras cargar contenido asíncrono (p.ej. tarjeta de enlace) se re-miden.
+    private var rowSizeObserver: NSObjectProtocol?
+
+    deinit {
+        if let rowSizeObserver { NotificationCenter.default.removeObserver(rowSizeObserver) }
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
+        rowSizeObserver = NotificationCenter.default.addObserver(
+            forName: .chatRowContentSizeDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let messageId = notification.userInfo?["messageId"] as? String else { return }
+            Task { @MainActor [weak self] in self?.reconfigure(messageIds: [messageId]) }
+        }
         updateCanvasBackgroundColor()
         configureCollectionView()
         configureDataSource()

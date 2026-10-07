@@ -5,57 +5,52 @@ struct WhatsNewView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var appearAnimation = false
 
-    private var features230: [WhatsNewFeature] {
+    private var features231: [WhatsNewFeature] {
         [
             WhatsNewFeature(
-                icon: .attachment(.groups),
-                title: NSLocalizedString("whatsNew.groups.title", comment: ""),
-                description: NSLocalizedString("whatsNew.groups.description", comment: "")
+                icon: .system("rectangle.split.2x1"),
+                title: NSLocalizedString("whatsNew.duo231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.duo231.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("sparkles"),
-                title: NSLocalizedString("whatsNew.forYou.title", comment: ""),
-                description: NSLocalizedString("whatsNew.forYou.description", comment: "")
+                icon: .system("slider.horizontal.3"),
+                title: NSLocalizedString("whatsNew.storyPublish231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.storyPublish231.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("bubble.left.and.bubble.right"),
-                title: NSLocalizedString("whatsNew.chat230.title", comment: ""),
-                description: NSLocalizedString("whatsNew.chat230.description", comment: "")
+                icon: .system("music.note"),
+                title: NSLocalizedString("whatsNew.originalAudio231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.originalAudio231.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("waveform"),
-                title: NSLocalizedString("whatsNew.echoes.title", comment: ""),
-                description: NSLocalizedString("whatsNew.echoes.description", comment: "")
+                icon: .system("paintpalette"),
+                title: NSLocalizedString("whatsNew.chatStyle231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.chatStyle231.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .personalAndGroupStoryRings,
-                title: NSLocalizedString("whatsNew.stories230.title", comment: ""),
-                description: NSLocalizedString("whatsNew.stories230.description", comment: "")
+                icon: .system("photo.on.rectangle"),
+                title: NSLocalizedString("whatsNew.chatMedia231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.chatMedia231.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("crop"),
-                title: NSLocalizedString("whatsNew.create230.title", comment: ""),
-                description: NSLocalizedString("whatsNew.create230.description", comment: "")
+                icon: .system("map"),
+                title: NSLocalizedString("whatsNew.maps231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.maps231.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("play.rectangle.on.rectangle"),
-                title: NSLocalizedString("whatsNew.feedReels.title", comment: ""),
-                description: NSLocalizedString("whatsNew.feedReels.description", comment: "")
+                icon: .system("bell.badge"),
+                title: NSLocalizedString("whatsNew.banner231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.banner231.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("person.crop.circle"),
-                title: NSLocalizedString("whatsNew.profile230.title", comment: ""),
-                description: NSLocalizedString("whatsNew.profile230.description", comment: "")
+                icon: .system("gearshape"),
+                title: NSLocalizedString("whatsNew.settings231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.settings231.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("sparkle"),
-                title: NSLocalizedString("whatsNew.nova230.title", comment: ""),
-                description: NSLocalizedString("whatsNew.nova230.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("icloud.slash"),
-                title: NSLocalizedString("whatsNew.offline230.title", comment: ""),
-                description: NSLocalizedString("whatsNew.offline230.description", comment: "")
+                icon: .system("bolt"),
+                title: NSLocalizedString("whatsNew.fluid231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.fluid231.description", comment: "")
             ),
         ]
     }
@@ -63,8 +58,8 @@ struct WhatsNewView: View {
     private var sections: [WhatsNewSection] {
         [
             WhatsNewSection(
-                title: NSLocalizedString("whatsNew.section230.title", comment: ""),
-                features: features230
+                title: NSLocalizedString("whatsNew.section231.title", comment: ""),
+                features: features231
             ),
         ]
     }

@@ -911,13 +911,11 @@
 "chat.vanish.swipe.hint.off" = "Przesuń w górę, aby wyłączyć znikające wiadomości";
 "chat.vanish.swipe.release" = "Puść, aby włączyć znikające wiadomości";
 "chat.vanish.swipe.release.off" = "Puść, aby wyłączyć znikające wiadomości";
-"chat.vanish.notice.enabled.prefix" = "Włączono znikające wiadomości. Nowe wiadomości i reakcje znikną";
-"chat.vanish.notice.enabled.prefix.self" = "Włączono znikające wiadomości. Nowe wiadomości i reakcje znikną";
-"chat.vanish.notice.enabled.prefix.other" = "Znikające wiadomości zostały włączone przez %@. Nowe wiadomości i reakcje znikną";
-"chat.vanish.notice.duration.onceSeen" = "gdy wszyscy je zobaczą";
+"chat.vanish.notice.duration.onceSeen" = "po tym, jak wszyscy je zobaczą";
 "chat.vanish.notice.duration.24h" = "24 godziny po tym, jak wszyscy je zobaczą";
 "chat.vanish.notice.duration.7d" = "7 dni po tym, jak wszyscy je zobaczą";
-"chat.vanish.notice.enabled.suffix" = ".";
+"chat.vanish.notice.enabled.self.format" = "Włączono znikające wiadomości. Nowe wiadomości i reakcje znikną %@.";
+"chat.vanish.notice.enabled.other.format" = "Znikające wiadomości zostały włączone przez %1$@. Nowe wiadomości i reakcje znikną %2$@.";
 "chat.vanish.notice.change" = "Zmień";
 "chat.vanish.notice.disabled" = "Wyłączono znikające wiadomości.";
 "chat.vanish.notice.preview.enabled" = "Włączono znikające wiadomości";
@@ -1091,6 +1089,11 @@
 "chat.preview.sharedMoment" = "Udostępniony moment";
 "chat.preview.viewOncePhoto" = "Zdjęcie (wyświetl raz)";
 "chat.preview.viewOnceVideo" = "Film (wyświetl raz)";
+"chat.preview.viewOnceTapPhoto" = "Zobacz zdjęcie";
+"chat.preview.viewOnceTapVideo" = "Zobacz film";
+"chat.viewOnce.inboxAction" = "Odtwórz";
+"chat.preview.viewOnceSentPhoto" = "Wysłano zdjęcie";
+"chat.preview.viewOnceSentVideo" = "Wysłano film";
 "chat.preview.text" = "Nowa wiadomość";
 "chat.status.sending" = "Wysyłanie";
 "chat.status.sent" = "Wysłano";
@@ -1551,7 +1554,7 @@
 "conversationSettings.mediaSave.error" = "Nie udało się zapisać tego materiału.";
 "conversationSettings.messages.sent" = "wysłano";
 "conversationSettings.messages.received" = "odebrano";
-"conversationSettings.vanish.title" = "Wiadomości znikające";
+"conversationSettings.vanish.title" = "Znikające wiadomości";
 "conversationSettings.vanish.no" = "Nie";
 "conversationSettings.vanish.description" = "Wybierz, jak długo Twoje wiadomości i reakcje mają być widoczne na czacie. Możesz ustawić ich znikanie zaraz po odczytaniu i zamknięciu czatu albo przechowywać je do 7 dni. Dla Twojej prywatności na czacie pojawi się powiadomienie, jeśli ktoś zrobi zrzut ekranu lub nagra ekran.";
 /* Video Editor */
@@ -1764,6 +1767,12 @@
 "savedMoments.sort.oldest" = "Najstarsze";
 "savedMoments.sort.author" = "Autor";
 "savedMoments.search.placeholder" = "Szukaj po użytkowniku, treści lub lokalizacji";
+"savedMoments.filters.button" = "Filtry";
+"savedMoments.filters.title" = "Filtry";
+"savedMoments.filters.sort" = "Sortuj";
+"savedMoments.filters.contains" = "Zawiera";
+"savedMoments.filters.apply" = "Zastosuj";
+"savedMoments.filters.reset" = "Resetuj";
 "savedMoments.filter.media.all" = "Wszystko";
 "savedMoments.filter.media.photos" = "Zdjęcia";
 "savedMoments.filter.media.videos" = "Filmy";
@@ -2918,6 +2927,8 @@
 "notification.message.single.video" = "Wysłano Ci film 🎥";
 "notification.message.single.audio" = "Wysłano Ci nagranie audio 🎵";
 "notification.message.single.viewOnce" = "Wysłano Ci wiadomość";
+"notification.message.viewOncePhoto" = "Wysłano Ci zdjęcie";
+"notification.message.viewOnceVideo" = "Wysłano Ci film";
 "notification.message.single.moment" = "Wysłano Ci moment 📸";
 "notification.message.single.default" = "Wysłał(a) Ci wiadomość";
 "notification.message.single.storyMention" = "Wspomniał(a) o Tobie w swojej relacji";
@@ -4010,6 +4021,7 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "messaging.message.unsupportedFile" = "Nieobsługiwany typ pliku";
 "messaging.message.fileTooLarge" = "Plik jest za duży";
 "messaging.message.connectionError" = "Błąd połączenia";
+"messaging.message.undecryptable" = "Nie można wyświetlić tej wiadomości";
 "messaging.request.status.pending" = "Oczekuje";
 "messaging.request.status.accepted" = "Zaakceptowano";
 "messaging.request.status.rejected" = "Odrzucono";
@@ -4624,6 +4636,14 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "notification.chatSummary.single" = "Nowa wiadomość";
 "notification.chatSummary.multiple" = "Nowe wiadomości: %@";
 "notification.group.untitled" = "Grupa";
+"storyEditor.toolbar.text" = "Tekst";
+"storyEditor.toolbar.stickers" = "Naklejki";
+"storyEditor.toolbar.draw" = "Rysuj";
+"storyEditor.toolbar.filters" = "Filtry";
+"storyEditor.toolbar.mute" = "Wycisz film";
+"storyEditor.toolbar.unmute" = "Włącz dźwięk";
+"storyEditor.toolbar.chain" = "Utwórz łańcuch";
+"storyEditor.toolbar.duration" = "Czas trwania";
 "whatsNew.section230.title" = "Moments 2.30";
 "whatsNew.groups.title" = "Grupy";
 "whatsNew.groups.description" = "Group chats in the same inbox, with photo, invites, admin roles, and mute.";
@@ -4817,3 +4837,22 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "settings.group.profileContent" = "Profil i treści";
 
 "settings.group.messagingPrivacy" = "Wiadomości i interakcje";
+"whatsNew.section231.title" = "Moments 2.31";
+"whatsNew.duo231.title" = "Stworzone dla iPhone Duo";
+"whatsNew.duo231.description" = "Feed i komentarze, skrzynka i rozmowa albo siatka i szczegóły: każde na osobnym ekranie. Otwórz lub zamknij Duo i kontynuuj tam, gdzie skończyłeś.";
+"whatsNew.storyPublish231.title" = "Zanim opublikujesz relację";
+"whatsNew.storyPublish231.description" = "Nowy ekran z podglądem i opcjami: kto ją zobaczy, 24 czy 48 godzin oraz czy można wysyłać wiadomości, reakcje i odpowiedzi.";
+"whatsNew.originalAudio231.title" = "Oryginalny dźwięk";
+"whatsNew.originalAudio231.description" = "Zapisuj dźwięk z publicznych relacji i używaj go ponownie z Zapisanych w naklejce audio. Ty decydujesz, czy Twój dźwięk może być użyty ponownie.";
+"whatsNew.chatStyle231.title" = "Czaty w Twoim stylu";
+"whatsNew.chatStyle231.description" = "Tła ze zdjęciami, kolorami lub motywami, regulowana intensywność i własny kolor dymków. Widzisz to tylko Ty.";
+"whatsNew.chatMedia231.title" = "Zdjęcia, filmy i odpowiedzi";
+"whatsNew.chatMedia231.description" = "Miniatury w prawdziwych proporcjach, wyraźniejszy przycisk odtwarzania, powiększanie dwoma palcami i odpowiedzi z podglądem cytowanej treści.";
+"whatsNew.maps231.title" = "Odświeżone mapy";
+"whatsNew.maps231.description" = "Momenty i relacje pogrupowane według miejsca oraz powrót do mapy bez utraty kontekstu.";
+"whatsNew.banner231.title" = "Czytelniejsze komunikaty";
+"whatsNew.banner231.description" = "Nowy baner z postępem, potwierdzeniami i możliwością cofnięcia niektórych działań.";
+"whatsNew.settings231.title" = "Ustawienia i odbiorcy";
+"whatsNew.settings231.description" = "Ustawienia uporządkowane według profilu, treści, wiadomości i konta oraz listy odbiorców, którymi łatwiej zarządzać.";
+"whatsNew.fluid231.title" = "Płynniej";
+"whatsNew.fluid231.description" = "Muzyka gra dalej, gdy przeglądasz wyciszone treści, a czaty, relacje i archiwum wczytują się płynniej.";

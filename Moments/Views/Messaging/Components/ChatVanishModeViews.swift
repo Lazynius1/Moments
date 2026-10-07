@@ -371,16 +371,17 @@ struct ChatDisappearingNoticeRow: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
 
+    /// Tamaño fijo (no sigue Dynamic Type).
     private var noticeFont: Font {
-        .system(size: legacyPoppinsSize(10), weight: .regular)
+        .system(size: 9, weight: .regular)
     }
 
     private var actionFont: Font {
-        .system(size: legacyPoppinsSize(10), weight: .medium)
+        .system(size: 9, weight: .semibold)
     }
 
     private var bodyColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.5) : Color.black.opacity(0.42)
+        colorScheme == .dark ? Color.white.opacity(0.85) : Color.black.opacity(0.72)
     }
 
     private var actionColor: Color {
@@ -427,32 +428,38 @@ struct ChatDisappearingNoticeRow: View {
 
     @ViewBuilder
     private func enabledNotice(timer: VanishMessageTimer) -> some View {
-        let prefix = isSelfActor
-            ? Text(LocalizedStringKey("chat.vanish.notice.enabled.prefix.self"))
-            : Text(
-                String(
-                    format: NSLocalizedString(
-                        "chat.vanish.notice.enabled.prefix.other",
-                        comment: "Other user enabled vanish notice prefix"
-                    ),
-                    actorDisplayName
-                )
+        // Frase completa con la duración como argumento: cada idioma decide el orden.
+        let duration = NSLocalizedString(timer.noticeDurationKey, comment: "Vanish notice duration")
+        let sentence = isSelfActor
+            ? String(
+                format: NSLocalizedString(
+                    "chat.vanish.notice.enabled.self.format",
+                    comment: "Self enabled vanish notice"
+                ),
+                duration
+            )
+            : String(
+                format: NSLocalizedString(
+                    "chat.vanish.notice.enabled.other.format",
+                    comment: "Other user enabled vanish notice"
+                ),
+                actorDisplayName,
+                duration
             )
 
         Button {
             onChangeTimer?()
         } label: {
             (
-                prefix
-                + Text(LocalizedStringKey(timer.noticeDurationKey))
-                + Text(LocalizedStringKey("chat.vanish.notice.enabled.suffix"))
+                Text(verbatim: sentence)
                 + Text(" ")
                 + Text(LocalizedStringKey("chat.vanish.notice.change"))
                     .font(actionFont)
                     .foregroundStyle(actionColor)
             )
             .font(noticeFont)
-            .foregroundStyle(bodyColor)
+            // Sobre el fondo, sin píldora; con fondo personalizado gana contraste.
+            .chatFloatingText(bodyColor)
             .multilineTextAlignment(.center)
         }
         .buttonStyle(.plain)
@@ -482,7 +489,8 @@ struct ChatDisappearingNoticeRow: View {
                     .foregroundStyle(actionColor)
             )
             .font(noticeFont)
-            .foregroundStyle(bodyColor)
+            // Sobre el fondo, sin píldora; con fondo personalizado gana contraste.
+            .chatFloatingText(bodyColor)
             .multilineTextAlignment(.center)
         }
         .buttonStyle(.plain)
@@ -491,7 +499,8 @@ struct ChatDisappearingNoticeRow: View {
     private func plainNotice(_ key: String) -> some View {
         Text(LocalizedStringKey(key))
             .font(noticeFont)
-            .foregroundStyle(bodyColor)
+            // Sobre el fondo, sin píldora; con fondo personalizado gana contraste.
+            .chatFloatingText(bodyColor)
             .multilineTextAlignment(.center)
     }
 }
@@ -565,17 +574,42 @@ private extension VanishMessageTimer {
     }
 }
 
-struct ChatViewOnceInboxIndicator: View {
-    private let tintColor = Color(hex: "007AFF")
+/// Ver una vez recibido sin abrir, en la lista de chats: botón cápsula "▶ Reproducir" que abre el visor.
+struct ChatViewOnceInboxAction: View {
+    var isVideo = false
+    /// Color de burbuja que el usuario eligió para ese chat.
+    var tintColor = Color(hex: ChatWallpaper().bubbleColorHex)
+    /// Descargando/descifrando la media: spinner en lugar del play y sin nuevas pulsaciones.
+    var isLoading = false
+    let action: () -> Void
 
     var body: some View {
-        Image(systemName: "play.fill")
-            .font(.system(size: 9, weight: .bold))
-            .foregroundStyle(.white)
-            .offset(x: 1)
-            .frame(width: 22, height: 22)
-            .liquidGlass(in: Circle(), variant: .clear, tint: tintColor)
-            .accessibilityLabel(Text(LocalizedStringKey("chat.viewOnce.tapToView")))
+        Button(action: action) {
+            HStack(spacing: 6) {
+                ZStack {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .opacity(isLoading ? 0 : 1)
+                    if isLoading {
+                        ProgressView()
+                            .controlSize(.mini)
+                            .tint(chatBubbleTextColor(for: tintColor))
+                    }
+                }
+                Text(LocalizedStringKey("chat.viewOnce.inboxAction"))
+                    .font(.system(size: 14, weight: .semibold))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(chatBubbleTextColor(for: tintColor))
+            .padding(.horizontal, 14)
+            .frame(height: 34)
+            .background(tintColor, in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .allowsHitTesting(!isLoading)
+        .animation(.easeInOut(duration: 0.15), value: isLoading)
+        .accessibilityLabel(Text(LocalizedStringKey(isVideo ? "chat.preview.viewOnceTapVideo" : "chat.preview.viewOnceTapPhoto")))
     }
 }
 

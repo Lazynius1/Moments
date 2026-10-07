@@ -7,6 +7,9 @@ final class MessageCatchUpService {
 
     private var lastFullSyncAt: Date?
     private var inFlightConversationIds = Set<String>()
+    /// `conversation.timestamp` ya cubierto por una pasada completa: si el doc no ha
+    /// avanzado desde entonces no hay mensajes nuevos que traer.
+    private var syncedConversationTimestamps: [String: Date] = [:]
     private let fullSyncInterval: TimeInterval = 30
     private let maxConversationsPerSync = 20
     private let catchUpPageSize = 50
@@ -33,24 +36,43 @@ final class MessageCatchUpService {
             return lhs.timestamp > rhs.timestamp
         }
 
-        let batch = prioritized.prefix(maxConversationsPerSync)
+        let batch = prioritized
+            .filter { conversation in
+                guard let conversationId = conversation.id,
+                      let synced = syncedConversationTimestamps[conversationId] else { return true }
+                return conversation.timestamp > synced
+            }
+            .prefix(maxConversationsPerSync)
+        guard !batch.isEmpty else { return }
 
         Task {
             await preloadKeys(for: batch.compactMap(\.id))
             await withTaskGroup(of: Void.self) { group in
                 for conversation in batch {
                     guard let conversationId = conversation.id else { continue }
-                    group.addTask { await self.sync(conversationId: conversationId) }
+                    let timestamp = conversation.timestamp
+                    group.addTask {
+                        await self.syncAndRecord(conversationId: conversationId, conversationTimestamp: timestamp)
+                    }
                 }
             }
         }
     }
 
-    func sync(conversationId: String) async {
-        guard LocalFirstMessagingSettings.isEnabled else { return }
-        guard Auth.auth().currentUser != nil else { return }
-        guard !conversationId.isEmpty else { return }
-        guard !inFlightConversationIds.contains(conversationId) else { return }
+    private func syncAndRecord(conversationId: String, conversationTimestamp: Date) async {
+        // Solo se recuerda si la pasada terminó sin errores de red.
+        if await sync(conversationId: conversationId) {
+            syncedConversationTimestamps[conversationId] = conversationTimestamp
+        }
+    }
+
+    /// Devuelve false si alguna página falló (o no se pudo ejecutar la pasada).
+    @discardableResult
+    func sync(conversationId: String) async -> Bool {
+        guard LocalFirstMessagingSettings.isEnabled else { return false }
+        guard Auth.auth().currentUser != nil else { return false }
+        guard !conversationId.isEmpty else { return false }
+        guard !inFlightConversationIds.contains(conversationId) else { return false }
 
         inFlightConversationIds.insert(conversationId)
         defer { inFlightConversationIds.remove(conversationId) }
@@ -64,11 +86,13 @@ final class MessageCatchUpService {
             let cursor = await resolveCatchUpCursor(for: conversationId)
 
             let pageLimit = min(catchUpPageSize, maxCatchUpMessagesPerSync - ingestedCount)
-            let messages = await fetchCatchUpPage(
+            guard let messages = await fetchCatchUpPage(
                 conversationId: conversationId,
                 cursor: cursor,
                 limit: pageLimit
-            )
+            ) else {
+                return false
+            }
             guard !messages.isEmpty else { break }
 
             _ = await MessageIngestService.shared.ingestBatch(
@@ -80,6 +104,7 @@ final class MessageCatchUpService {
 
             if messages.count < pageLimit { break }
         }
+        return true
     }
 
     private func resolveCatchUpCursor(for conversationId: String) async -> MessageSyncCursor? {
@@ -97,21 +122,21 @@ final class MessageCatchUpService {
         conversationId: String,
         cursor: MessageSyncCursor?,
         limit: Int
-    ) async -> [EnhancedMessage] {
+    ) async -> [EnhancedMessage]? {
         if let cursor {
             return await fetchMessagesAfter(conversationId: conversationId, after: cursor, limit: limit)
         }
         return await fetchRecentMessages(conversationId: conversationId, limit: limit)
     }
 
-    private func fetchRecentMessages(conversationId: String, limit: Int) async -> [EnhancedMessage] {
+    private func fetchRecentMessages(conversationId: String, limit: Int) async -> [EnhancedMessage]? {
         await withCheckedContinuation { continuation in
             ChatService.shared.fetchRecentMessages(conversationId: conversationId, limit: limit) { result in
                 switch result {
                 case .success(let messages):
                     continuation.resume(returning: messages)
                 case .failure:
-                    continuation.resume(returning: [])
+                    continuation.resume(returning: nil)
                 }
             }
         }
@@ -121,7 +146,7 @@ final class MessageCatchUpService {
         conversationId: String,
         after cursor: MessageSyncCursor,
         limit: Int
-    ) async -> [EnhancedMessage] {
+    ) async -> [EnhancedMessage]? {
         await withCheckedContinuation { continuation in
             ChatService.shared.fetchMessagesAfter(
                 conversationId: conversationId,
@@ -132,15 +157,22 @@ final class MessageCatchUpService {
                 case .success(let messages):
                     continuation.resume(returning: messages)
                 case .failure:
-                    continuation.resume(returning: [])
+                    continuation.resume(returning: nil)
                 }
             }
         }
     }
 
+    /// Tras vaciar la caché local hay que volver a traer todo aunque el doc no cambie.
+    func forgetSyncedConversationTimestamps() {
+        syncedConversationTimestamps.removeAll()
+        lastFullSyncAt = nil
+    }
+
     func resetOnSignOut() {
         lastFullSyncAt = nil
         inFlightConversationIds.removeAll()
+        syncedConversationTimestamps.removeAll()
     }
 
     private func preloadKeys(for conversationIds: [String]) async {

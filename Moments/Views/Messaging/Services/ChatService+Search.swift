@@ -58,7 +58,7 @@ extension ChatService {
                         if excludingIds.contains(docId) { continue }
 
                         guard let encryptedContent = data["content"] as? String else { continue }
-                        let decryptedContent = await decryptMessageContent(encryptedContent, for: conversationId)
+                        guard let decryptedContent = await decryptMessageContentIfPossible(encryptedContent, for: conversationId) else { continue }
                         let searchable = decryptedContent
                             .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
                         guard searchable.contains(normalizedQuery) else { continue }

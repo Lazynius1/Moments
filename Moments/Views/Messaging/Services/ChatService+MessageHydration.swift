@@ -67,6 +67,16 @@ final class ViewOnceReplaySessionStore {
         }
     }
 
+    /// Repeticiones disponibles de todas las conversaciones salvo `excludingConversationId`.
+    func drainAvailable(excludingConversationId: String?) -> [PendingReplay] {
+        let excludedPrefix = excludingConversationId.map { $0 + "|" }
+        return queue.sync {
+            let drained = availableKeys.filter { key in excludedPrefix.map { !key.hasPrefix($0) } ?? true }
+            availableKeys.subtract(drained)
+            return drained.compactMap(Self.pendingReplay(from:))
+        }
+    }
+
     private func key(message: EnhancedMessage, viewerId: String) -> String? {
         guard message.isViewOnce,
               message.allowReplay == true,
@@ -154,12 +164,19 @@ extension ChatService {
 
         let rawContent = data["content"] as? String
         let decryptedContent: String?
+        var isUndecryptable = false
         if type == .chatNotice {
             decryptedContent = rawContent
         } else if let decryptedContentOverride {
             decryptedContent = decryptedContentOverride
         } else if let rawContent {
-            decryptedContent = await decryptMessageContent(rawContent, for: conversationId)
+            if let plaintext = await decryptMessageContentIfPossible(rawContent, for: conversationId) {
+                decryptedContent = plaintext
+            } else {
+                // Nunca exponer ni cachear el ciphertext: aviso localizado + reintento.
+                decryptedContent = EnhancedMessage.undecryptablePlaceholder
+                isUndecryptable = true
+            }
         } else {
             decryptedContent = rawContent
         }
@@ -302,6 +319,10 @@ extension ChatService {
         )
         parsedMessage.allowReplay = data["allowReplay"] as? Bool
         parsedMessage.replayedBy = data["replayedBy"] as? [String]
+        if isUndecryptable && !isDeleted {
+            parsedMessage.isUndecryptable = true
+            noteUndecryptableMessage(conversationId: conversationId)
+        }
         ViewOnceReplaySessionStore.shared.apply(
             to: parsedMessage,
             viewerId: Auth.auth().currentUser?.uid

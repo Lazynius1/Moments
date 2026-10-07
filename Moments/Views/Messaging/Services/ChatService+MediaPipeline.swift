@@ -26,7 +26,9 @@ extension ChatService {
 
         Task { @MainActor in
             do {
-                let mediaFileId = UUID().uuidString
+                // Ruta determinista por mensaje en 1:1: un reintento sobrescribe el mismo
+                // objeto en vez de dejar huérfanos. En grupos Storage prohíbe `update`.
+                let mediaFileId = chatStorageFileId(conversationId: conversationId, role: "media")
 
                 let payload: MediaUploadPayload
                 var tempFilesToCleanup: [URL] = []
@@ -142,7 +144,7 @@ extension ChatService {
 
                     if let thumbnailData = generatedThumbnailData {
                         do {
-                            let thumbId = UUID().uuidString
+                            let thumbId = chatStorageFileId(conversationId: conversationId, role: "thumb")
                             let thumbBase = StoragePathBuilder.build(
                                 userId: senderId,
                                 domain: .chatThumbnail(
@@ -449,6 +451,12 @@ extension ChatService {
         } catch {
             return nil
         }
+    }
+
+    /// Id de fichero en Storage: fijo por mensaje en chats 1:1 (reintentos idempotentes);
+    /// aleatorio en grupos, cuyas reglas solo permiten `create`.
+    func chatStorageFileId(conversationId: String, role: String) -> String {
+        GroupChatScope.isGroup(conversationId) ? UUID().uuidString : role
     }
 
     func chatEncryptedStorageTarget(

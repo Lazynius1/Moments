@@ -32,6 +32,9 @@ extension ChatService {
                 }
 
                 let docs = snapshot?.documents ?? []
+                let reactionsByMessage = self.aggregateReactionMap(from: docs)
+                // Último mapa vivo: el snapshot de mensajes lo reutiliza sin volver a consultar.
+                self.liveReactionMaps[conversationId] = reactionsByMessage
                 let changedMessageIds = Set(
                     snapshot?.documentChanges.compactMap { change in
                         change.document.data()["messageId"] as? String
@@ -39,7 +42,7 @@ extension ChatService {
                 )
                 completion(.success(
                     MessageReactionUpdate(
-                        reactionsByMessage: self.aggregateReactionMap(from: docs),
+                        reactionsByMessage: reactionsByMessage,
                         changedMessageIds: changedMessageIds
                     )
                 ))

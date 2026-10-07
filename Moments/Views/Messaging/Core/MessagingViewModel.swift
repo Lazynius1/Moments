@@ -820,6 +820,18 @@ class MessagingViewModel: ObservableObject {
         LocalPersistenceService.shared.saveConversations(conversations + archivedConversations, sync: false)
     }
 
+    /// Ver una vez abierto desde la lista: quita el botón al momento, sin esperar a rehidratar la preview.
+    func clearViewOncePending(conversationId: String) {
+        func patch(_ list: inout [Conversation]) {
+            for index in list.indices where list[index].id == conversationId {
+                list[index].lastMessageViewOncePending = false
+            }
+        }
+        patch(&conversations)
+        patch(&archivedConversations)
+        patch(&filteredConversations)
+    }
+
     func archiveConversation(_ conversation: Conversation) {
         guard let conversationId = conversation.id,
               let currentUserId = Auth.auth().currentUser?.uid else { return }

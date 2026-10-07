@@ -263,6 +263,8 @@ struct GlassmorphicInputBar: View {
     let onVoiceRecordingTrimChanged: (Range<TimeInterval>) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
+    /// Color de burbuja saliente elegido por el usuario (enviar/aplicar lo siguen).
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -517,7 +519,7 @@ struct GlassmorphicInputBar: View {
                 ZStack(alignment: .leading) {
                     if text.isEmpty {
                         Text(inputPlaceholder)
-                            .font(.system(size: legacyPoppinsSize(15)))
+                            .font(ChatMessageFont.bubble)
                             .foregroundStyle(adaptiveColors.secondary.opacity(0.65))
                             .allowsHitTesting(false)
                     }
@@ -528,13 +530,14 @@ struct GlassmorphicInputBar: View {
                         onFocusChange: { focused in
                             isTextFieldFocused.wrappedValue = focused
                         },
-                        fontSize: legacyPoppinsSize(15),
+                        // Misma fuente que la burbuja: lo que escribes es lo que se enviará.
+                        fontSize: ChatMessageFont.bubblePointSize,
                         primaryColor: UIColor(adaptiveColors.primary),
                         secondaryColor: UIColor(adaptiveColors.secondary),
                         accentColor: UIColor(adaptiveColors.userAccentColor),
                         onTextChange: { isTyping = !$0.isEmpty }
                     )
-                    .frame(maxWidth: .infinity, minHeight: legacyPoppinsSize(15) * 1.25)
+                    .frame(maxWidth: .infinity, minHeight: ChatMessageFont.bubblePointSize * 1.25)
                 }
                     .opacity(isRecordingVoice ? 0 : 1)
                     .allowsHitTesting(!isRecordingVoice)
@@ -650,9 +653,9 @@ struct GlassmorphicInputBar: View {
         Button(action: sendCurrentContent) {
             Image(systemName: "paperplane.fill")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(chatBubbleTextColor(for: chatOutgoingBubbleColor))
                 .frame(width: 44, height: 44)
-                .background(adaptiveColors.userAccentColor, in: Circle())
+                .background(chatOutgoingBubbleColor, in: Circle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("notification.action.send"))
@@ -662,9 +665,9 @@ struct GlassmorphicInputBar: View {
         Button(action: sendCurrentContent) {
             Image(systemName: "checkmark")
                 .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(chatBubbleTextColor(for: chatOutgoingBubbleColor))
                 .frame(width: 44, height: 44)
-                .background(adaptiveColors.userAccentColor, in: Circle())
+                .background(chatOutgoingBubbleColor, in: Circle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("chat.editing.title"))

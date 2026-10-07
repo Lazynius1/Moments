@@ -161,6 +161,17 @@ actor MessagePersistenceStore {
         return try JSONEncoder().encode(messages)
     }
 
+    /// Solo los mensajes indicados (la ventana del listener), sin cargar todo el historial.
+    func messages(conversationId: String, ids: [String]) throws -> Data {
+        guard !ids.isEmpty else { return Data() }
+        let predicate = #Predicate<CachedMessage> {
+            $0.conversationId == conversationId && ids.contains($0.id)
+        }
+        let messages = try modelContext.fetch(FetchDescriptor<CachedMessage>(predicate: predicate))
+            .map { $0.toEnhancedMessage() }
+        return try JSONEncoder().encode(messages)
+    }
+
     func containsMessage(conversationId: String, messageId: String) throws -> Bool {
         let predicate = #Predicate<CachedMessage> {
             $0.conversationId == conversationId && $0.id == messageId

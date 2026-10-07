@@ -972,7 +972,7 @@
 /* Chat */
 "chat.moment.loadError" = "No se pudo cargar el momento";
 "chat.input.placeholder" = "Mensaje...";
-"chat.input.vanish.placeholder" = "Mensaje que desaparece...";
+"chat.input.vanish.placeholder" = "Mensaje temporal...";
 "chat.input.attach.accessibility" = "Adjuntar contenido";
 "chat.input.voice.accessibility" = "Grabar nota de voz";
 "chat.attach.sendMedia.one" = "Enviar 1";
@@ -981,23 +981,21 @@
 "chat.attach.location" = "Ubicación";
 "chat.attach.buzz" = "Zumbido";
 "chat.buzz.sent" = "Has enviado un zumbido";
-"chat.vanish.swipe.hint" = "Desliza hacia arriba para activar mensajes que desaparecen";
-"chat.vanish.swipe.hint.off" = "Desliza hacia arriba para desactivar mensajes que desaparecen";
-"chat.vanish.swipe.release" = "Suelta para activar mensajes que desaparecen";
-"chat.vanish.swipe.release.off" = "Suelta para desactivar mensajes que desaparecen";
-"chat.vanish.notice.enabled.prefix" = "Has activado los mensajes que desaparecen. Los mensajes y reacciones nuevos desaparecerán";
-"chat.vanish.notice.enabled.prefix.self" = "Has activado los mensajes que desaparecen. Los mensajes y reacciones nuevos desaparecerán";
-"chat.vanish.notice.enabled.prefix.other" = "%@ ha activado los mensajes que desaparecen. Los mensajes y reacciones nuevos desaparecerán";
+"chat.vanish.swipe.hint" = "Desliza hacia arriba para activar mensajes temporales";
+"chat.vanish.swipe.hint.off" = "Desliza hacia arriba para desactivar mensajes temporales";
+"chat.vanish.swipe.release" = "Suelta para activar mensajes temporales";
+"chat.vanish.swipe.release.off" = "Suelta para desactivar mensajes temporales";
 "chat.vanish.notice.duration.onceSeen" = "cuando todos los hayan visto";
 "chat.vanish.notice.duration.24h" = "24 horas después de que todos los hayan visto";
 "chat.vanish.notice.duration.7d" = "7 días después de que todos los hayan visto";
-"chat.vanish.notice.enabled.suffix" = ".";
+"chat.vanish.notice.enabled.self.format" = "Has activado los mensajes temporales. Los mensajes y reacciones nuevos desaparecerán %@.";
+"chat.vanish.notice.enabled.other.format" = "%1$@ ha activado los mensajes temporales. Los mensajes y reacciones nuevos desaparecerán %2$@.";
 "chat.vanish.notice.change" = "Cambiar";
-"chat.vanish.notice.disabled" = "Has desactivado los mensajes que desaparecen.";
-"chat.vanish.notice.preview.enabled" = "Los mensajes que desaparecen están activados";
-"chat.vanish.notice.preview.disabled" = "Los mensajes que desaparecen están desactivados";
-"chat.vanish.notice.disabled.self" = "Has desactivado los mensajes que desaparecen.";
-"chat.vanish.notice.disabled.other" = "%@ ha desactivado los mensajes que desaparecen.";
+"chat.vanish.notice.disabled" = "Has desactivado los mensajes temporales.";
+"chat.vanish.notice.preview.enabled" = "Los mensajes temporales están activados";
+"chat.vanish.notice.preview.disabled" = "Los mensajes temporales están desactivados";
+"chat.vanish.notice.disabled.self" = "Has desactivado los mensajes temporales.";
+"chat.vanish.notice.disabled.other" = "%@ ha desactivado los mensajes temporales.";
 "chat.vanish.notice.turnOn" = "Activar";
 "chat.vanish.timer.sheet.title" = "Temporizador de mensajes";
 "chat.vanish.timer.off" = "Desactivado";
@@ -1006,8 +1004,8 @@
 "chat.vanish.timer.7d" = "7 días";
 "chat.vanish.screenshot" = "Se ha hecho una captura de pantalla";
 "chat.vanish.screenRecording" = "Has grabado la pantalla.";
-"chat.vanish.active.accessibility" = "Mensajes que desaparecen activos";
-"chat.vanish.inactive.accessibility" = "Desliza hacia arriba para activar mensajes que desaparecen";
+"chat.vanish.active.accessibility" = "Mensajes temporales activos";
+"chat.vanish.inactive.accessibility" = "Desliza hacia arriba para activar mensajes temporales";
 "chat.buzz.received" = "%@ te ha enviado un zumbido";
 "chat.buzz.cooldown" = "Espera un poco antes de enviar otro zumbido";
 "chat.draft.preview" = "Borrador: %@";
@@ -1168,6 +1166,11 @@
 "chat.preview.sharedMoment" = "Momento compartido";
 "chat.preview.viewOncePhoto" = "Foto (ver una vez)";
 "chat.preview.viewOnceVideo" = "Video (ver una vez)";
+"chat.preview.viewOnceTapPhoto" = "Ver foto";
+"chat.preview.viewOnceTapVideo" = "Ver vídeo";
+"chat.viewOnce.inboxAction" = "Reproducir";
+"chat.preview.viewOnceSentPhoto" = "Ha enviado una foto";
+"chat.preview.viewOnceSentVideo" = "Ha enviado un vídeo";
 "chat.preview.text" = "Nuevo mensaje";
 "chat.status.sending" = "Enviando";
 "chat.status.sent" = "Enviado";
@@ -2524,6 +2527,7 @@
 "notifications.empty.storyReactions" = "Sin reacciones a tus historias";
 "notifications.empty.requests" = "No tienes solicitudes pendientes";
 "notifications.empty.reactions" = "Aún no hay reacciones";
+"notifications.empty.likes" = "Sin me gusta";
 "notifications.empty.mentions" = "Sin menciones todavía";
 "notifications.empty.follows" = "Todavía no tienes seguidores";
 "notifications.empty.default" = "No hay notificaciones";
@@ -2878,8 +2882,8 @@
 /* Whats New v2.14 */
 /* Whats New v2.16 */
 "whatsNew.title" = "¡Novedades en Moments!";
-"whatsNew.subtitle" = "Por fin grupos — y un Para Ti más personal, un chat más cuidado y Echoes e historias más pulidos.";
-"whatsNew.button" = "Explorar Moments 2.30";
+"whatsNew.subtitle" = "Moments llega al iPhone Duo, con chats más tuyos, historias con más control, audio original y mapas renovados.";
+"whatsNew.button" = "Explorar Moments 2.31";
 /* Best Friends */
 "bestFriends.title" = "Mejores Amigos";
 "bestFriends.empty.title" = "Sin mejores amigos";
@@ -3155,6 +3159,8 @@
 "notification.message.single.video" = "Te envió un video 🎥";
 "notification.message.single.audio" = "Te envió un audio 🎵";
 "notification.message.single.viewOnce" = "Te envió un mensaje";
+"notification.message.viewOncePhoto" = "Te ha enviado una foto";
+"notification.message.viewOnceVideo" = "Te ha enviado un vídeo";
 "notification.message.single.moment" = "Te envió un momento 📸";
 "notification.message.single.default" = "Te envió un mensaje";
 "notification.message.single.storyMention" = "Te mencionó en su historia";
@@ -4318,6 +4324,7 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "messaging.message.unsupportedFile" = "Tipo de archivo no soportado";
 "messaging.message.fileTooLarge" = "El archivo es demasiado grande";
 "messaging.message.connectionError" = "Error de conexión";
+"messaging.message.undecryptable" = "No se puede mostrar este mensaje";
 "messaging.request.status.pending" = "Pendiente";
 "messaging.request.status.accepted" = "Aceptada";
 "messaging.request.status.rejected" = "Rechazada";
@@ -5066,3 +5073,24 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "settings.group.profileContent" = "Perfil y contenido";
 
 "settings.group.messagingPrivacy" = "Mensajes e interacciones";
+
+/* What's New 2.31 */
+"whatsNew.section231.title" = "Moments 2.31";
+"whatsNew.duo231.title" = "Hecho para iPhone Duo";
+"whatsNew.duo231.description" = "Feed y comentarios, inbox y conversación, o rejilla y detalle: cada uno en una pantalla. Al abrir o cerrar el Duo sigues donde estabas.";
+"whatsNew.storyPublish231.title" = "Antes de publicar tu historia";
+"whatsNew.storyPublish231.description" = "Una nueva pantalla con la preview y sus opciones: quién la ve, 24 o 48 horas, y si admite mensajes, reacciones y respuestas.";
+"whatsNew.originalAudio231.title" = "Audio original";
+"whatsNew.originalAudio231.description" = "Guarda el audio de historias públicas y reutilízalo desde Guardados en el sticker de audio. Tú decides si se puede reutilizar el tuyo.";
+"whatsNew.chatStyle231.title" = "Chats a tu estilo";
+"whatsNew.chatStyle231.description" = "Fondos con fotos, colores o temas, intensidad ajustable y el color de tus burbujas. Solo lo ves tú.";
+"whatsNew.chatMedia231.title" = "Fotos, vídeos y respuestas";
+"whatsNew.chatMedia231.description" = "Miniaturas con su proporción real, un play más visible, zoom con dos dedos y respuestas con vista previa de lo que citas.";
+"whatsNew.maps231.title" = "Mapas renovados";
+"whatsNew.maps231.description" = "Momentos e historias agrupados por lugar, y vuelta al mapa sin perder el contexto.";
+"whatsNew.banner231.title" = "Avisos más claros";
+"whatsNew.banner231.description" = "Un banner renovado con progreso, confirmaciones y la opción de deshacer algunas acciones.";
+"whatsNew.settings231.title" = "Ajustes y audiencias";
+"whatsNew.settings231.description" = "Ajustes ordenados por perfil, contenido, mensajes y cuenta, y listas de audiencia más cómodas de gestionar.";
+"whatsNew.fluid231.title" = "Más fluido";
+"whatsNew.fluid231.description" = "Tu música sigue sonando al navegar por contenido silenciado, y chats, historias y archivo cargan con más suavidad.";

@@ -21,10 +21,14 @@ extension ChatService {
         conversationId: String,
         cutoffDate: Date?
     ) async -> [EnhancedMessage] {
-        let cached = await MainActor.run {
-            LocalPersistenceService.shared.loadMessagesFast(conversationId: conversationId)
-        }
-        let cachedById = Dictionary(uniqueKeysWithValues: cached.map { ($0.id, $0) })
+        // Solo los IDs del snapshot y en el contexto SwiftData de fondo: antes se
+        // cargaba todo el historial (hasta 2000 mensajes) en el hilo principal.
+        let snapshotIds = documents.map { $0.data()["id"] as? String ?? $0.documentID }
+        let cached = await LocalPersistenceService.shared.loadMessagesInBackground(
+            conversationId: conversationId,
+            ids: snapshotIds
+        )
+        let cachedById = Dictionary(cached.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let hasLocalCache = !cached.isEmpty
         let currentUserId = Auth.auth().currentUser?.uid
 
@@ -97,6 +101,18 @@ extension ChatService {
 
         let remoteDeleted = data["isDeleted"] as? Bool ?? false
         if remoteDeleted != cached.isDeleted { return true }
+
+        // Contenido que no se pudo descifrar (o ciphertext de cachés antiguas): reintentar.
+        if !remoteDeleted, cached.isUndecryptable { return true }
+        if !remoteDeleted,
+           typeString != MessageType.chatNotice.rawValue,
+           typeString != MessageType.location.rawValue,
+           let remoteContent = data["content"] as? String,
+           !remoteContent.isEmpty,
+           cached.content == remoteContent,
+           ChatCiphertextHeuristics.looksLikeCiphertext(remoteContent) {
+            return true
+        }
 
         if typeString == MessageType.chatNotice.rawValue {
             let remoteContent = data["content"] as? String

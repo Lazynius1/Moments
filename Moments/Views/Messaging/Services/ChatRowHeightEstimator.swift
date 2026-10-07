@@ -5,7 +5,8 @@ enum ChatRowHeightEstimator {
     private static let textHorizontalPadding: CGFloat = ChatTextBubbleMetrics.horizontalPadding * 2
     private static let textVerticalPadding: CGFloat = ChatTextBubbleMetrics.verticalPadding * 2
     private static let baseFontSize: CGFloat = 15
-    private static let replyBlockHeight: CGFloat = 46
+    /// Media entre cita de texto (~2 líneas) y miniatura de 80, menos el solape (`StackedReplyQuote`).
+    private static let replyBlockHeight: CGFloat = 60
     private static let reactionsRowHeight: CGFloat = 28
 
     private static let photoVideoHeight: CGFloat = 272

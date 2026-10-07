@@ -24,6 +24,8 @@
 "revealEditor.pattern.holographic" = "Hologràfic";
 "revealEditor.color1" = "Color 1";
 "revealEditor.color2" = "Color 2";
+"revealEditor.color.background" = "Fons";
+"revealEditor.color.effect" = "Efecte";
 "revealEditor.colorPicker.primary" = "Seleccionar Color";
 "revealEditor.colorPicker.secondary" = "Seleccionar Color Secundari";
 "revealEditor.preset.classic" = "Clàssic";
@@ -70,10 +72,12 @@
 
 /* Common Actions */
 "common.cancel" = "Cancel·lar";
+"common.apply" = "Aplicar";
 "common.delete" = "Eliminar";
 "common.done" = "Fet";
 "common.edit" = "Editar";
 "common.next" = "Següent";
+"common.loading" = "Carregant...";
 "common.photo" = "Foto";
 "common.video" = "Vídeo";
 "common.media" = "Mèdia";
@@ -90,6 +94,8 @@
 "storyChains.partShort" = "Part %d";
 "storyChains.start" = "Inici";
 "storyChains.end" = "Final";
+"storyChains.previousPart" = "Part anterior";
+"storyChains.nextPart" = "Part següent";
 "storyChains.loading" = "Carregant cadena...";
 "storyChains.notFound" = "Aquesta cadena ja no està disponible";
 "storyChains.parts" = "%d/%d parts";
@@ -288,6 +294,10 @@
 "storyTextEffect.echo" = "Eco";
 "storyTextEffect.depth" = "Relleu";
 "storyTextEffect.glitch" = "Glitch";
+"storyTextGradient.removeStop" = "Treure color";
+"storyTextGradient.preset.moments" = "Moments";
+"storyTextGradient.preset.sunset" = "Posta de sol";
+"storyTextGradient.preset.ocean" = "Oceà";
 "creator.intensity" = "Intensitat";
 "creator.searching" = "Buscant...";
 "creator.useCurrentLocation" = "Utilitzar ubicació actual";
@@ -604,6 +614,9 @@
 "nova.introduction" = "Sóc el teu assistent personal intel·ligent. Puc ajudar-te a explorar els teus interessos, proposar connexions o respondre qualsevol pregunta que tinguis.";
 "nova.quickSuggestions" = "Suggeriments Ràpids";
 "nova.typing" = "Nova està escrivint...";
+"nova.chat.encryptionNotice" = "Els missatges estan protegits amb xifratge d'extrem a extrem. Ningú fora d'aquesta conversa els pot llegir, ni tan sols Moments.";
+"nova.image.fallbackPrompt" = "Què hi ha en aquesta imatge?";
+"nova.error.generic" = "Alguna cosa ha fallat. Torna-ho a provar.";
 
 /* Nova Language Selection */
 "nova.select_language_title" = "Tria el teu idioma";
@@ -718,6 +731,8 @@
 "settings.privacy.hideFollowers" = "Amagar els meus seguidors";
 "settings.privacy.hideFollowers.description" = "Només tu podràs veure qui et segueix";
 "settings.privacy.hideFollowers.description.visible" = "Altres persones poden veure qui et segueix";
+"nova.confirm.field.showFollowers" = "Mostrar seguidors";
+"nova.confirm.field.showMutuals" = "Mostrar mútues";
 "settings.privacy.control.description" = "Quan activis aquestes opcions, altres usuaris no podran veure aquestes llistes al teu perfil. Sempre podràs canviar aquestes configuracions.";
 "settings.privacy.readReceipts.title" = "Confirmacions de lectura";
 "settings.privacy.readReceipts.description" = "Si desactives les confirmacions de lectura, no podràs veure les de les altres persones.";
@@ -936,7 +951,7 @@
 /* Chat */
 "chat.moment.loadError" = "No s'ha pogut carregar el moment";
 "chat.input.placeholder" = "Missatge...";
-"chat.input.vanish.placeholder" = "Missatge que desapareix...";
+"chat.input.vanish.placeholder" = "Missatge temporal...";
 "chat.input.attach.accessibility" = "Adjuntar contingut";
 "chat.input.voice.accessibility" = "Gravar nota de veu";
 "chat.attach.sendMedia.one" = "Enviar 1";
@@ -945,23 +960,21 @@
 "chat.attach.location" = "Ubicació";
 "chat.attach.buzz" = "Brunzit";
 "chat.buzz.sent" = "Has enviat un brunzit";
-"chat.vanish.swipe.hint" = "Llisca cap amunt per activar missatges que desapareixen";
-"chat.vanish.swipe.hint.off" = "Llisca cap amunt per desactivar missatges que desapareixen";
-"chat.vanish.swipe.release" = "Deixa anar per activar missatges que desapareixen";
-"chat.vanish.swipe.release.off" = "Deixa anar per desactivar missatges que desapareixen";
-"chat.vanish.notice.enabled.prefix" = "Has activat els missatges que desapareixen. Els missatges i reaccions nous desapareixeran";
-"chat.vanish.notice.enabled.prefix.self" = "Has activat els missatges que desapareixen. Els missatges i reaccions nous desapareixeran";
-"chat.vanish.notice.enabled.prefix.other" = "%@ ha activat els missatges que desapareixen. Els missatges i reaccions nous desapareixeran";
+"chat.vanish.swipe.hint" = "Llisca cap amunt per activar missatges temporals";
+"chat.vanish.swipe.hint.off" = "Llisca cap amunt per desactivar missatges temporals";
+"chat.vanish.swipe.release" = "Deixa anar per activar missatges temporals";
+"chat.vanish.swipe.release.off" = "Deixa anar per desactivar missatges temporals";
 "chat.vanish.notice.duration.onceSeen" = "quan tothom els hagi vist";
 "chat.vanish.notice.duration.24h" = "24 hores després que tothom els hagi vist";
 "chat.vanish.notice.duration.7d" = "7 dies després que tothom els hagi vist";
-"chat.vanish.notice.enabled.suffix" = ".";
+"chat.vanish.notice.enabled.self.format" = "Has activat els missatges temporals. Els missatges i reaccions nous desapareixeran %@.";
+"chat.vanish.notice.enabled.other.format" = "%1$@ ha activat els missatges temporals. Els missatges i reaccions nous desapareixeran %2$@.";
 "chat.vanish.notice.change" = "Canviar";
-"chat.vanish.notice.disabled" = "Has desactivat els missatges que desapareixen.";
-"chat.vanish.notice.preview.enabled" = "Els missatges que desapareixen estan activats";
-"chat.vanish.notice.preview.disabled" = "Els missatges que desapareixen estan desactivats";
-"chat.vanish.notice.disabled.self" = "Has desactivat els missatges que desapareixen.";
-"chat.vanish.notice.disabled.other" = "%@ ha desactivat els missatges que desapareixen.";
+"chat.vanish.notice.disabled" = "Has desactivat els missatges temporals.";
+"chat.vanish.notice.preview.enabled" = "Els missatges temporals estan activats";
+"chat.vanish.notice.preview.disabled" = "Els missatges temporals estan desactivats";
+"chat.vanish.notice.disabled.self" = "Has desactivat els missatges temporals.";
+"chat.vanish.notice.disabled.other" = "%@ ha desactivat els missatges temporals.";
 "chat.vanish.notice.turnOn" = "Activar";
 "chat.vanish.timer.sheet.title" = "Temporitzador de missatges";
 "chat.vanish.timer.off" = "Desactivat";
@@ -970,8 +983,8 @@
 "chat.vanish.timer.7d" = "7 dies";
 "chat.vanish.screenshot" = "S'ha fet una captura de pantalla";
 "chat.vanish.screenRecording" = "Has enregistrat la pantalla.";
-"chat.vanish.active.accessibility" = "Missatges que desapareixen actius";
-"chat.vanish.inactive.accessibility" = "Llisca cap amunt per activar missatges que desapareixen";
+"chat.vanish.active.accessibility" = "Missatges temporals actius";
+"chat.vanish.inactive.accessibility" = "Llisca cap amunt per activar missatges temporals";
 "chat.buzz.received" = "%@ t'ha enviat un brunzit";
 "chat.buzz.cooldown" = "Espera una mica abans d'enviar un altre brunzit";
 "chat.draft.preview" = "Esborrany: %@";
@@ -1133,6 +1146,11 @@
 "chat.preview.sharedMoment" = "Moment compartit";
 "chat.preview.viewOncePhoto" = "Foto (veure una vegada)";
 "chat.preview.viewOnceVideo" = "Vídeo (veure una vegada)";
+"chat.preview.viewOnceTapPhoto" = "Veure la foto";
+"chat.preview.viewOnceTapVideo" = "Veure el vídeo";
+"chat.viewOnce.inboxAction" = "Reprodueix";
+"chat.preview.viewOnceSentPhoto" = "Ha enviat una foto";
+"chat.preview.viewOnceSentVideo" = "Ha enviat un vídeo";
 "chat.preview.text" = "Missatge nou";
 "chat.status.sending" = "Enviant";
 "chat.status.sent" = "Enviat";
@@ -1266,6 +1284,7 @@
 /* Audience Descriptions */
 "audience.description.everyone" = "Qualsevol persona pot veure aquest contingut";
 "audience.description.connections" = "Només les persones que segueixes i et segueixen";
+"audience.description.mutuals" = "Només les persones que segueixes i et segueixen";
 "audience.description.bestFriends" = "Només la teva llista de millors amics";
 "audience.description.custom" = "Tria persones específiques";
 "audience.description.customList" = "Utilitzar una llista personalitzada";
@@ -1828,6 +1847,12 @@
 "savedMoments.sort.oldest" = "Antics";
 "savedMoments.sort.author" = "Autor";
 "savedMoments.search.placeholder" = "Cerca per usuari, text o ubicacio";
+"savedMoments.filters.button" = "Filtres";
+"savedMoments.filters.title" = "Filtres";
+"savedMoments.filters.sort" = "Ordenar";
+"savedMoments.filters.contains" = "Conté";
+"savedMoments.filters.apply" = "Aplicar";
+"savedMoments.filters.reset" = "Restablir";
 "savedMoments.filter.media.all" = "Tot";
 "savedMoments.filter.media.photos" = "Fotos";
 "savedMoments.filter.media.videos" = "Videos";
@@ -3087,6 +3112,8 @@
 "notification.message.single.video" = "T'ha enviat un vídeo 🎥";
 "notification.message.single.audio" = "T'ha enviat un àudio 🎵";
 "notification.message.single.viewOnce" = "T'ha enviat un missatge";
+"notification.message.viewOncePhoto" = "T'ha enviat una foto";
+"notification.message.viewOnceVideo" = "T'ha enviat un vídeo";
 "notification.message.single.moment" = "T'ha enviat un moment 📸";
 "notification.message.single.default" = "T'ha enviat un missatge";
 "notification.message.single.storyMention" = "T'ha mencionat a la seva història";
@@ -3232,6 +3259,7 @@
 "profile.ui.followers" = "Seguidors";
 "profile.ui.following" = "Seguint";
 "profile.ui.mutuals" = "Mútues";
+"profile.ui.inCommon" = "En comú";
 
 /* Messaging Errors */
 "messaging.error.startConversationFailed" = "No s'ha pogut iniciar la conversa. Torna-ho a provar.";
@@ -3337,7 +3365,9 @@
 "userActivity.simple.comments.confirm.delete.message" = "Vols eliminar els comentaris seleccionats?";
 "userActivity.simple.comments.success.delete" = "Comentaris eliminats";
 "userActivity.simple.recentlyDeleted.restore.single" = "Restaurar";
+"userActivity.simple.recentlyDeleted.restore.multiple" = "Restaurar";
 "userActivity.simple.recentlyDeleted.delete.single" = "Eliminar permanentment";
+"userActivity.simple.recentlyDeleted.delete.multiple" = "Eliminar permanentment";
 "userActivity.simple.recentlyDeleted.confirm.restore.title" = "Restaurar contingut";
 "userActivity.simple.recentlyDeleted.confirm.restore.message" = "Vols restaurar el contingut seleccionat?";
 "userActivity.simple.recentlyDeleted.confirm.delete.title" = "Eliminar permanentment";
@@ -3353,6 +3383,8 @@
 "userActivity.event.archived.confirm.restore.title" = "Restaurar arxivats";
 "userActivity.event.archived.confirm.restore.message" = "Vols restaurar el contingut arxivat seleccionat?";
 "userActivity.event.archived.success.restore" = "Contingut arxivat restaurat";
+"userActivity.event.archived.processing.restore" = "Restaurant arxivats";
+"userActivity.event.archived.processingButton.restore" = "Restaurant…";
 "userActivity.simple.stickers.confirm.delete.title" = "Eliminar respostes";
 "userActivity.simple.stickers.confirm.delete.message" = "Vols eliminar les respostes seleccionades?";
 "userActivity.simple.stickers.success.delete" = "Respostes eliminades";
@@ -3681,9 +3713,11 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 /* Social Connections */
 "socialConnections.tab.visits" = "%@ visites";
 "socialConnections.tab.followers" = "%@ seguidors";
+"socialConnections.tab.inCommon" = "%@ en comú";
 "socialConnections.tab.following" = "%@ seguint";
 "socialConnections.tab.mutuals" = "%@ mútues";
 "socialConnections.sort.by" = "Ordenar per";
+"socialConnections.common.section.people" = "Persones en comú";
 "socialConnections.sort.default" = "Predeterminat";
 "socialConnections.sort.alphabetical" = "Alfabètic";
 "socialConnections.sort.newest" = "Més recents";
@@ -3694,11 +3728,20 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "socialConnections.category.leastInteracted" = "Menys interacció";
 "socialConnections.category.mostShownInFeed" = "Més vistos al feed";
 "socialConnections.menu.sharedActivity" = "Veure activitat compartida";
+"socialConnections.menu.mute" = "Silenciar";
+"socialConnections.menu.unmute" = "Deixar de silenciar";
 "socialConnections.removeFollower" = "Suprimir";
 "socialConnections.removeFollower.confirm.title" = "Suprimir seguidor?";
 "socialConnections.removeFollower.confirm.message" = "%@ deixarà de seguir-te a Moments.";
 "socialConnections.newPosts.single" = "1 publicació nova";
 "socialConnections.newPosts.multiple" = "%d publicacions noves";
+"sharedActivity.title" = "Activitat compartida";
+"sharedActivity.youAndUser" = "Tu i %@";
+"sharedActivity.subtitle" = "Consulta la teva activitat amb %@ i gestiona les interaccions.";
+"sharedActivity.timeline.followedYou" = "%1$@ et segueix des de %2$@";
+"sharedActivity.timeline.youFollowed" = "Segueixes %1$@ des de %2$@";
+"sharedActivity.modules.likes" = "M'agrada";
+"sharedActivity.modules.placeholder" = "Aquesta secció arribarà aviat a Moments.";
 "userProfile.blockedByMe.title" = "Usuari bloquejat";
 "userProfile.blockedByMe.description" = "Has bloquejat aquesta persona. No pot enviar-te missatges ni interactuar amb tu.";
 "chat.blockedByMe.subtitle" = "Bloquejat";
@@ -3880,6 +3923,7 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "reveal.subtitle" = "Crea una capa que els teus amics hauran de rascar per veure la història";
 "reveal.addLayer" = "AFEGIR CAPA";
 "reveal.viewerHint" = "Rasca per descobrir";
+"reveal.skip" = "Ometre";
 "storyEditor.polaroid.addNote" = "Afegeix una nota...";
 
 "stickerview.category.audio" = "Àudio";
@@ -4137,6 +4181,9 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "notificationType.mutualConnection" = "Connexions mútues";
 "notificationType.storyReaction" = "Reacció a història";
 "notificationType.message" = "Missatges";
+"notificationType.messageReaction" = "Reaccions a missatges";
+"notificationType.chatBuzz" = "Brunzits";
+"notificationType.gentleReminder" = "Recordatoris diaris";
 "notificationType.photoTag" = "Etiquetes a fotos";
 "notificationType.echoSuggestion" = "Suggeriment d'Echo";
 "notificationType.dataExportReady" = "Exportació de dades";
@@ -4157,6 +4204,7 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "share.storyDenied.private" = "Segueix aquesta persona per veure les seves històries.";
 "share.storyDenied.restricted" = "No tens permís per veure aquesta història.";
 "chat.preview.sharedStory" = "Història compartida";
+"share.profile.sendInChat" = "Enviar a Moments";
 "chat.preview.sharedProfile" = "Shared profile";
 "chat.preview.storyKind" = "Història";
 "chat.preview.reelKind" = "Reel";
@@ -4230,6 +4278,7 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "messaging.message.unsupportedFile" = "Tipus de fitxer no compatible";
 "messaging.message.fileTooLarge" = "El fitxer és massa gran";
 "messaging.message.connectionError" = "Error de connexió";
+"messaging.message.undecryptable" = "No es pot mostrar aquest missatge";
 "messaging.request.status.pending" = "Pendent";
 "messaging.request.status.accepted" = "Acceptada";
 "messaging.request.status.rejected" = "Rebutjada";
@@ -4477,6 +4526,7 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "permission.notifications.mock.now" = "ara";
 "permission.notifications.mock.sender" = "Alex";
 "permission.notifications.mock.body" = "t'ha enviat un moment ✨";
+"permission.tracking.primer.notNow" = "Ara no";
 "permission.tracking.denied.title" = "El seguiment està desactivat";
 "permission.tracking.denied.subtitle" = "Activa el seguiment a Configuració › Privadesa › Seguiment per veure anuncis més rellevants.";
 "permission.tracking.denied.openSettings" = "Obre Configuració";
@@ -4872,6 +4922,14 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "notification.chatSummary.single" = "Missatge nou";
 "notification.chatSummary.multiple" = "%@ missatges nous";
 "notification.group.untitled" = "Grup";
+"storyEditor.toolbar.text" = "Text";
+"storyEditor.toolbar.stickers" = "Adhesius";
+"storyEditor.toolbar.draw" = "Dibuixar";
+"storyEditor.toolbar.filters" = "Filtres";
+"storyEditor.toolbar.mute" = "Silenciar vídeo";
+"storyEditor.toolbar.unmute" = "Activar so";
+"storyEditor.toolbar.chain" = "Crear cadena";
+"storyEditor.toolbar.duration" = "Durada";
 "whatsNew.section230.title" = "Moments 2.30";
 "whatsNew.groups.title" = "Grups";
 "whatsNew.groups.description" = "Xats de grup al mateix inbox, amb foto, invitacions, rols d'administració i mute.";
@@ -5065,3 +5123,22 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "settings.group.profileContent" = "Perfil i contingut";
 
 "settings.group.messagingPrivacy" = "Missatges i interaccions";
+"whatsNew.section231.title" = "Moments 2.31";
+"whatsNew.duo231.title" = "Fet per a l'iPhone Duo";
+"whatsNew.duo231.description" = "Feed i comentaris, safata i conversa, o graella i detall: cadascun a la seva pantalla. En obrir o tancar el Duo continues on eres.";
+"whatsNew.storyPublish231.title" = "Abans de publicar la teva història";
+"whatsNew.storyPublish231.description" = "Una pantalla nova amb la vista prèvia i les seves opcions: qui la veu, 24 o 48 hores, i si admet missatges, reaccions i respostes.";
+"whatsNew.originalAudio231.title" = "Àudio original";
+"whatsNew.originalAudio231.description" = "Desa l'àudio d'històries públiques i reutilitza'l des de Desats a l'adhesiu d'àudio. Tu decideixes si el teu es pot reutilitzar.";
+"whatsNew.chatStyle231.title" = "Xats al teu estil";
+"whatsNew.chatStyle231.description" = "Fons amb fotos, colors o temes, intensitat ajustable i el color de les teves bombolles. Només ho veus tu.";
+"whatsNew.chatMedia231.title" = "Fotos, vídeos i respostes";
+"whatsNew.chatMedia231.description" = "Miniatures amb la seva proporció real, un botó de reproducció més visible, zoom amb dos dits i respostes amb una vista prèvia del que cites.";
+"whatsNew.maps231.title" = "Mapes renovats";
+"whatsNew.maps231.description" = "Moments i històries agrupats per lloc, i tornada al mapa sense perdre el context.";
+"whatsNew.banner231.title" = "Avisos més clars";
+"whatsNew.banner231.description" = "Un bàner renovat amb progrés, confirmacions i l'opció de desfer algunes accions.";
+"whatsNew.settings231.title" = "Configuració i audiències";
+"whatsNew.settings231.description" = "Configuració ordenada per perfil, contingut, missatges i compte, i llistes d'audiència més còmodes de gestionar.";
+"whatsNew.fluid231.title" = "Més fluid";
+"whatsNew.fluid231.description" = "La teva música continua sonant mentre navegues per contingut silenciat, i els xats, les històries i l'arxiu carreguen amb més fluïdesa.";
