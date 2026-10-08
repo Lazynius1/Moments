@@ -70,6 +70,23 @@ class AuthService: ObservableObject {
             .evaluate(with: email.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
+    /// Idioma de la app para los correos de cuenta (la plantilla se elige en la Cloud Function).
+    static var accountEmailLocale: String {
+        Bundle.main.preferredLocalizations.first ?? "en"
+    }
+
+    /// Email de verificación con la plantilla propia (Cloud Function `sendAccountEmail`).
+    /// Si la función falla, se envía el correo estándar de Firebase Auth para no dejar al usuario sin él.
+    static func sendVerificationEmail(to user: User, name: String? = nil) {
+        var payload: [String: Any] = ["kind": "verify", "locale": accountEmailLocale]
+        if let name, !name.isEmpty { payload["name"] = name }
+        Functions.functions(region: "europe-southwest1")
+            .httpsCallable("sendAccountEmail")
+            .call(payload) { _, error in
+                if error != nil { user.sendEmailVerification { _ in } }
+            }
+    }
+
     /// ¿Hay ya una cuenta con este correo? Lo responde la Cloud Function
     /// `checkEmailAvailable` (Firebase Auth). Permite avisar en el propio paso del
     /// correo en vez de dejar que el registro falle al final, al pulsar "crear cuenta".
@@ -1899,7 +1916,7 @@ class AuthService: ObservableObject {
                             return
                         }
 
-                        user.sendEmailVerification { _ in }
+                        Self.sendVerificationEmail(to: user, name: username)
                         finalizeRegistration(user, user.uid)
                     }
                 }
@@ -2122,13 +2139,24 @@ class AuthService: ObservableObject {
         }
 
         func resetPassword(email: String, completion: @escaping (Result<Void, Error>) -> Void) {
-            Auth.auth().sendPasswordReset(withEmail: email) { error in
-                if let error = error {
-                    completion(.failure(self.mapAuthError(error)))
-                } else {
-                    completion(.success(()))
+            let clean = email.trimmingCharacters(in: .whitespacesAndNewlines)
+            Functions.functions(region: "europe-southwest1")
+                .httpsCallable("sendAccountEmail")
+                .call(["kind": "reset", "email": clean, "locale": Self.accountEmailLocale]) { [weak self] _, error in
+                    guard let self else { return }
+                    if error == nil {
+                        completion(.success(()))
+                        return
+                    }
+                    // Función caída o sin desplegar: correo estándar de Firebase Auth.
+                    Auth.auth().sendPasswordReset(withEmail: clean) { error in
+                        if let error = error {
+                            completion(.failure(self.mapAuthError(error)))
+                        } else {
+                            completion(.success(()))
+                        }
+                    }
                 }
-            }
         }
 
         func fetchAvailableInterests(completion: @escaping (Result<[String], Error>) -> Void) {
@@ -2352,7 +2380,7 @@ class AuthService: ObservableObject {
                 }
 
                 self?.currentFirebaseUser = Auth.auth().currentUser
-                user.sendEmailVerification(completion: nil)
+                Self.sendVerificationEmail(to: user)
                 self?.updateUserField("email", value: normalizedEmail) { _ in }
                 completion(.success(()))
             }
