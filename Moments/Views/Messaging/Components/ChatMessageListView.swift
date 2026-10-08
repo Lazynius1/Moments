@@ -1856,9 +1856,10 @@ private extension ChatRenderRow {
             hasher.combine(9)
             hasher.combine(messageCount)
             hasher.combine(limitReached)
-        case .header(let date):
+        case .header(let day, let firstMessageAt):
             hasher.combine(0)
-            hasher.combine(date.timeIntervalSinceReferenceDate)
+            hasher.combine(day.timeIntervalSinceReferenceDate)
+            hasher.combine(firstMessageAt.timeIntervalSinceReferenceDate)
         case .message(let item):
             hasher.combine(1)
             hasher.combine(item.visualSignature)

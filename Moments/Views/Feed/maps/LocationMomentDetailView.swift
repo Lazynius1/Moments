@@ -770,7 +770,7 @@ struct LocationMomentCard: View {
                 }
                 .buttonStyle(.plain)
 
-                Text(moment.timestamp.timeAgoDisplay())
+                Text(MomentsFormat.smartDate(from: moment.timestamp, context: .feedTimestamp))
                     .font(.system(size: legacyPoppinsSize(11)))
                     .foregroundStyle(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.75))
             }

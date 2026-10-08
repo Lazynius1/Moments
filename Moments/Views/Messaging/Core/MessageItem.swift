@@ -22,7 +22,8 @@ enum ChatRenderRow: Identifiable {
     case pendingRequestMessage(PendingChatTimelineMessage)
     case incomingRequestActions(isLoading: Bool)
     case outgoingRequestControls(messageCount: Int, limitReached: Bool)
-    case header(Date)
+    /// Día (identidad estable) y hora del primer mensaje (texto del separador).
+    case header(Date, firstMessageAt: Date)
     case message(MessageItem)
     case buzz(ChatBuzzEvent)
     case typing
@@ -37,7 +38,7 @@ enum ChatRenderRow: Identifiable {
         case .pendingRequestMessage(let message): return "row:pending-request:\(message.id)"
         case .incomingRequestActions: return "row:synthetic:incoming-request-actions"
         case .outgoingRequestControls: return "row:synthetic:outgoing-request-controls"
-        case .header(let date): return "row:header:\(date.timeIntervalSince1970)"
+        case .header(let day, _): return "row:header:\(day.timeIntervalSince1970)"
         case .message(let item): return "row:message:\(item.id)"
         case .buzz(let event): return "row:buzz:\(event.id)"
         case .typing: return "row:synthetic:typing-indicator"

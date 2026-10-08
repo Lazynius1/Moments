@@ -11,7 +11,8 @@ enum ChatRowHeightEstimator {
 
     private static let photoVideoHeight: CGFloat = 272
     private static let stickerSize: CGFloat = 140
-    private static let voiceNoteHeight: CGFloat = 68
+    /// Tarjeta de nota de voz: 10 + fila 24 + 1 + tiempo 13 + 10 = 58.
+    private static let voiceNoteHeight: CGFloat = VoiceMessageLayout.cardHeight
     private static let locationHeight: CGFloat = 217
     private static let liveLocationExtraHeight: CGFloat = 40
     private static let fileHeight: CGFloat = 72

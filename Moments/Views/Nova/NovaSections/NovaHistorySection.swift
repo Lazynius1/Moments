@@ -166,7 +166,7 @@ struct ConversationHistoryItem: View {
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
-                    Text(conversation.lastUpdated.timeAgoDisplay())
+                    Text(MomentsFormat.relativeTime(from: conversation.lastUpdated, style: .long))
                         .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundStyle(NovaColors.textSecondary)
 

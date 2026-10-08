@@ -39,7 +39,7 @@ class MomentsChatViewModel: EnhancedChatViewModel {
         func flushDay() {
             guard let day = currentDay, !dayBucket.isEmpty else { return }
             grouped.append((day, dayBucket))
-            rows.append(.header(day))
+            rows.append(.header(day, firstMessageAt: dayBucket[0].timestamp))
             for item in ClusterMessageGrouper.group(dayBucket) {
                 rows.append(.message(item))
             }

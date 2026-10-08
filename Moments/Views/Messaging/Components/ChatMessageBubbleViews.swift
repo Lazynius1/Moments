@@ -936,7 +936,7 @@ struct LinkPreviewCard: View {
 
     private var hostColor: Color {
         if embedded && isOutgoing { return outgoingTextColor.opacity(0.85) }
-        return .blue
+        return AdaptiveColors(colorScheme: colorScheme).receivedAccent(from: chatOutgoingBubbleColor)
     }
 
     private var panelBackground: Color {

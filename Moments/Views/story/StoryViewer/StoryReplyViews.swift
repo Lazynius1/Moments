@@ -40,6 +40,7 @@ struct StoryReplyMessageBubble: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
 
     private var previewSize: CGSize {
         StoryReplyPreviewMetrics.size(chatListWidth: chatListContainerWidth)
@@ -97,7 +98,10 @@ struct StoryReplyMessageBubble: View {
     private func storyReplyThreadedColumn(storyReplyData: [String: String]) -> some View {
         let threadSpacing: CGFloat = 10
         let messageInset = 2.5 + threadSpacing
-        let lineColor = adaptiveColors.replyBarSecondaryText.opacity(colorScheme == .dark ? 0.55 : 0.4)
+        // Propias: el hilo toma el color de burbuja del chat.
+        let lineColor = isCurrentUser
+            ? chatOutgoingBubbleColor
+            : adaptiveColors.replyBarSecondaryText.opacity(colorScheme == .dark ? 0.55 : 0.4)
 
         VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 10) {
             HStack(alignment: .top, spacing: threadSpacing) {
@@ -145,26 +149,19 @@ struct StoryTextReplyContent: View {
     let message: EnhancedMessage
     let isCurrentUser: Bool
 
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.chatListContainerWidth) private var chatListContainerWidth
-
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
-
+    /// Misma burbuja que un mensaje de texto: propias con el color del chat,
+    /// recibidas con el fondo neutro (enlaces y menciones incluidos).
     var body: some View {
         if let content = message.content {
             let cleanContent = content.hasPrefix("💬 ") ? String(content.dropFirst(2)) : content
 
-            Text(cleanContent)
-                .font(.system(size: legacyPoppinsSize(15)))
-                .foregroundStyle(adaptiveColors.messageTextColor)
-                .multilineTextAlignment(isCurrentUser ? .trailing : .leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(
-                    maxWidth: ChatBubbleLayoutWidth.maxTextBubbleWidth(chatListWidth: chatListContainerWidth),
-                    alignment: isCurrentUser ? .trailing : .leading
-                )
+            ChatTextBubbleView(
+                text: cleanContent,
+                isOutgoing: isCurrentUser,
+                messageId: message.id,
+                reactions: nil,
+                onReaction: { _ in }
+            )
         }
     }
 }

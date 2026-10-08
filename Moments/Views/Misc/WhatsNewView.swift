@@ -5,33 +5,83 @@ struct WhatsNewView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var appearAnimation = false
 
-    private var features231: [WhatsNewFeature] {
+    private var featuresDuo231: [WhatsNewFeature] {
         [
             WhatsNewFeature(
+                icon: .system("iphone.gen3"),
+                title: NSLocalizedString("whatsNew.duoArrival231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.duoArrival231.description", comment: "")
+            ),
+            WhatsNewFeature(
                 icon: .system("rectangle.split.2x1"),
-                title: NSLocalizedString("whatsNew.duo231.title", comment: ""),
-                description: NSLocalizedString("whatsNew.duo231.description", comment: "")
+                title: NSLocalizedString("whatsNew.duoFeed231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.duoFeed231.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("slider.horizontal.3"),
-                title: NSLocalizedString("whatsNew.storyPublish231.title", comment: ""),
-                description: NSLocalizedString("whatsNew.storyPublish231.description", comment: "")
+                icon: .system("bubble.left.and.bubble.right"),
+                title: NSLocalizedString("whatsNew.duoChats231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.duoChats231.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("music.note"),
-                title: NSLocalizedString("whatsNew.originalAudio231.title", comment: ""),
-                description: NSLocalizedString("whatsNew.originalAudio231.description", comment: "")
+                icon: .system("photo.on.rectangle.angled"),
+                title: NSLocalizedString("whatsNew.duoCreate231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.duoCreate231.description", comment: "")
             ),
+            WhatsNewFeature(
+                icon: .system("camera.viewfinder"),
+                title: NSLocalizedString("whatsNew.duoViewfinder231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.duoViewfinder231.description", comment: "")
+            ),
+        ]
+    }
+
+    private var featuresChat231: [WhatsNewFeature] {
+        [
             WhatsNewFeature(
                 icon: .system("paintpalette"),
                 title: NSLocalizedString("whatsNew.chatStyle231.title", comment: ""),
                 description: NSLocalizedString("whatsNew.chatStyle231.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("photo.on.rectangle"),
-                title: NSLocalizedString("whatsNew.chatMedia231.title", comment: ""),
-                description: NSLocalizedString("whatsNew.chatMedia231.description", comment: "")
+                icon: .system("arrowshape.turn.up.left"),
+                title: NSLocalizedString("whatsNew.replies231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.replies231.description", comment: "")
             ),
+            WhatsNewFeature(
+                icon: .system("play.circle"),
+                title: NSLocalizedString("whatsNew.viewOnce231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.viewOnce231.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("antenna.radiowaves.left.and.right"),
+                title: NSLocalizedString("whatsNew.reliable231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.reliable231.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("lock.iphone"),
+                title: NSLocalizedString("whatsNew.lockPreview231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.lockPreview231.description", comment: "")
+            ),
+        ]
+    }
+
+    private var featuresStories231: [WhatsNewFeature] {
+        [
+            WhatsNewFeature(
+                icon: .system("slider.horizontal.3"),
+                title: NSLocalizedString("whatsNew.storyPublish231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.storyPublish231.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("waveform"),
+                title: NSLocalizedString("whatsNew.originalAudio231.title", comment: ""),
+                description: NSLocalizedString("whatsNew.originalAudio231.description", comment: "")
+            ),
+        ]
+    }
+
+    private var featuresMore231: [WhatsNewFeature] {
+        [
             WhatsNewFeature(
                 icon: .system("map"),
                 title: NSLocalizedString("whatsNew.maps231.title", comment: ""),
@@ -58,8 +108,20 @@ struct WhatsNewView: View {
     private var sections: [WhatsNewSection] {
         [
             WhatsNewSection(
-                title: NSLocalizedString("whatsNew.section231.title", comment: ""),
-                features: features231
+                title: NSLocalizedString("whatsNew.sectionDuo231", comment: ""),
+                features: featuresDuo231
+            ),
+            WhatsNewSection(
+                title: NSLocalizedString("whatsNew.sectionChat231", comment: ""),
+                features: featuresChat231
+            ),
+            WhatsNewSection(
+                title: NSLocalizedString("whatsNew.sectionStories231", comment: ""),
+                features: featuresStories231
+            ),
+            WhatsNewSection(
+                title: NSLocalizedString("whatsNew.sectionMore231", comment: ""),
+                features: featuresMore231
             ),
         ]
     }
@@ -81,7 +143,9 @@ struct WhatsNewView: View {
                                         .textCase(.uppercase)
                                         .tracking(0.6)
                                         .padding(.horizontal, 4)
-                                        .padding(.top, sectionIndex == 0 ? 0 : 4)
+                                        .padding(.top, sectionIndex == 0 ? 0 : 8)
+                                        .accessibilityAddTraits(.isHeader)
+                                        .opacity(appearAnimation ? 1 : 0)
                                 }
 
                                 ForEach(Array(section.features.enumerated()), id: \.offset) { featureIndex, feature in

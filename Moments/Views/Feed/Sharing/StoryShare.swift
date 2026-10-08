@@ -573,6 +573,7 @@ struct SharedStoryMessageBubble: View {
                 .padding(.vertical, 4)
             }
         }
+        .environment(\.chatCardIsOutgoing, isCurrentUser)
         .onAppear {
             validateAccess()
         }
@@ -690,6 +691,8 @@ enum StoryShareCardMetrics {
 private struct SharedStoryPreviewSkeleton: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+    @Environment(\.chatCardIsOutgoing) private var isOutgoing
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
 
     private var cardSize: CGSize {
         StoryShareCardMetrics.size(chatListWidth: chatListContainerWidth)
@@ -697,7 +700,7 @@ private struct SharedStoryPreviewSkeleton: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: StoryShareCardMetrics.cornerRadius, style: .continuous)
-            .fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.12))
+            .fill(isOutgoing ? chatOutgoingBubbleColor.opacity(0.35) : Color.white.opacity(colorScheme == .dark ? 0.08 : 0.12))
             .frame(width: cardSize.width, height: cardSize.height)
             .overlay {
                 ProgressView()
@@ -781,6 +784,8 @@ struct StoryPreviewCard: View {
     let story: Story?
 
     @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+    @Environment(\.chatCardIsOutgoing) private var isOutgoing
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
 
     private var cardSize: CGSize {
         StoryShareCardMetrics.size(chatListWidth: chatListContainerWidth)
@@ -837,6 +842,10 @@ struct StoryPreviewCard: View {
         }
         .frame(width: cardSize.width, height: cardSize.height)
         .clipShape(RoundedRectangle(cornerRadius: StoryShareCardMetrics.cornerRadius, style: .continuous))
+        .chatOutgoingCardBorder(
+            isOutgoing ? chatOutgoingBubbleColor : nil,
+            cornerRadius: StoryShareCardMetrics.cornerRadius
+        )
     }
 }
 

@@ -100,7 +100,7 @@ struct ModernExploreDetailHeader: View {
                                 .font(.system(size: legacyPoppinsSize(10)))
                                 .foregroundStyle(.secondary.opacity(0.7))
 
-                            Text(moment.timestamp.timeAgoDisplay())
+                            Text(MomentsFormat.smartDate(from: moment.timestamp, context: .feedTimestamp))
                                 .font(.system(size: legacyPoppinsSize(10)))
                                 .foregroundStyle(.secondary.opacity(0.7))
                         }

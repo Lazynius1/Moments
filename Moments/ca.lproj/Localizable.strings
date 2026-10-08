@@ -584,18 +584,9 @@
 "appeal.understood" = "Entès";
 
 /* Time */
-"time.ago" = "fa %@";
 "time.viewed" = "Va veure fa %@";
 "time.reacted" = "Va reaccionar fa %@";
 "time.relative" = "%@";
-"time.unit.yr" = "any";
-"time.unit.yrs" = "anys";
-"time.unit.mo" = "mes";
-"time.unit.mos" = "mesos";
-"time.unit.wk" = "setm.";
-"time.unit.d" = "d";
-"time.unit.h" = "h";
-"time.unit.min" = "min";
 "time.now" = "ara";
 
 /* Nova AI */
@@ -1043,6 +1034,7 @@
 "chat.audio.unavailable" = "Àudio no disponible";
 "chat.audio.duration.accessibility" = "Durada %@";
 "chat.audio.scrub.accessibility" = "Progrés del missatge de veu";
+"chat.audio.scrub.value" = "%1$@ de %2$@";
 "chat.loading" = "Carregant...";
 "chat.close" = "Tancar";
 "chat.replying" = "Responent";
@@ -1157,6 +1149,11 @@
 "chat.status.delivered" = "Lliurat";
 "chat.status.read" = "Llegit";
 "chat.seen" = "Vist";
+"chat.seen.ago" = "Vist fa %@";
+"chat.seen.justNow" = "Vist ara mateix";
+"chat.seen.at.today" = "Vist avui, %@";
+"chat.seen.at.yesterday" = "Vist ahir, %@";
+"chat.seen.at.date" = "Vist el %@";
 "chat.status.failed" = "Ha fallat";
 "chat.notification.viewOncePrompt" = "T'ha enviat un missatge";
 "chat.preview.newConversation" = "Nova conversa";
@@ -2883,8 +2880,8 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novetats de Moments!";
-"whatsNew.subtitle" = "Per fi grups — i un Per a Tu més personal, un xat més cuidat i Echoes i històries més polits.";
-"whatsNew.button" = "Explora Moments 2.30";
+"whatsNew.subtitle" = "Moments arriba a l’iPhone Duo! Hem redissenyat Moments per treure tot el partit de les seves dues pantalles.";
+"whatsNew.button" = "Explora Moments 2.31";
 /* Best Friends */
 "bestFriends.title" = "Millors Amics";
 "bestFriends.empty.title" = "Sense millors amics";
@@ -3858,8 +3855,6 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "chat.deleted.file" = "Arxiu eliminat";
 "chat.deleted.location" = "Ubicació eliminada";
 "chat.deleted.ephemeral" = "Moment efímer eliminat";
-"chat.date.today" = "Avui";
-"chat.date.yesterday" = "Ahir";
 "chat.error.invalidConversation.text" = "No es pot enviar el missatge: ID de conversa no vàlid";
 "chat.error.invalidConversation.image" = "No es pot enviar la imatge: ID de conversa no vàlid";
 "chat.error.invalidConversation.audio" = "No es pot enviar l'àudio: ID de conversa no vàlid";
@@ -4205,7 +4200,7 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "share.storyDenied.restricted" = "No tens permís per veure aquesta història.";
 "chat.preview.sharedStory" = "Història compartida";
 "share.profile.sendInChat" = "Enviar a Moments";
-"chat.preview.sharedProfile" = "Shared profile";
+"chat.preview.sharedProfile" = "Perfil compartit";
 "chat.preview.storyKind" = "Història";
 "chat.preview.reelKind" = "Reel";
 "chat.menu.details" = "Configuracio de la conversa";
@@ -4533,79 +4528,19 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 
 // MARK: - What's New 2.22
 
-"whatsNew.section222.title" = "Moments 2.22";
 
-"whatsNew.replyInChat.title" = "Respondre al xat";
-"whatsNew.replyInChat.description" = "Llisca a la bombolla per respondre. Toca una cita per saltar al missatge original.";
-"whatsNew.quotePreviews.title" = "Cites al xat";
-"whatsNew.quotePreviews.description" = "Les respostes mostren miniatura quan cites un moment, story o perfil.";
-"whatsNew.chatTimestamps.title" = "Hores al xat";
-"whatsNew.chatTimestamps.description" = "Llisca horitzontalment en una fila per veure l'hora, també als teus missatges enviats.";
-"whatsNew.composerVoice.title" = "Entrada de missatge";
-"whatsNew.composerVoice.description" = "Compositor renovat i notes de veu més fluides, amb animació més clara en cancel·lar.";
 
 // MARK: - What's New 2.21
 
-"whatsNew.richChat.title" = "Un xat amb més expressió";
-"whatsNew.notificationsAndMentions.title" = "Notificacions i mencions";
-"whatsNew.notificationsAndMentions.description" = "Els avisos de xat i activitat social són més clars, i les mencions en històries arriben directament a la conversa.";
-"whatsNew.richChat.description" = "Dona format al text, amaga spoilers i toca mencions per obrir perfils. Respondre i editar també és més clar.";
-"whatsNew.feedCaptions.title" = "Textos que encaixen";
-"whatsNew.feedCaptions.description" = "Veure'n més apareix només quan cal i obre el text complet sense perdre el lloc.";
-"whatsNew.reelComments.title" = "Comentaris amb el Reel";
-"whatsNew.reelComments.description" = "El vídeo deixa lloc als comentaris, el compositor es manté visible i les respostes se segueixen millor.";
-"whatsNew.morePersonal.title" = "Més teu";
-"whatsNew.morePersonal.description" = "Més interessos, 8 idiomes nous i transicions més fluides en perfils, QR i l'arxiu d'històries.";
 
-"whatsNew.section221.title" = "Moments 2.21";
 
-"whatsNew.messageRequestThreads.title" = "Sol·licituds de missatge";
-"whatsNew.messageRequestThreads.description" = "Fins a 5 missatges per conversa mentre esperes, i 10 al dia per evitar spam. Carpetes de Sol·licituds, Antigues i Ocultes, i filtres de paraules ocultes al dispositiu.";
-"whatsNew.shareInChat.title" = "Compartir al xat";
-"whatsNew.shareInChat.description" = "Moments, històries, reels i perfils arriben com a fitxes a la conversa, amb preview enriquit — toca per obrir.";
-"whatsNew.sharedProfilePrivacy.title" = "Privacitat en viu";
-"whatsNew.sharedProfilePrivacy.description" = "Les fitxes de perfil compartit tornen a comprovar bloquejos i audiència per a qui les veu.";
-"whatsNew.shareConfirmation.title" = "Confirmació en compartir";
-"whatsNew.shareConfirmation.description" = "En enviar un moment, story, reel o perfil per xat, veus una confirmació abans de tancar el selector.";
 
 // MARK: - What's New 2.20
 
-"whatsNew.section220.title" = "Moments 2.20";
-"whatsNew.section219.title" = "Moments 2.19";
 
-"whatsNew.profilePreview.title" = "Preview de perfil";
-"whatsNew.profilePreview.description" = "Mantén premut l'avatar o el nom d'un post per veure una previsualització del perfil.";
-"whatsNew.storyPreview.title" = "Preview d'històries";
-"whatsNew.storyPreview.description" = "Mantén premut l'anell per veure una previsualització. En tocar, s'obre a pantalla completa i reprèn just on ho vas deixar.";
-"whatsNew.feedToggle.title" = "Selector del feed";
-"whatsNew.feedToggle.description" = "En obrir Moments, el wordmark es transforma en Following i Discover.";
-"whatsNew.nestedComments.title" = "Comentaris imbricats";
-"whatsNew.nestedComments.description" = "Corregit un error pel qual, de vegades, els comentaris no es mostraven.";
-"whatsNew.chatGestures.title" = "Toca al xat";
-"whatsNew.chatGestures.description" = "Toca una foto o un vídeo per obrir-lo al moment.";
-"whatsNew.chatLongPress.title" = "Mantén premut al xat";
-"whatsNew.chatLongPress.description" = "Nou menú contextual: el missatge s'eleva, veus si s'ha llegit i, amb el menú obert, un toc obre aquella foto, vídeo o ubicació.";
 
 // MARK: - What's New 2.19
 
-"whatsNew.floatingTabBar.title" = "Barra de pestanyes flotant";
-"whatsNew.floatingTabBar.description" = "Nova barra de pestanyes flotant amb vidre líquid. Nova i Messages han canviat de lloc.";
-"whatsNew.chatRecovery.title" = "Recuperació del xat";
-"whatsNew.chatRecovery.description" = "Caixa forta al Keychain amb restauració automàtica, migració QR i avís per sincronitzar el PIN amb iCloud Keychain.";
-"whatsNew.hlsVideo.title" = "Vídeo adaptatiu";
-"whatsNew.hlsVideo.description" = "Reproducció HLS que s'ajusta a la teva connexió al feed, Reels i la resta de vídeos.";
-"whatsNew.reels.title" = "Reels més fluids";
-"whatsNew.reels.description" = "Desplaçament més suau i chrome immersiu polit per veure Reels amb més comoditat.";
-"whatsNew.conversationSettings.title" = "Ajustos de conversa";
-"whatsNew.conversationSettings.description" = "Capçalera hero renovada amb accessos ràpids a galeria, enllaços i emmagatzematge.";
-"whatsNew.messageRequests.title" = "Sol·licituds protegides";
-"whatsNew.messageRequests.description" = "Les sol·licituds de missatge des de perfils queden darrere del teu PIN de xat.";
-"whatsNew.liveLocation.title" = "Ubicació en viu";
-"whatsNew.liveLocation.description" = "Bombolla d'ubicació en temps real i mapa del xat més fiables i polits.";
-"whatsNew.viewOnce.title" = "View-once corregit";
-"whatsNew.viewOnce.description" = "Les fotos d'un sol visionat marquen vist correctament per consumir la media.";
-"whatsNew.note.android.title" = "Moments ja és a Android!";
-"whatsNew.note.android.description" = "Després d'un bon temps al taller, l'app ja està disponible també a Google Play.\n\nTens amics o familiars amb Android? Ja els pots avisar: per fi es poden unir a Moments. Digues-los que busquin l'app a Google Play i que s'hi sumin!\n\nDe tornada a iOS: amb el salt completat, segueixo a tope per aquí (encara que en realitat no em vaig moure). Construïm Moments junts! 🚀";
 "whatsNew.note.closing" = "Gràcies per venir en aquest viatge! ⚡🤖";
 "messageRequests.folder.picker" = "Carpeta";
 "messageRequests.folder.requests" = "Sol·licituds";
@@ -4930,27 +4865,6 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "storyEditor.toolbar.unmute" = "Activar so";
 "storyEditor.toolbar.chain" = "Crear cadena";
 "storyEditor.toolbar.duration" = "Durada";
-"whatsNew.section230.title" = "Moments 2.30";
-"whatsNew.groups.title" = "Grups";
-"whatsNew.groups.description" = "Xats de grup al mateix inbox, amb foto, invitacions, rols d'administració i mute.";
-"whatsNew.forYou.title" = "Per a Tu i Explorar";
-"whatsNew.forYou.description" = "Ordenat per afinitat i interessos, amb «No m'interessa», cerca global i un Explorar més net.";
-"whatsNew.chat230.title" = "Xat més llest";
-"whatsNew.chat230.description" = "Vista prèvia d'esborranys, memòria cau automàtica de mitjans i un senyal per traduir missatges que no estan en l'idioma de la teva app.";
-"whatsNew.echoes.title" = "Echoes";
-"whatsNew.echoes.description" = "Visor més net, un cartell clar quan un Echo no està disponible i traducció de la descripció.";
-"whatsNew.stories230.title" = "Històries";
-"whatsNew.stories230.description" = "Guies d'alineació, editor de text més estable, preview amb pulsació llarga (sense marcar vista) i anells d'històries de grup.";
-"whatsNew.create230.title" = "Crear moments";
-"whatsNew.create230.description" = "Relacions d'aspecte afinades: més estables i més compatibles entre plataformes.";
-"whatsNew.feedReels.title" = "Feed i Reels";
-"whatsNew.feedReels.description" = "Un toc porta el vídeo del feed a Reels, «Veure de nou» per repetir-lo i un feed més estable en desplaçar-te.";
-"whatsNew.profile230.title" = "Perfil i notificacions";
-"whatsNew.profile230.description" = "Seguidors, seguint, visites i mútues més fiables, i vista prèvia del perfil ancorada a des d'on hi has arribat.";
-"whatsNew.nova230.title" = "Nova";
-"whatsNew.nova230.description" = "Espurna diària, aspecte renovat, i adjuntar una foto ja no publica un Moment per accident.";
-"whatsNew.offline230.title" = "Offline i polit";
-"whatsNew.offline230.description" = "Millor comportament sense connexió, estats de relació més estables i textos polits en tots els idiomes.";
 /* In-app action toasts */
 "toast.action.commentPosted" = "Comentari publicat";
 "toast.action.momentSaved" = "Moment desat";
@@ -5123,22 +5037,39 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "settings.group.profileContent" = "Perfil i contingut";
 
 "settings.group.messagingPrivacy" = "Missatges i interaccions";
-"whatsNew.section231.title" = "Moments 2.31";
-"whatsNew.duo231.title" = "Fet per a l'iPhone Duo";
-"whatsNew.duo231.description" = "Feed i comentaris, safata i conversa, o graella i detall: cadascun a la seva pantalla. En obrir o tancar el Duo continues on eres.";
-"whatsNew.storyPublish231.title" = "Abans de publicar la teva història";
-"whatsNew.storyPublish231.description" = "Una pantalla nova amb la vista prèvia i les seves opcions: qui la veu, 24 o 48 hores, i si admet missatges, reaccions i respostes.";
-"whatsNew.originalAudio231.title" = "Àudio original";
-"whatsNew.originalAudio231.description" = "Desa l'àudio d'històries públiques i reutilitza'l des de Desats a l'adhesiu d'àudio. Tu decideixes si el teu es pot reutilitzar.";
-"whatsNew.chatStyle231.title" = "Xats al teu estil";
-"whatsNew.chatStyle231.description" = "Fons amb fotos, colors o temes, intensitat ajustable i el color de les teves bombolles. Només ho veus tu.";
-"whatsNew.chatMedia231.title" = "Fotos, vídeos i respostes";
-"whatsNew.chatMedia231.description" = "Miniatures amb la seva proporció real, un botó de reproducció més visible, zoom amb dos dits i respostes amb una vista prèvia del que cites.";
+"whatsNew.sectionDuo231" = "iPhone Duo";
+"whatsNew.sectionChat231" = "Xat";
+"whatsNew.sectionStories231" = "Històries";
+"whatsNew.sectionMore231" = "I a més";
+"whatsNew.duoArrival231.title" = "Moments arriba a l’iPhone Duo!";
+"whatsNew.duoArrival231.description" = "Hem redissenyat l’app per aprofitar les seves dues pantalles.";
+"whatsNew.duoFeed231.title" = "Feed i comentaris alhora";
+"whatsNew.duoFeed231.description" = "Continua veient el moment mentre llegeixes i respons a l’altra pantalla.";
+"whatsNew.duoChats231.title" = "Els teus xats, sempre a la vista";
+"whatsNew.duoChats231.description" = "La llista de xats en una pantalla i la conversa a l’altra.";
+"whatsNew.duoCreate231.title" = "Crea amb tot a mà";
+"whatsNew.duoCreate231.description" = "La galeria i les eines a un costat, la teva foto a l’altre.";
+"whatsNew.duoViewfinder231.title" = "La pantalla exterior, de visor";
+"whatsNew.duoViewfinder231.description" = "Quan graves una història o amb la càmera del xat, et veus en directe i saps quant temps portes gravant.";
+"whatsNew.storyPublish231.title" = "Més control en publicar històries";
+"whatsNew.storyPublish231.description" = "Tria qui la veu, si dura 24 o 48 hores i quines respostes permets.";
+"whatsNew.originalAudio231.title" = "Àudio original a les històries";
+"whatsNew.originalAudio231.description" = "Desa l’àudio d’altres històries i fes-lo servir a les teves.";
+"whatsNew.chatStyle231.title" = "Xats més personalitzables";
+"whatsNew.chatStyle231.description" = "Tria el fons i el color de les bombolles de cada xat. Només ho veus tu.";
+"whatsNew.replies231.title" = "Millores en les respostes del xat";
+"whatsNew.replies231.description" = "En respondre es veu la foto, el vídeo o el missatge que cites.";
+"whatsNew.viewOnce231.title" = "«Veure una vegada» des de la llista de xats";
+"whatsNew.viewOnce231.description" = "Obre’l directament, sense entrar a la conversa.";
 "whatsNew.maps231.title" = "Mapes renovats";
-"whatsNew.maps231.description" = "Moments i històries agrupats per lloc, i tornada al mapa sense perdre el context.";
-"whatsNew.banner231.title" = "Avisos més clars";
-"whatsNew.banner231.description" = "Un bàner renovat amb progrés, confirmacions i l'opció de desfer algunes accions.";
-"whatsNew.settings231.title" = "Configuració i audiències";
-"whatsNew.settings231.description" = "Configuració ordenada per perfil, contingut, missatges i compte, i llistes d'audiència més còmodes de gestionar.";
-"whatsNew.fluid231.title" = "Més fluid";
-"whatsNew.fluid231.description" = "La teva música continua sonant mentre navegues per contingut silenciat, i els xats, les històries i l'arxiu carreguen amb més fluïdesa.";
+"whatsNew.maps231.description" = "Moments i històries agrupats per lloc.";
+"whatsNew.banner231.title" = "Avisos nous a l’app";
+"whatsNew.banner231.description" = "Veus el progrés del que fas i pots desfer algunes accions.";
+"whatsNew.settings231.title" = "Ajustos més ordenats";
+"whatsNew.settings231.description" = "Perfil, contingut, missatges i compte, cadascun al seu lloc.";
+"whatsNew.reliable231.title" = "Xat més fiable";
+"whatsNew.reliable231.description" = "Els teus missatges s’envien bé encara que tinguis mala connexió.";
+"whatsNew.lockPreview231.title" = "Notificacions amb previsualització";
+"whatsNew.lockPreview231.description" = "Llegeix els missatges del xat encara que tinguis l’iPhone bloquejat.";
+"whatsNew.fluid231.title" = "Més ràpid i fluid";
+"whatsNew.fluid231.description" = "Els xats carreguen abans i la teva música continua sonant.";

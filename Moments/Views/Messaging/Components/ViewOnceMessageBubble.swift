@@ -102,6 +102,14 @@ private struct ViewOncePillBubble: View {
     var labelOpacity: CGFloat = 1.0
     var showsDashedRing = true
     var showsUnreadDot = false
+    /// Propia: píldora con el color de burbuja del chat.
+    var isOutgoing = false
+
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
+
+    private var ink: Color {
+        isOutgoing ? chatBubbleTextColor(for: chatOutgoingBubbleColor) : adaptiveColors.messageTextColor
+    }
 
     private let signatureGradient = LinearGradient(
         colors: [Color.blue, Color.purple, Color.pink],
@@ -115,7 +123,7 @@ private struct ViewOncePillBubble: View {
                 if showsDashedRing {
                     Circle()
                         .stroke(style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
-                        .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.7))
+                        .foregroundStyle(ink.opacity(0.7))
                         .frame(width: 30, height: 30)
                 }
                 glyph
@@ -124,7 +132,7 @@ private struct ViewOncePillBubble: View {
 
             Text(label)
                 .font(.system(size: legacyPoppinsSize(14), weight: labelWeight))
-                .foregroundStyle(adaptiveColors.messageTextColor.opacity(labelOpacity))
+                .foregroundStyle(ink.opacity(labelOpacity))
 
             if showsUnreadDot {
                 Circle()
@@ -136,10 +144,10 @@ private struct ViewOncePillBubble: View {
         .padding(.vertical, 10)
         .fixedSize(horizontal: true, vertical: true)
         .background(
-            Capsule().fill(adaptiveColors.messageBubbleBackground)
+            Capsule().fill(isOutgoing ? chatOutgoingBubbleColor : adaptiveColors.messageBubbleBackground)
         )
         .overlay(
-            Capsule().stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.8)
+            Capsule().stroke(isOutgoing ? Color.clear : adaptiveColors.messageBubbleStroke, lineWidth: 0.8)
         )
     }
 }
@@ -218,6 +226,12 @@ struct ViewOnceSentBubble: View {
     let progress: Double? // ✅ New
     let adaptiveColors: AdaptiveColors
 
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
+
+    private var ink: Color {
+        chatBubbleTextColor(for: chatOutgoingBubbleColor)
+    }
+
     private var statusText: String {
         if message.isViewed {
             if message.allowReplay == true, message.replayedBy?.isEmpty == false {
@@ -239,17 +253,18 @@ struct ViewOnceSentBubble: View {
                         } else if message.isViewed {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.5))
+                                .foregroundStyle(ink.opacity(0.5))
                         } else {
                             Image(systemName: message.type == .viewOnceVideo ? "play.fill" : "camera.fill")
                                 .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(adaptiveColors.messageTextColor)
+                                .foregroundStyle(ink)
                         }
                     }
                 ),
                 label: statusText,
                 labelWeight: message.isViewed ? .medium : .semibold,
-                labelOpacity: message.isViewed ? 0.5 : 1.0
+                labelOpacity: message.isViewed ? 0.5 : 1.0,
+                isOutgoing: true
             )
         }
     }

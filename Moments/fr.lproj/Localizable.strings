@@ -585,18 +585,9 @@
 "appeal.understood" = "Compris";
 
 /* Time */
-"time.ago" = "il y a %@";
 "time.viewed" = "Vu il y a %@";
 "time.reacted" = "Réagi il y a %@";
 "time.relative" = "%@";
-"time.unit.yr" = "an";
-"time.unit.yrs" = "ans";
-"time.unit.mo" = "mois";
-"time.unit.mos" = "mois";
-"time.unit.wk" = "w";
-"time.unit.d" = "d";
-"time.unit.h" = "h";
-"time.unit.min" = "min";
 "time.now" = "à l’instant";
 
 /* Nova AI */
@@ -1033,13 +1024,14 @@
 "chat.editing.title" = "Modification du message";
 "chat.typing" = "écrit...";
 "chat.tapToView" = "Touchez pour voir";
-"chat.ephemeral.title" = "📸 Ephemeral moment";
+"chat.ephemeral.title" = "📸 Moment éphémère";
 "chat.message.expired" = "Message expiré";
 "chat.message.unsupported" = "Message non pris en charge";
 "chat.video.unavailable" = "Vidéo indisponible";
 "chat.audio.unavailable" = "Audio indisponible";
 "chat.audio.duration.accessibility" = "Durée %@";
 "chat.audio.scrub.accessibility" = "Progression du message vocal";
+"chat.audio.scrub.value" = "%1$@ sur %2$@";
 "chat.loading" = "Chargement...";
 "chat.close" = "Fermer";
 "chat.replying" = "Réponse en cours";
@@ -1154,6 +1146,11 @@
 "chat.status.delivered" = "Distribué";
 "chat.status.read" = "Lu";
 "chat.seen" = "Vu";
+"chat.seen.ago" = "Vu il y a %@";
+"chat.seen.justNow" = "Vu à l’instant";
+"chat.seen.at.today" = "Vu aujourd’hui à %@";
+"chat.seen.at.yesterday" = "Vu hier à %@";
+"chat.seen.at.date" = "Vu le %@";
 "chat.status.failed" = "Échec";
 "chat.notification.viewOncePrompt" = "Vous a envoyé un message";
 "chat.preview.newConversation" = "Nouvelle conversation";
@@ -2860,8 +2857,8 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Nouveautés Moments !";
-"whatsNew.subtitle" = "Enfin les groupes — plus un Pour toi plus personnel, un chat plus soigné, et des Echoes & stories polis.";
-"whatsNew.button" = "Explorer Moments 2.30";
+"whatsNew.subtitle" = "Moments arrive sur iPhone Duo ! Nous avons repensé Moments pour tirer le meilleur parti de ses deux écrans.";
+"whatsNew.button" = "Explorer Moments 2.31";
 /* Best Friends */
 "bestFriends.title" = "Meilleurs amis";
 "bestFriends.empty.title" = "Aucun meilleur ami";
@@ -3835,16 +3832,14 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "chat.deleted.file" = "Fichier supprimé";
 "chat.deleted.location" = "Lieu supprimé";
 "chat.deleted.ephemeral" = "Moment éphémère supprimé";
-"chat.date.today" = "Aujourd’hui";
-"chat.date.yesterday" = "Hier";
-"chat.error.invalidConversation.text" = "Cannot send message: invalid conversation ID";
-"chat.error.invalidConversation.image" = "Cannot send image: invalid conversation ID";
-"chat.error.invalidConversation.audio" = "Cannot send audio: invalid conversation ID";
-"chat.error.invalidConversation.viewOnce" = "Cannot send message: invalid conversation ID";
-"chat.error.sendImage" = "Error sending image: %@";
-"chat.error.sendAudio" = "Error sending audio: %@";
+"chat.error.invalidConversation.text" = "Impossible d’envoyer le message : conversation introuvable";
+"chat.error.invalidConversation.image" = "Impossible d’envoyer l’image : conversation introuvable";
+"chat.error.invalidConversation.audio" = "Impossible d’envoyer l’audio : conversation introuvable";
+"chat.error.invalidConversation.viewOnce" = "Impossible d’envoyer le message : conversation introuvable";
+"chat.error.sendImage" = "Impossible d’envoyer l’image";
+"chat.error.sendAudio" = "Impossible d’envoyer l’audio";
 "chat.error.microphonePermission" = "Autorisez l'accès au micro dans Réglages pour envoyer des messages vocaux.";
-"chat.error.sendMessage" = "Error sending message: %@";
+"chat.error.sendMessage" = "Impossible d’envoyer le message";
 "common.pro" = "PRO";
 "settings.error.load" = "Error loading settings: %@";
 "maps.stats.photos" = "photos";
@@ -4182,7 +4177,7 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "share.storyDenied.restricted" = "Tu n'as pas la permission de voir cette story.";
 "chat.preview.sharedStory" = "Story partagée";
 "share.profile.sendInChat" = "Envoyer dans Moments";
-"chat.preview.sharedProfile" = "Shared profile";
+"chat.preview.sharedProfile" = "Profil partagé";
 "chat.preview.storyKind" = "Story";
 "chat.preview.reelKind" = "Reel";
 "chat.menu.details" = "Parametres de la conversation";
@@ -4510,79 +4505,19 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 
 // MARK: - What's New 2.22
 
-"whatsNew.section222.title" = "Moments 2.22";
 
-"whatsNew.replyInChat.title" = "Répondre dans le chat";
-"whatsNew.replyInChat.description" = "Glisse sur la bulle pour répondre. Touche une citation pour aller au message d'origine.";
-"whatsNew.quotePreviews.title" = "Citations dans le chat";
-"whatsNew.quotePreviews.description" = "Les réponses affichent une miniature quand tu cites un moment, une story ou un profil.";
-"whatsNew.chatTimestamps.title" = "Heures dans le chat";
-"whatsNew.chatTimestamps.description" = "Glisse horizontalement sur une ligne pour voir l'heure, y compris sur tes propres messages.";
-"whatsNew.composerVoice.title" = "Saisie de message";
-"whatsNew.composerVoice.description" = "Composeur repensé et notes vocales plus fluides, avec une animation d'annulation plus claire.";
 
 // MARK: - What's New 2.21
 
-"whatsNew.richChat.title" = "Un chat plus expressif";
-"whatsNew.notificationsAndMentions.title" = "Notifications et mentions";
-"whatsNew.notificationsAndMentions.description" = "Les alertes de chat et d'activité sociale sont plus claires, et les mentions en story arrivent directement dans la conversation.";
-"whatsNew.richChat.description" = "Mets le texte en forme, masque les spoilers et touche les mentions pour ouvrir les profils. Répondre et modifier est aussi plus clair.";
-"whatsNew.feedCaptions.title" = "Des légendes bien ajustées";
-"whatsNew.feedCaptions.description" = "Voir plus apparaît seulement si nécessaire et ouvre tout le texte sans perdre ta position.";
-"whatsNew.reelComments.title" = "Commentaires avec le Reel";
-"whatsNew.reelComments.description" = "La vidéo laisse place aux commentaires, la saisie reste visible et les réponses sont plus faciles à suivre.";
-"whatsNew.morePersonal.title" = "Encore plus personnel";
-"whatsNew.morePersonal.description" = "Plus d'intérêts, 8 nouvelles langues et des transitions plus fluides pour profils, QR et archives de stories.";
 
-"whatsNew.section221.title" = "Moments 2.21";
 
-"whatsNew.messageRequestThreads.title" = "Demandes de message";
-"whatsNew.messageRequestThreads.description" = "Jusqu'à 5 messages par conversation en attendant, et 10 par jour pour limiter le spam. Dossiers Demandes, Anciennes et Masquées, plus filtres de mots masqués sur l'appareil.";
-"whatsNew.shareInChat.title" = "Partager dans le chat";
-"whatsNew.shareInChat.description" = "Moments, stories, reels et profils arrivent en cartes dans la conversation, avec aperçu enrichi — touche pour ouvrir.";
-"whatsNew.sharedProfilePrivacy.title" = "Confidentialité en direct";
-"whatsNew.sharedProfilePrivacy.description" = "Les cartes de profil partagé revérifient blocages et audience pour celui qui regarde.";
-"whatsNew.shareConfirmation.title" = "Confirmation d'envoi";
-"whatsNew.shareConfirmation.description" = "Quand tu envoies un moment, une story, un reel ou un profil dans le chat, une confirmation s'affiche avant de fermer le sélecteur.";
 
 // MARK: - What's New 2.20
 
-"whatsNew.section220.title" = "Moments 2.20";
-"whatsNew.section219.title" = "Moments 2.19";
 
-"whatsNew.profilePreview.title" = "Aperçu de profil";
-"whatsNew.profilePreview.description" = "Appuie longuement sur l'avatar ou le nom d'un post pour voir un aperçu du profil.";
-"whatsNew.storyPreview.title" = "Aperçu de stories";
-"whatsNew.storyPreview.description" = "Appuie longuement sur l'anneau pour voir un aperçu. Un tap l'ouvre en plein écran et reprend pile où tu t'étais arrêté.";
-"whatsNew.feedToggle.title" = "Sélecteur du fil";
-"whatsNew.feedToggle.description" = "À l'ouverture, le wordmark Moments se transforme en Following et Discover.";
-"whatsNew.nestedComments.title" = "Commentaires imbriqués";
-"whatsNew.nestedComments.description" = "Correction d'un bug où les commentaires n'apparaissaient parfois pas.";
-"whatsNew.chatGestures.title" = "Touche dans le chat";
-"whatsNew.chatGestures.description" = "Touche une photo ou une vidéo pour l'ouvrir tout de suite.";
-"whatsNew.chatLongPress.title" = "Appui long dans le chat";
-"whatsNew.chatLongPress.description" = "Nouveau menu contextuel : le message se soulève, tu vois s'il a été lu, et avec le menu ouvert un tap ouvre cette photo, vidéo ou position.";
 
 // MARK: - What's New 2.19
 
-"whatsNew.floatingTabBar.title" = "Barre d'onglets flottante";
-"whatsNew.floatingTabBar.description" = "Nouvelle barre d'onglets flottante en verre liquide. Nova et Messages ont échangé leurs places.";
-"whatsNew.chatRecovery.title" = "Récupération du chat";
-"whatsNew.chatRecovery.description" = "Coffre Keychain avec restauration automatique, migration QR et rappel pour synchroniser votre PIN avec iCloud Keychain.";
-"whatsNew.hlsVideo.title" = "Vidéo adaptative";
-"whatsNew.hlsVideo.description" = "Lecture HLS qui s'adapte à ta connexion dans le fil, les Reels et partout dans l'app.";
-"whatsNew.reels.title" = "Reels plus fluides";
-"whatsNew.reels.description" = "Défilement plus doux et chrome immersif peaufiné pour mieux profiter des Reels.";
-"whatsNew.conversationSettings.title" = "Réglages de conversation";
-"whatsNew.conversationSettings.description" = "En-tête hero repensé avec accès rapide à la galerie, aux liens et au stockage.";
-"whatsNew.messageRequests.title" = "Demandes protégées";
-"whatsNew.messageRequests.description" = "Les demandes de message depuis les profils passent derrière ton PIN de chat.";
-"whatsNew.liveLocation.title" = "Position en direct";
-"whatsNew.liveLocation.description" = "Bulle de position en temps réel et carte du chat plus fiables et plus soignées.";
-"whatsNew.viewOnce.title" = "View-once corrigé";
-"whatsNew.viewOnce.description" = "Les photos à vue unique marquent correctement comme vues pour consommer le média.";
-"whatsNew.note.android.title" = "Moments est sur Android !";
-"whatsNew.note.android.description" = "Après un bon moment à l'atelier, l'app est aussi disponible sur Google Play.\n\nTu as des amis ou de la famille sur Android ? Tu peux enfin leur dire : ils peuvent rejoindre Moments. Dis-leur de chercher l'app sur Google Play et de nous rejoindre !\n\nDe retour sur iOS : le grand saut est fait, je continue à fond ici (même si en vrai je ne suis jamais parti). Construisons Moments ensemble ! 🚀";
 "whatsNew.note.closing" = "Merci d'être sur cette aventure ! ⚡🤖";
 "messageRequests.folder.picker" = "Dossier";
 "messageRequests.folder.requests" = "Demandes";
@@ -4907,27 +4842,6 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "storyEditor.toolbar.unmute" = "Activer le son";
 "storyEditor.toolbar.chain" = "Créer une chaîne";
 "storyEditor.toolbar.duration" = "Durée";
-"whatsNew.section230.title" = "Moments 2.30";
-"whatsNew.groups.title" = "Groupes";
-"whatsNew.groups.description" = "Chats de groupe dans la même boîte de réception, avec photo, invitations, rôles d'admin et mute.";
-"whatsNew.forYou.title" = "Pour toi et Explorer";
-"whatsNew.forYou.description" = "Classé par affinité et centres d'intérêt, avec « Pas intéressé », recherche globale et un Explorer plus propre.";
-"whatsNew.chat230.title" = "Chat plus malin";
-"whatsNew.chat230.description" = "Aperçu des brouillons, cache média automatique et un signal pour traduire les messages hors langue de l'app.";
-"whatsNew.echoes.title" = "Echoes";
-"whatsNew.echoes.description" = "A cleaner viewer, a clear notice when an Echo isn’t available, and description translation.";
-"whatsNew.stories230.title" = "Stories";
-"whatsNew.stories230.description" = "Guides d'alignement, éditeur de texte plus stable, aperçus en appui long (sans marquer vu) et anneaux de stories de groupe.";
-"whatsNew.create230.title" = "Créer des moments";
-"whatsNew.create230.description" = "Rapports d'aspect affinés — plus stables et plus cohérents entre plateformes.";
-"whatsNew.feedReels.title" = "Fil et Reels";
-"whatsNew.feedReels.description" = "Un toucher emmène la vidéo du fil vers Reels, « Voir à nouveau » pour revoir, et un fil plus stable en scrollant.";
-"whatsNew.profile230.title" = "Profil et notifications";
-"whatsNew.profile230.description" = "Abonnés, abonnements, visites et mutuels plus fiables — et aperçus de profil ancrés à l'endroit d'où vous venez.";
-"whatsNew.nova230.title" = "Nova";
-"whatsNew.nova230.description" = "Étincelle quotidienne, look renouvelé, et joindre une photo ne publie plus un Moment par accident.";
-"whatsNew.offline230.title" = "Hors ligne et polish";
-"whatsNew.offline230.description" = "Meilleur comportement hors ligne, états de relation plus stables et textes polis dans chaque langue.";
 /* In-app action toasts */
 "toast.action.commentPosted" = "Commentaire publié";
 "toast.action.momentSaved" = "Moment enregistré";
@@ -5083,39 +4997,56 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 
 // Original story audio
 "story.audio.title" = "Audio";
-"story.audio.record" = "Record";
-"story.audio.saved" = "Saved";
-"story.audio.original" = "Original audio";
-"story.audio.empty" = "The audios you save from stories will appear here.";
-"story.audio.use" = "Use audio";
-"story.audio.retry" = "Try again";
-"story.audio.unavailable" = "This audio is unavailable.";
-"story.audio.allowReuse" = "Allow saving and reusing audio";
-"story.audio.allowReuse.detail" = "People can save this audio and reuse it after this story expires.";
-"story.audio.restricted.audience" = "Only audio from public stories and public accounts can be saved.";
-"story.audio.restricted.creator" = "The creator has not allowed saving this audio.";
-"story.audio.saved.confirmation" = "Audio saved to favorites";
-"story.audio.unsaved.confirmation" = "Audio removed from favorites";
+"story.audio.record" = "Enregistrer";
+"story.audio.saved" = "Enregistrés";
+"story.audio.original" = "Audio original";
+"story.audio.empty" = "Les audios que vous enregistrez depuis les stories apparaîtront ici.";
+"story.audio.use" = "Utiliser l'audio";
+"story.audio.retry" = "Réessayer";
+"story.audio.unavailable" = "Cet audio n'est pas disponible.";
+"story.audio.allowReuse" = "Autoriser l'enregistrement et la réutilisation de l'audio";
+"story.audio.allowReuse.detail" = "Les autres pourront enregistrer cet audio et le réutiliser après l'expiration de cette story.";
+"story.audio.restricted.audience" = "Seuls les audios des stories publiques et des comptes publics peuvent être enregistrés.";
+"story.audio.restricted.creator" = "Le créateur n'a pas autorisé l'enregistrement de cet audio.";
+"story.audio.saved.confirmation" = "Audio ajouté aux favoris";
+"story.audio.unsaved.confirmation" = "Audio retiré des favoris";
 
 "settings.group.profileContent" = "Profil et contenu";
 
 "settings.group.messagingPrivacy" = "Messages et interactions";
-"whatsNew.section231.title" = "Moments 2.31";
-"whatsNew.duo231.title" = "Conçu pour l'iPhone Duo";
-"whatsNew.duo231.description" = "Feed et commentaires, boîte de réception et conversation, ou grille et détail : chacun sur son écran. Ouvrez ou fermez votre Duo et reprenez là où vous en étiez.";
-"whatsNew.storyPublish231.title" = "Avant de publier votre story";
-"whatsNew.storyPublish231.description" = "Un nouvel écran avec l'aperçu et ses options : qui la voit, 24 ou 48 heures, et si elle accepte les messages, les réactions et les réponses.";
-"whatsNew.originalAudio231.title" = "Son original";
-"whatsNew.originalAudio231.description" = "Enregistrez le son des stories publiques et réutilisez-le depuis Enregistrés dans le sticker audio. Vous décidez si le vôtre peut être réutilisé.";
-"whatsNew.chatStyle231.title" = "Des chats à votre image";
-"whatsNew.chatStyle231.description" = "Fonds avec photos, couleurs ou thèmes, intensité réglable et couleur de vos bulles. Vous seul les voyez.";
-"whatsNew.chatMedia231.title" = "Photos, vidéos et réponses";
-"whatsNew.chatMedia231.description" = "Miniatures dans leurs vraies proportions, un bouton lecture plus visible, le zoom à deux doigts et des réponses qui affichent un aperçu de ce que vous citez.";
+"whatsNew.sectionDuo231" = "iPhone Duo";
+"whatsNew.sectionChat231" = "Chat";
+"whatsNew.sectionStories231" = "Stories";
+"whatsNew.sectionMore231" = "Et aussi";
+"whatsNew.duoArrival231.title" = "Moments arrive sur iPhone Duo !";
+"whatsNew.duoArrival231.description" = "Nous avons repensé l’app pour profiter de ses deux écrans.";
+"whatsNew.duoFeed231.title" = "Feed et commentaires en même temps";
+"whatsNew.duoFeed231.description" = "Continuez à regarder le moment pendant que vous lisez et répondez sur l’autre écran.";
+"whatsNew.duoChats231.title" = "Vos chats toujours sous les yeux";
+"whatsNew.duoChats231.description" = "La liste des chats sur un écran, la conversation sur l’autre.";
+"whatsNew.duoCreate231.title" = "Créez avec tout à portée de main";
+"whatsNew.duoCreate231.description" = "La galerie et les outils d’un côté, votre photo de l’autre.";
+"whatsNew.duoViewfinder231.title" = "L’écran extérieur comme viseur";
+"whatsNew.duoViewfinder231.description" = "Quand vous filmez une story ou utilisez la caméra du chat, vous vous voyez en direct et savez depuis combien de temps vous enregistrez.";
+"whatsNew.storyPublish231.title" = "Plus de contrôle sur vos stories";
+"whatsNew.storyPublish231.description" = "Choisissez qui la voit, si elle dure 24 ou 48 heures et les réponses autorisées.";
+"whatsNew.originalAudio231.title" = "Audio original dans les stories";
+"whatsNew.originalAudio231.description" = "Enregistrez l’audio d’autres stories et utilisez-le dans les vôtres.";
+"whatsNew.chatStyle231.title" = "Des chats plus personnalisables";
+"whatsNew.chatStyle231.description" = "Choisissez le fond et la couleur des bulles de chaque chat. Vous seul les voyez.";
+"whatsNew.replies231.title" = "Des réponses plus claires dans le chat";
+"whatsNew.replies231.description" = "Quand vous répondez, vous voyez la photo, la vidéo ou le message que vous citez.";
+"whatsNew.viewOnce231.title" = "« Voir une fois » depuis la liste des chats";
+"whatsNew.viewOnce231.description" = "Ouvrez-le directement, sans entrer dans la conversation.";
 "whatsNew.maps231.title" = "Cartes repensées";
-"whatsNew.maps231.description" = "Moments et stories regroupés par lieu, et retour à la carte sans perdre le fil.";
-"whatsNew.banner231.title" = "Des alertes plus claires";
-"whatsNew.banner231.description" = "Une bannière repensée avec progression, confirmations et annulation pour certaines actions.";
-"whatsNew.settings231.title" = "Réglages et audiences";
-"whatsNew.settings231.description" = "Des réglages organisés par profil, contenu, messages et compte, et des listes d'audience plus simples à gérer.";
-"whatsNew.fluid231.title" = "Plus fluide";
-"whatsNew.fluid231.description" = "Votre musique continue pendant que vous parcourez du contenu sans le son, et les chats, les stories et votre archive se chargent plus en douceur.";
+"whatsNew.maps231.description" = "Moments et stories regroupés par lieu.";
+"whatsNew.banner231.title" = "Nouvelles alertes dans l’app";
+"whatsNew.banner231.description" = "Suivez la progression de ce que vous faites et annulez certaines actions.";
+"whatsNew.settings231.title" = "Réglages mieux rangés";
+"whatsNew.settings231.description" = "Profil, contenu, messages et compte, chacun à sa place.";
+"whatsNew.reliable231.title" = "Un chat plus fiable";
+"whatsNew.reliable231.description" = "Vos messages partent bien, même avec une mauvaise connexion.";
+"whatsNew.lockPreview231.title" = "Notifications avec aperçu";
+"whatsNew.lockPreview231.description" = "Lisez les messages du chat même quand votre iPhone est verrouillé.";
+"whatsNew.fluid231.title" = "Plus rapide et plus fluide";
+"whatsNew.fluid231.description" = "Les chats se chargent plus vite et votre musique continue.";

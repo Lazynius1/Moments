@@ -418,48 +418,69 @@ class SimpleProximityManager: ObservableObject {
 // MARK: - Voice message spacing
 
 enum VoiceMessageLayout {
-    static let playButtonSize: CGFloat = 38
-    static let playIconSize: CGFloat = 26
-    static let waveformHeight: CGFloat = 30
+    // Barras genéricas (editor de música, sticker de voz, compositor).
     static let barWidth: CGFloat = 3.5
     static let barSpacing: CGFloat = 2.5
+    static let waveformHeight: CGFloat = 30
+
+    // Tarjeta del chat: ancho máximo de burbuja; la fila (play, onda, velocidad) va centrada
+    // en vertical y el tiempo ocupa la franja inferior sin descentrarla.
+    static let horizontalPadding: CGFloat = 12
+    /// Fila central: play, onda y velocidad comparten este centro vertical.
+    static let rowHeight: CGFloat = 24
+    static let timeLabelHeight: CGFloat = 13
+    /// Margen igual arriba y abajo de la fila; abajo aloja el tiempo.
+    static let rowVerticalInset: CGFloat = 19
+    static let timeBottomInset: CGFloat = 4
+    static let cardHeight: CGFloat = rowVerticalInset * 2 + rowHeight
+
+    static let playButtonWidth: CGFloat = 28
+    static let playIconSize: CGFloat = 22
+    /// Zona táctil mínima del play y del arrastre de la onda.
+    static let minTouchTarget: CGFloat = 44
     static let outerSpacing: CGFloat = 10
-    static let waveformLeadingInset: CGFloat = 12
-    static let horizontalPadding: CGFloat = 14
-    static let verticalPadding: CGFloat = 15
-    static let bubbleWidthFraction: CGFloat = 0.75
-    static let trailingGapMinLength: CGFloat = 10
-    static let timeLabelWidth: CGFloat = 36
     static let speedControlWidth: CGFloat = 34
 
-    static func bubbleWidth(containerWidth: CGFloat) -> CGFloat {
-        min(containerWidth, 520) * bubbleWidthFraction
+    static let cardBarWidth: CGFloat = 2.5
+    static let cardBarSpacing: CGFloat = 2
+    static let cardBarMaxHeight: CGFloat = 22
+    static let cardBarMinHeight: CGFloat = 3
+    static let progressHeadSize: CGFloat = 11
+
+    /// Mismo ancho máximo que una burbuja de texto del chat.
+    static func bubbleWidth(containerWidth: CGFloat, isOutgoing: Bool = true) -> CGFloat {
+        ChatBubbleLayoutWidth.capped(
+            ChatBubbleLayoutWidth.maxTextBubbleWidth(chatListWidth: containerWidth),
+            chatListWidth: containerWidth,
+            gutter: isOutgoing ? 64 : 88
+        )
     }
 
-    static func availableWaveformWidth(containerWidth: CGFloat, includesSpeedControl: Bool) -> CGFloat {
-        let innerWidth = bubbleWidth(containerWidth: containerWidth) - horizontalPadding * 2
-        let trailingBlock = timeLabelWidth
-            + (includesSpeedControl ? outerSpacing + speedControlWidth : 0)
-        let leadingBlock = playButtonSize + outerSpacing + waveformLeadingInset
-        return max(
-            96,
-            innerWidth - leadingBlock - trailingBlock - trailingGapMinLength
-        )
+    /// Inicio horizontal de la onda dentro del contenido (para alinear el tiempo).
+    static var waveformLeadingOffset: CGFloat {
+        playButtonWidth + outerSpacing
+    }
+
+    static func availableWaveformWidth(containerWidth: CGFloat, includesSpeedControl: Bool, isOutgoing: Bool = true) -> CGFloat {
+        let innerWidth = bubbleWidth(containerWidth: containerWidth, isOutgoing: isOutgoing) - horizontalPadding * 2
+        let trailingBlock = includesSpeedControl ? outerSpacing + speedControlWidth : 0
+        return max(80, innerWidth - waveformLeadingOffset - trailingBlock)
     }
 
     static func waveformBarCount(for trackWidth: CGFloat) -> Int {
-        let unit = barWidth + barSpacing
+        let unit = cardBarWidth + cardBarSpacing
         guard unit > 0 else { return 32 }
-        return max(24, min(50, Int((trackWidth / unit).rounded(.down))))
+        return max(16, min(60, Int(((trackWidth + cardBarSpacing) / unit).rounded(.down))))
     }
 
-    static func waveformTrackWidth(containerWidth: CGFloat, includesSpeedControl: Bool) -> CGFloat {
+    static func waveformTrackWidth(containerWidth: CGFloat, includesSpeedControl: Bool, isOutgoing: Bool = true) -> CGFloat {
         let target = availableWaveformWidth(
             containerWidth: containerWidth,
-            includesSpeedControl: includesSpeedControl
+            includesSpeedControl: includesSpeedControl,
+            isOutgoing: isOutgoing
         )
         let barCount = waveformBarCount(for: target)
-        return CGFloat(barCount) * barWidth + CGFloat(max(barCount - 1, 0)) * barSpacing
+        return CGFloat(barCount) * cardBarWidth + CGFloat(max(barCount - 1, 0)) * cardBarSpacing
     }
 }
 
@@ -517,16 +538,18 @@ struct VisualWaveformView: View {
     var height: CGFloat = VoiceMessageLayout.waveformHeight
     var barWidth: CGFloat = VoiceMessageLayout.barWidth
     var spacing: CGFloat = VoiceMessageLayout.barSpacing
+    var minBarHeight: CGFloat = 6
 
     var body: some View {
-        HStack(spacing: spacing) {
+        // Alineación central del HStack: barras simétricas respecto a la línea media.
+        HStack(alignment: .center, spacing: spacing) {
             ForEach(0..<levels.count, id: \.self) { index in
                 let level = levels[index]
                 let isActive = Double(index) / Double(levels.count) <= progress
 
                 RoundedRectangle(cornerRadius: barWidth / 2, style: .continuous)
                     .fill(isActive ? activeColor : color)
-                    .frame(width: barWidth, height: max(6, CGFloat(level) * height))
+                    .frame(width: barWidth, height: max(minBarHeight, CGFloat(level) * height))
                     .animation(.easeInOut(duration: 0.1), value: isActive)
                     .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: level), value: level)
             }
@@ -585,7 +608,7 @@ struct GlassmorphicAudioMessage: View {
     @State private var waveformLevels: [Float] = ChatVoiceWaveformGenerator.levels(
         seed: "voice",
         count: VoiceMessageLayout.waveformBarCount(
-            for: VoiceMessageLayout.availableWaveformWidth(containerWidth: 393, includesSpeedControl: true)
+            for: VoiceMessageLayout.waveformTrackWidth(containerWidth: 393, includesSpeedControl: true)
         )
     )
 
@@ -604,6 +627,22 @@ struct GlassmorphicAudioMessage: View {
             return chatBubbleTextColor(for: chatOutgoingBubbleColor)
         }
         return adaptiveColors.messageTextColor
+    }
+
+    /// Progreso reproducido: en recibidos, el color del chat legible sobre la burbuja.
+    private var accentColor: Color {
+        if isCurrentUser {
+            return contentColor
+        }
+        return adaptiveColors.receivedAccent(from: chatOutgoingBubbleColor)
+    }
+
+    /// Play/pausa y velocidad: en recibidos, gris neutro secundario.
+    private var controlColor: Color {
+        if isCurrentUser {
+            return contentColor
+        }
+        return adaptiveColors.messageTextColor.opacity(colorScheme == .dark ? 0.7 : 0.6)
     }
 
     private var waveformInactiveColor: Color {
@@ -656,39 +695,35 @@ struct GlassmorphicAudioMessage: View {
     }
 
     var body: some View {
-        HStack(spacing: VoiceMessageLayout.outerSpacing) {
-            playButton
+        // Fila central: play, onda y velocidad centrados en la misma línea, y la fila centrada en la tarjeta.
+        HStack(alignment: .center, spacing: VoiceMessageLayout.outerSpacing) {
+                playButton
 
-            if isCheckingAvailability {
-                VStack(alignment: .leading, spacing: 4) {
+                if isCheckingAvailability {
                     loadingWaveformPlaceholder
-                    Text(NSLocalizedString("chat.loading", comment: "Loading audio message"))
-                        .font(.system(size: legacyPoppinsSize(11)))
-                        .foregroundStyle(durationLabelColor)
+                    Spacer(minLength: 0)
+                } else if isAudioAvailable {
+                    scrubbableWaveform
+                    Spacer(minLength: 0)
+                    if showsSpeedControl {
+                        speedButton
+                    }
+                } else {
+                    unavailableRow
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: VoiceMessageLayout.trailingGapMinLength)
-            } else if isAudioAvailable {
-                scrubbableWaveform
-                    .frame(
-                        width: VoiceMessageLayout.waveformTrackWidth(containerWidth: layoutContainerWidth, includesSpeedControl: showsSpeedControl),
-                        height: VoiceMessageLayout.waveformHeight
-                    )
-                    .padding(.leading, VoiceMessageLayout.waveformLeadingInset)
-
-                timeLabel
-                    .padding(.leading, VoiceMessageLayout.trailingGapMinLength)
-
-                if showsSpeedControl {
-                    speedButton
-                }
-            } else {
-                unavailableRow
-                Spacer(minLength: VoiceMessageLayout.trailingGapMinLength)
             }
-        }
+        .frame(height: VoiceMessageLayout.rowHeight)
         .padding(.horizontal, VoiceMessageLayout.horizontalPadding)
-        .padding(.vertical, VoiceMessageLayout.verticalPadding)
-        .frame(width: VoiceMessageLayout.bubbleWidth(containerWidth: layoutContainerWidth), alignment: .leading)
+        .padding(.vertical, VoiceMessageLayout.rowVerticalInset)
+        .overlay(alignment: .bottomLeading) {
+            bottomLabel
+                .frame(height: VoiceMessageLayout.timeLabelHeight, alignment: .leading)
+                .padding(.leading, VoiceMessageLayout.horizontalPadding + VoiceMessageLayout.waveformLeadingOffset)
+                .padding(.bottom, VoiceMessageLayout.timeBottomInset)
+                .allowsHitTesting(false)
+        }
+        .frame(width: VoiceMessageLayout.bubbleWidth(containerWidth: layoutContainerWidth, isOutgoing: isCurrentUser), alignment: .leading)
         .background(bubbleBackground)
         // Misma forma que el relleno para que el borde siga las esquinas unidas.
         .overlay(bubbleShape.stroke(bubbleStrokeColor, lineWidth: 0.5))
@@ -724,8 +759,8 @@ struct GlassmorphicAudioMessage: View {
             ZStack {
                 if isCheckingAvailability {
                     ProgressView()
-                        .scaleEffect(0.8)
-                        .tint(contentColor)
+                        .scaleEffect(0.7)
+                        .tint(controlColor)
                 } else {
                     Image(systemName: getPlayButtonIcon())
                         .font(.system(size: VoiceMessageLayout.playIconSize, weight: .semibold))
@@ -733,74 +768,108 @@ struct GlassmorphicAudioMessage: View {
                 }
 
                 if isSending, let uploadProgress = progress {
-                    MediaProgressRing(progress: uploadProgress, size: 34, lineWidth: 2)
+                    MediaProgressRing(progress: uploadProgress, size: 30, lineWidth: 2)
                 }
             }
-            .foregroundStyle(contentColor)
-            .frame(width: VoiceMessageLayout.playButtonSize, height: VoiceMessageLayout.playButtonSize)
+            .foregroundStyle(controlColor)
+            // Zona táctil de 44 pt aunque el hueco visual sea de 28 × 24.
+            .frame(width: VoiceMessageLayout.minTouchTarget, height: VoiceMessageLayout.minTouchTarget)
+            .contentShape(Rectangle())
         }
+        .padding(.horizontal, -(VoiceMessageLayout.minTouchTarget - VoiceMessageLayout.playButtonWidth) / 2)
+        .padding(.vertical, -(VoiceMessageLayout.minTouchTarget - VoiceMessageLayout.rowHeight) / 2)
         .disabled(!isAudioAvailable || isCheckingAvailability)
         .accessibilityLabel(Text(isPlaying
             ? NSLocalizedString("chat.voice.pause", comment: "Pause voice note")
             : NSLocalizedString("chat.voice.play", comment: "Play voice note")))
     }
 
-    private var loadingWaveformPlaceholder: some View {
-        let trackWidth = VoiceMessageLayout.waveformTrackWidth(containerWidth: layoutContainerWidth, includesSpeedControl: showsSpeedControl)
-        let barCount = VoiceMessageLayout.waveformBarCount(for: trackWidth)
-
-        return HStack(spacing: VoiceMessageLayout.barSpacing) {
-            ForEach(0..<barCount, id: \.self) { _ in
-                RoundedRectangle(cornerRadius: VoiceMessageLayout.barWidth / 2, style: .continuous)
-                    .fill(waveformInactiveColor)
-                    .frame(width: VoiceMessageLayout.barWidth, height: 12)
-            }
-        }
-        .frame(width: trackWidth, height: 24)
-        .padding(.leading, VoiceMessageLayout.waveformLeadingInset)
+    private var waveformTrackWidth: CGFloat {
+        VoiceMessageLayout.waveformTrackWidth(containerWidth: layoutContainerWidth, includesSpeedControl: showsSpeedControl, isOutgoing: isCurrentUser)
     }
 
-    private var scrubbableWaveform: some View {
-        let trackWidth = VoiceMessageLayout.waveformTrackWidth(containerWidth: layoutContainerWidth, includesSpeedControl: showsSpeedControl)
+    private var loadingWaveformPlaceholder: some View {
+        let trackWidth = waveformTrackWidth
+        let barCount = VoiceMessageLayout.waveformBarCount(for: trackWidth)
 
-        return VisualWaveformView(
-            levels: waveformLevels,
-            color: waveformInactiveColor,
-            activeColor: contentColor,
-            progress: displayedProgress
-        )
-        .frame(maxWidth: .infinity, alignment: .leading)
+        return HStack(alignment: .center, spacing: VoiceMessageLayout.cardBarSpacing) {
+            ForEach(0..<barCount, id: \.self) { _ in
+                Capsule(style: .continuous)
+                    .fill(waveformInactiveColor)
+                    .frame(width: VoiceMessageLayout.cardBarWidth, height: VoiceMessageLayout.cardBarMinHeight + 1)
+            }
+        }
+        .frame(width: trackWidth, height: VoiceMessageLayout.rowHeight)
+    }
+
+    /// Onda + cabezal arrastrable. El cabezal va sobre la línea media, en `displayedProgress`.
+    private var scrubbableWaveform: some View {
+        let trackWidth = waveformTrackWidth
+        let headSize = VoiceMessageLayout.progressHeadSize
+        let touchHeight = VoiceMessageLayout.minTouchTarget
+
+        return ZStack(alignment: .leading) {
+            VisualWaveformView(
+                levels: waveformLevels,
+                color: waveformInactiveColor,
+                activeColor: accentColor,
+                progress: displayedProgress,
+                height: VoiceMessageLayout.cardBarMaxHeight,
+                barWidth: VoiceMessageLayout.cardBarWidth,
+                spacing: VoiceMessageLayout.cardBarSpacing,
+                minBarHeight: VoiceMessageLayout.cardBarMinHeight
+            )
+            .frame(width: trackWidth, height: touchHeight, alignment: .leading)
+
+            Circle()
+                .fill(accentColor)
+                .frame(width: headSize, height: headSize)
+                .scaleEffect(isScrubbing ? 1.25 : 1)
+                .offset(x: trackWidth * CGFloat(displayedProgress) - headSize / 2)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isScrubbing), value: isScrubbing)
+        }
+        .frame(width: trackWidth, height: touchHeight, alignment: .leading)
         .contentShape(Rectangle())
+        // Toque: salta directamente a ese punto.
+        .onTapGesture(coordinateSpace: .local) { location in
+            seekToFraction(fraction(forX: location.x, trackWidth: trackWidth))
+        }
+        // Arrastre: el progreso visual sigue al dedo y el seek se aplica al soltar.
         .gesture(
             ChatHorizontalPanGesture(
                 direction: .both,
                 onChanged: { value in
                     if !isScrubbing {
-                        isScrubbing = true
-                        wasPlayingBeforeScrub = isPlaying
-                        if isPlaying {
-                            audioPlayer?.pause()
-                            isPlaying = false
-                            timer?.invalidate()
-                        }
-                        HapticManager.shared.lightImpact()
+                        beginScrub()
                     }
-
-                    let width = trackWidth
-                    let fraction = max(0, min(1, value.location.x / width))
-                    scrubFraction = fraction
-                    seekToFraction(fraction)
+                    scrubFraction = fraction(forX: value.location.x, trackWidth: trackWidth)
                 },
                 onEnded: { _, _ in
-                    isScrubbing = false
-                    scrubFraction = nil
-                    if wasPlayingBeforeScrub {
-                        resumeAfterScrub()
-                    }
+                    endScrub()
                 }
             )
         )
+        // Mantiene la fila en 24 pt; la zona táctil de 44 pt desborda en vertical.
+        .padding(.vertical, -(touchHeight - VoiceMessageLayout.rowHeight) / 2)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("chat.audio.scrub.accessibility"))
+        .accessibilityValue(Text(String(
+            format: NSLocalizedString("chat.audio.scrub.value", comment: "Elapsed of total voice message duration"),
+            MomentsFormat.spokenDuration(currentTime),
+            MomentsFormat.spokenDuration(duration)
+        )))
+        .accessibilityAdjustableAction { direction in
+            guard duration > 0 else { return }
+            let step = min(5, duration / 10)
+            switch direction {
+            case .increment:
+                seekToFraction((currentTime + step) / duration)
+            case .decrement:
+                seekToFraction((currentTime - step) / duration)
+            @unknown default:
+                break
+            }
+        }
     }
 
     private var unavailableRow: some View {
@@ -815,13 +884,25 @@ struct GlassmorphicAudioMessage: View {
         }
     }
 
+    /// Debajo de la onda: «Cargando», tiempo o nada si el audio no está disponible.
     @ViewBuilder
+    private var bottomLabel: some View {
+        if isCheckingAvailability {
+            Text(NSLocalizedString("chat.loading", comment: "Loading audio message"))
+                .font(.system(size: legacyPoppinsSize(12)))
+                .foregroundStyle(durationLabelColor)
+        } else if isAudioAvailable {
+            timeLabel
+        } else {
+            Color.clear.frame(height: 0)
+        }
+    }
+
     private var timeLabel: some View {
         Text(formatDuration(displayedTimeSeconds))
-            .font(.system(size: legacyPoppinsSize(11), weight: .medium))
+            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
             .monospacedDigit()
             .foregroundStyle(durationLabelColor)
-            .frame(minWidth: 34, alignment: .trailing)
             .accessibilityLabel(
                 Text(
                     String(
@@ -829,7 +910,7 @@ struct GlassmorphicAudioMessage: View {
                             "chat.audio.duration.accessibility",
                             comment: "Voice message duration for accessibility"
                         ),
-                        formatDuration(displayedTimeSeconds)
+                        MomentsFormat.spokenDuration(displayedTimeSeconds)
                     )
                 )
             )
@@ -841,11 +922,11 @@ struct GlassmorphicAudioMessage: View {
             Text(speedLabel)
                 .font(.system(size: 10, weight: .bold))
                 .monospacedDigit()
-                .foregroundStyle(contentColor)
+                .foregroundStyle(controlColor)
                 // Ancho fijo (el reservado en el layout) para que no salte entre 1× y 1.5×.
                 .frame(width: VoiceMessageLayout.speedControlWidth)
                 .padding(.vertical, 4)
-                .background(contentColor.opacity(colorScheme == .dark ? 0.15 : 0.12))
+                .background(controlColor.opacity(colorScheme == .dark ? 0.15 : 0.12))
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -861,7 +942,7 @@ struct GlassmorphicAudioMessage: View {
 
     private func refreshWaveformLevels() {
         let seed = audioUrl ?? messageId
-        let trackWidth = VoiceMessageLayout.waveformTrackWidth(containerWidth: layoutContainerWidth, includesSpeedControl: showsSpeedControl)
+        let trackWidth = waveformTrackWidth
         let barCount = VoiceMessageLayout.waveformBarCount(for: trackWidth)
         if let waveformSamples, !waveformSamples.isEmpty {
             waveformLevels = ChatVoiceWaveformSamples.resampled(waveformSamples, count: barCount)
@@ -1058,12 +1139,46 @@ struct GlassmorphicAudioMessage: View {
         audioPlayer?.rate = playbackRate
     }
 
+    /// Seek del reproductor: fija `currentTime` y, si hay player, lo mueve ahí.
     private func seekToFraction(_ fraction: Double) {
-        let targetTime = fraction * duration
-        currentTime = max(0, min(duration, targetTime))
+        guard duration > 0 else { return }
+        let clamped = max(0, min(1, fraction))
+        currentTime = clamped * duration
         if let player = audioPlayer {
             player.currentTime = currentTime
         }
+    }
+
+    private func fraction(forX x: CGFloat, trackWidth: CGFloat) -> Double {
+        guard trackWidth > 0 else { return 0 }
+        return Double(max(0, min(1, x / trackWidth)))
+    }
+
+    /// Inicio del arrastre: pausa (sin soltar la sesión) para reanudar al soltar.
+    private func beginScrub() {
+        isScrubbing = true
+        scrubFraction = displayedProgress
+        wasPlayingBeforeScrub = isPlaying
+        if isPlaying {
+            audioPlayer?.pause()
+            isPlaying = false
+            timer?.invalidate()
+        }
+        HapticManager.shared.lightImpact()
+    }
+
+    /// Fin del arrastre: aplica el seek en la posición soltada y reanuda si sonaba.
+    private func endScrub() {
+        guard isScrubbing else { return }
+        if let scrubFraction {
+            seekToFraction(scrubFraction)
+        }
+        isScrubbing = false
+        scrubFraction = nil
+        if wasPlayingBeforeScrub {
+            resumeAfterScrub()
+        }
+        wasPlayingBeforeScrub = false
     }
 
     private var playbackProgress: Double {
@@ -1078,13 +1193,14 @@ struct GlassmorphicAudioMessage: View {
         return playbackProgress
     }
 
+    /// Parado al inicio: duración total. Reproduciendo, en pausa a mitad o arrastrando: transcurrido.
     private var displayedTimeSeconds: Double {
         guard duration > 0 else { return 0 }
-        if isScrubbing {
-            return currentTime
+        if let scrubFraction {
+            return scrubFraction * duration
         }
         if isPlaying || currentTime > 0.01 {
-            return max(0, duration - currentTime)
+            return min(duration, currentTime)
         }
         return duration
     }

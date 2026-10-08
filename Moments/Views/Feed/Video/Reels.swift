@@ -1468,7 +1468,7 @@ struct ReelVideoView: View {
     }
     
     private func formatTimeAgo(_ date: Date) -> String {
-        MomentsFormat.relativeTime(from: date)
+        MomentsFormat.smartDate(from: date, context: .feedTimestamp)
     }
     
     // ... (resto de funciones existentes)

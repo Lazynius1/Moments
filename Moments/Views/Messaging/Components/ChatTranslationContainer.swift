@@ -11,6 +11,8 @@ struct ChatTranslationContainer<Content: View>: View {
     @State private var showTranslation = false
     @State private var requested = false
     @State private var failed = false
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
 
     private var target: String { Bundle.main.preferredLocalizations.first ?? "en" }
     private var displayedText: String {
@@ -66,7 +68,7 @@ struct ChatTranslationContainer<Content: View>: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 18, height: 18)
-                        .foregroundStyle(failed ? Color.red : (showTranslation ? Color.accentColor : Color.secondary))
+                        .foregroundStyle(failed ? Color.red : (showTranslation ? AdaptiveColors(colorScheme: colorScheme).receivedAccent(from: chatOutgoingBubbleColor) : Color.secondary))
                 }
             }
             .frame(width: 32, height: 32)

@@ -219,7 +219,7 @@ struct SessionCard: View {
 
                 Spacer(minLength: 0)
 
-                Text(session.timestamp.timeAgoDisplay())
+                Text(MomentsFormat.relativeTime(from: session.timestamp, style: .long))
                     .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5))
             }

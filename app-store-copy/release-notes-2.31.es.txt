@@ -1,66 +1,40 @@
 Novedades de Moments (v2.31)
 
-¡Moments llega al iPhone Duo! Chats más tuyos, historias con más control, audio original y mapas renovados.
-
-En esta versión:
+¡Moments llega al iPhone Duo! Hemos rediseñado Moments para sacarle todo el partido a sus dos pantallas.
 
 IPHONE DUO
-- Feed en una pantalla y comentarios en la otra: sigue viendo el momento mientras lees y respondes.
-- Inbox y conversación a la vez, para cambiar de chat con la lista a la vista.
-- Explorar y perfiles muestran la rejilla junto al momento abierto, con detalles en la segunda pantalla.
-- Echoes muestra el contenido junto a las tarjetas de sus distintas perspectivas.
-- Al crear, ves la galería junto a la preview y editas con la foto y las herramientas a la vista.
-- Cámara con preview en la pantalla exterior, también al capturar desde el chat.
-- Historias, respuestas, reacciones y contenido de «ver una vez» adaptados al espacio disponible.
-- Ajustes en dos columnas: categorías a un lado y la opción que cambias al otro.
-- Navegación lateral y distribución adaptadas al Duo abierto, cerrado y parcialmente abierto.
-- Abre o cierra el Duo y sigue donde estabas: conservamos el momento, la posición del feed y la conversación.
+- Feed y comentarios a la vez: sigue viendo el momento mientras lees y respondes en la otra pantalla.
+- Tus chats, siempre a la vista: la lista de chats en una pantalla y la conversación en la otra.
+- Explorar y perfiles muestran la rejilla junto al momento que abres.
+- Crea con todo a mano: la galería y las herramientas a un lado, tu foto al otro.
+- Usa la pantalla exterior como visor al grabar historias o con la cámara del chat: te ves en directo con la cámara trasera y sabes cuánto llevas grabado.
+- Ajustes en dos columnas y navegación pensada para el Duo abierto, cerrado o a medias.
 
-PUBLICAR HISTORIAS
-- Antes de publicar, una nueva pantalla reúne la preview y las opciones de tu historia.
-- Revisa quién puede verla y elige si estará disponible durante 24 o 48 horas.
-- Elige si permites mensajes, reacciones y respuestas con fotos efímeras.
-- Cada historia tiene sus opciones, sin cambiar tus preferencias generales.
-- Las cadenas también pasan por esta pantalla, con acceso a sus ajustes de continuación. Siguen siendo públicas y duran 48 horas.
+CHAT
+- Elige el fondo de cada chat (fotos, colores o temas) y el color de tus burbujas. Solo lo ves tú.
+- Reacciones con nuevas animaciones y tus emojis más usados a mano.
+- Al responder se ve la foto, el vídeo o el mensaje que citas.
+- Abre los «ver una vez» directamente desde la lista de chats, sin entrar en la conversación.
+- Amplía las fotos del chat con dos dedos o con un doble toque.
+- Menú de acciones más cómodo, también con el teclado abierto.
+- Los mensajes se envían bien aunque tengas mala conexión.
+- Lee los mensajes en las notificaciones aunque tengas el iPhone bloqueado.
+- Los chats cargan antes.
+
+HISTORIAS
+- Antes de publicar, una nueva pantalla reúne la vista previa y las opciones de tu historia: quién la ve, si dura 24 o 48 horas y si permite mensajes, reacciones y respuestas.
+- Guarda el audio original de historias públicas y úsalo en las tuyas desde el sticker de audio. Tú decides si otros pueden reutilizar el tuyo.
 - Herramientas de texto y dibujo con iconos renovados.
 
-AUDIO ORIGINAL EN HISTORIAS
-- Guarda audios originales de historias públicas y reutilízalos desde la pestaña Guardados del sticker de audio.
-- Al publicar, decides si permites guardar y reutilizar tu audio. Solo se ofrece en historias públicas de cuentas públicas.
-- Los audios guardados pueden seguir disponibles cuando caduque la historia.
-- El audio acompaña mejor a la historia: se pausa y continúa con ella.
-
-CHATS MÁS TUYOS
-- Personaliza cada conversación con fotos, colores o nuevos temas de fondo.
-- Ajusta el encuadre y la intensidad del fondo, y elige el color de tus burbujas.
-- El estilo es solo para ti: cada persona puede darle su propio aspecto al chat.
-- Reacciones con animaciones renovadas y un selector con tus emojis más usados.
-- Menú de acciones más cómodo, también con el teclado abierto.
-
-FOTOS, VÍDEOS Y CONTENIDO COMPARTIDO
-- Amplía las fotos del chat con dos dedos o con un doble toque.
-- Los medios enviados desde el editor para mantener en el chat conservan textos y stickers, también en la galería.
-- Previews más estables mientras se carga el contenido.
-
 MAPAS
-- Navegación renovada al abrir la ubicación de un momento y explorar el mapa.
+- Navegación renovada al abrir la ubicación de un momento.
 - Momentos e historias agrupados por lugar, con acceso a las historias de la zona.
-- Vuelve al mapa sin perder el contexto del momento que estabas viendo.
 
-AUDIENCIAS, AJUSTES Y NOTIFICACIONES
+AVISOS Y AJUSTES
+- Nuevos avisos en la app: ves el progreso de lo que haces y puedes deshacer algunas acciones.
+- Ajustes más ordenados: perfil, contenido, mensajes y cuenta, cada uno en su sitio.
 - Gestión de listas de audiencia más cómoda.
-- Ajustes reorganizados: perfil, contenido, mensajes y cuenta.
-- Identificación más fiable de la sesión actual y del estado al cerrar sesión.
-- Miniaturas más claras para las notificaciones de cadenas.
-- Corrección de propuestas duplicadas de Echoes.
 
-NOTIFICACIONES DENTRO DE LA APP
-- Banner renovado con avisos y confirmaciones en el mismo lugar: guardar, publicar, borrar o cambiar preferencias.
-- Progreso mientras se completa una acción, errores más claros y una nueva animación de confirmación.
-- Avisos en cola y opción de deshacer ciertas acciones desde el banner.
-- El temporizador de Incógnito se integra con el banner y se adapta cuando llega un aviso.
-
-FLUIDEZ Y PULIDO
-- Selector del feed más compacto, comentarios más cómodos y mejor gestión de solicitudes de mensajes.
-- Tu música sigue sonando al entrar en Moments o navegar por contenido silenciado.
-- Mejor coordinación del audio y carga más fluida de chats, historias, archivo y destacadas.
+Y ADEMÁS
+- Tu música sigue sonando mientras navegas.
+- Correcciones en Echoes, en las notificaciones de cadenas y en las solicitudes de mensajes.

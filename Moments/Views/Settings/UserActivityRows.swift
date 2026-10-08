@@ -86,7 +86,7 @@ struct ActivityCommentItemRow: View {
                     .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .lineLimit(3)
 
-                Text(item.commentedAt.timeAgoDisplay())
+                Text(MomentsFormat.relativeTime(from: item.commentedAt, style: .long))
                     .font(.system(size: legacyPoppinsSize(11)))
                     .foregroundStyle(.gray.opacity(0.85))
             }
@@ -391,7 +391,7 @@ struct ActivityEventRow: View {
                         }
 
                         HStack(spacing: 6) {
-                            Text(item.timestamp.timeAgoDisplay())
+                            Text(MomentsFormat.relativeTime(from: item.timestamp, style: .long))
                                 .font(.system(size: legacyPoppinsSize(11)))
                                 .foregroundStyle(.gray.opacity(0.85))
 
@@ -569,7 +569,7 @@ struct ActivityEventRow: View {
 
     private var expiresLabel: String {
         guard let expiresAt = item.echoExpiresAt else {
-            return item.timestamp.timeAgoDisplay()
+            return MomentsFormat.relativeTime(from: item.timestamp, style: .long)
         }
 
         if expiresAt <= Date() {
@@ -668,7 +668,7 @@ struct ActivityEventRow: View {
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary.opacity(0.7))
                     
-                    Text(item.timestamp.timeAgoDisplay())
+                    Text(MomentsFormat.relativeTime(from: item.timestamp, style: .long))
                         .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundStyle(.secondary)
                 }

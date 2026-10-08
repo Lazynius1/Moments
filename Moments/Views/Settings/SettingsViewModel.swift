@@ -9,6 +9,9 @@ class SettingsViewModel: ObservableObject {
     private let privacyService = PrivacyService()
     let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
+        // Clave interna: formato fijo, ajeno al idioma y calendario del usuario.
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "HH:mm"
         return formatter
     }()

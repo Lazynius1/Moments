@@ -1,23 +1,28 @@
 import Foundation
 
 /// Centralized locale-aware formatting for dates, times, counts, and distances.
-/// Feed timestamps use compact units (`time.*` keys).
-/// Absolute dates and measurements use native `FormatStyle` / Foundation formatters with `Locale.current`.
+/// Fechas y unidades salen de los formateadores del sistema con `Locale.current` / `Calendar.current`
+/// (plurales y 12/24 h incluidos); solo «ahora» usa una clave propia (`time.now`).
 /// No user-visible `DateFormatter.dateFormat = ...` should live outside this file.
 enum MomentsFormat {
 
     // MARK: - Relative time
 
     enum RelativeTimeStyle {
-        /// Compact feed style: `5 min ago` / `hace 5 min` via `time.*` localization keys.
+        /// Corto sin «hace»: «ahora», «5 min», «3 h», «2 d», «4 sem.», «1 a» (en: «5m», «3h», «2d», «4w»).
+        /// Comentarios, lista de chats, historias, notificaciones, Echoes y mapas.
         case compact
-        case compactBare
+        /// Largo del sistema con una sola unidad: «hace 3 horas», «3 hours ago», «vor 3 Stunden».
+        /// Sesiones iniciadas, Nova y pantalla de actividad.
+        case long
         /// Locale-native relative wording, limited to a single unit for brevity.
         case conversational(unitsStyle: RelativeDateTimeFormatter.UnitsStyle = .abbreviated)
     }
 
     enum DateContext {
+        /// Posts: «ahora», «hace 5 minutos» hasta 7 días y luego «12 de septiembre» (con año si no es el actual).
         case feedTimestamp
+        /// Separador del chat: «14:32», «Ayer, 14:32», «lun 14:32», «12 sept 14:32», «12 sept 2025 14:32».
         case chatSeparator
         case storyArchive
         case detailHeader
@@ -52,9 +57,9 @@ enum MomentsFormat {
     ) -> String {
         switch style {
         case .compact:
-            return compactRelativeTime(from: date, relativeTo: reference)
-        case .compactBare:
-            return compactBareRelativeTime(from: date, relativeTo: reference)
+            return shortElapsedTime(from: date, relativeTo: reference)
+        case .long:
+            return longElapsedTime(from: date, relativeTo: reference)
         case .conversational(let unitsStyle):
             return singleUnitRelativeTime(from: date, relativeTo: reference, unitsStyle: unitsStyle)
         }
@@ -69,30 +74,43 @@ enum MomentsFormat {
 
         switch context {
         case .feedTimestamp:
-            let components = calendar.dateComponents(
-                [.day, .hour, .minute, .second],
-                from: date,
-                to: reference
-            )
-            if let day = components.day, day >= 7 || (components.year ?? 0) > 0 {
-                if calendar.isDate(date, equalTo: reference, toGranularity: .year) {
-                    return date.formatted(.dateTime.month(.abbreviated).day())
-                }
-                return date.formatted(.dateTime.month(.abbreviated).day().year())
+            // Tiempo transcurrido, no días de calendario.
+            let elapsed = reference.timeIntervalSince(date)
+            if elapsed < secondsPerMinute {
+                return NSLocalizedString("time.now", comment: "Just now")
             }
-            return compactRelativeTime(from: date, relativeTo: reference)
+            if elapsed < 7 * secondsPerDay {
+                let components: DateComponents
+                if elapsed < secondsPerHour {
+                    components = DateComponents(minute: -Int(elapsed / secondsPerMinute))
+                } else if elapsed < secondsPerDay {
+                    components = DateComponents(hour: -Int(elapsed / secondsPerHour))
+                } else {
+                    components = DateComponents(day: -Int(elapsed / secondsPerDay))
+                }
+                return feedRelativeFormatter().localizedString(from: components)
+            }
+            let sameYear = calendar.isDate(date, equalTo: reference, toGranularity: .year)
+            return localizedDateString(from: date, template: sameYear ? "dMMMM" : "yMMMMd")
 
         case .chatSeparator:
-            if calendar.isDateInToday(date) {
-                return NSLocalizedString("chat.date.today", comment: "Today")
+            // Agrupa por día de calendario; la hora sigue la preferencia 12/24 h del sistema.
+            let dayOffset = calendar.dateComponents(
+                [.day],
+                from: calendar.startOfDay(for: date),
+                to: calendar.startOfDay(for: reference)
+            ).day ?? 0
+            switch dayOffset {
+            case 0:
+                return localizedDateString(from: date, template: "jmm")
+            case 1:
+                return relativeDayTimeFormatter().string(from: date)
+            case 2...6:
+                return localizedDateString(from: date, template: "EEEjmm")
+            default:
+                let sameYear = calendar.isDate(date, equalTo: reference, toGranularity: .year)
+                return localizedDateString(from: date, template: sameYear ? "dMMMjmm" : "yMMMdjmm")
             }
-            if calendar.isDateInYesterday(date) {
-                return NSLocalizedString("chat.date.yesterday", comment: "Yesterday")
-            }
-            if calendar.isDate(date, equalTo: reference, toGranularity: .year) {
-                return date.formatted(.dateTime.month(.abbreviated).day())
-            }
-            return date.formatted(date: .abbreviated, time: .omitted)
 
         case .storyArchive:
             if calendar.isDateInToday(date) {
@@ -171,6 +189,58 @@ enum MomentsFormat {
         }
     }
 
+    /// `true` si el formato corto mostraría «ahora» (menos de un minuto).
+    static func isJustNow(_ date: Date, relativeTo reference: Date = Date()) -> Bool {
+        reference.timeIntervalSince(date) < secondsPerMinute
+    }
+
+    // MARK: - Read receipts
+
+    /// Recibo de lectura con momento exacto: «Visto hoy, 14:32», «Visto ayer, 23:00»,
+    /// «Visto el lun, 14:32», «Visto el 24 sept, 14:32» (con año si no es el actual).
+    /// Fecha y hora salen de plantillas del sistema; la frase, de claves con `%@`.
+    static func seenReceipt(at date: Date, relativeTo reference: Date = Date()) -> String {
+        let calendar = Calendar.current
+        let dayOffset = calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: date),
+            to: calendar.startOfDay(for: reference)
+        ).day ?? 0
+        let time = smartDate(from: date, context: .timeOnly, relativeTo: reference)
+        switch dayOffset {
+        case ...0:
+            return String(format: NSLocalizedString("chat.seen.at.today", comment: "Seen today, %@ = time"), time)
+        case 1:
+            return String(format: NSLocalizedString("chat.seen.at.yesterday", comment: "Seen yesterday, %@ = time"), time)
+        case 2...6:
+            return String(
+                format: NSLocalizedString("chat.seen.at.date", comment: "Seen on %@ = weekday or date with time"),
+                localizedDateString(from: date, template: "EEEjmm")
+            )
+        default:
+            let sameYear = calendar.isDate(date, equalTo: reference, toGranularity: .year)
+            return String(
+                format: NSLocalizedString("chat.seen.at.date", comment: "Seen on %@ = weekday or date with time"),
+                localizedDateString(from: date, template: sameYear ? "dMMMjmm" : "ydMMMjmm")
+            )
+        }
+    }
+
+    // MARK: - Durations
+
+    /// Duración para VoiceOver con palabras del sistema: «dos minutos y treinta segundos».
+    static func spokenDuration(_ seconds: TimeInterval) -> String {
+        let formatter: DateComponentsFormatter = FormatterCache.shared.formatter(for: "spokenDuration") {
+            let formatter = DateComponentsFormatter()
+            formatter.calendar = Calendar.current
+            formatter.unitsStyle = .spellOut
+            formatter.allowedUnits = [.hour, .minute, .second]
+            formatter.zeroFormattingBehavior = .dropAll
+            return formatter
+        }
+        return formatter.string(from: max(0, seconds.rounded(.down))) ?? ""
+    }
+
     // MARK: - Counts
 
     static func count(_ value: Int, style: CountStyle) -> String {
@@ -203,61 +273,53 @@ enum MomentsFormat {
 
     // MARK: - Private
 
-    private static func compactUnitString(from date: Date, relativeTo reference: Date) -> String? {
-        let calendar = Calendar.current
-        let components = calendar.dateComponents(
-            [.year, .month, .weekOfYear, .day, .hour, .minute, .second],
-            from: date,
-            to: reference
-        )
+    private static let secondsPerMinute: TimeInterval = 60
+    private static let secondsPerHour: TimeInterval = 3_600
+    private static let secondsPerDay: TimeInterval = 86_400
 
-        if let year = components.year, year > 0 {
-            let unit = NSLocalizedString(year == 1 ? "time.unit.yr" : "time.unit.yrs", comment: "Year unit")
-            return compactValueAndUnit(year, unit: unit)
-        }
-        if let month = components.month, month > 0 {
-            let unit = NSLocalizedString(month == 1 ? "time.unit.mo" : "time.unit.mos", comment: "Month unit")
-            return compactValueAndUnit(month, unit: unit)
-        }
-        if let week = components.weekOfYear, week > 0 {
-            let unit = NSLocalizedString("time.unit.wk", comment: "Week unit")
-            return compactValueAndUnit(week, unit: unit)
-        }
-        if let day = components.day, day > 0 {
-            let unit = NSLocalizedString("time.unit.d", comment: "Day unit")
-            return compactValueAndUnit(day, unit: unit)
-        }
-        if let hour = components.hour, hour > 0 {
-            let unit = NSLocalizedString("time.unit.h", comment: "Hour unit")
-            return compactValueAndUnit(hour, unit: unit)
-        }
-        if let minute = components.minute, minute > 0 {
-            let unit = NSLocalizedString("time.unit.min", comment: "Minute unit")
-            return compactValueAndUnit(minute, unit: unit)
-        }
-        return nil
-    }
-
-    private static func compactRelativeTime(from date: Date, relativeTo reference: Date) -> String {
-        guard let timeString = compactUnitString(from: date, relativeTo: reference) else {
+    /// Unidad única abreviada del sistema por tiempo transcurrido; años = días / 365.
+    private static func shortElapsedTime(from date: Date, relativeTo reference: Date) -> String {
+        let elapsed = reference.timeIntervalSince(date)
+        guard elapsed >= secondsPerMinute else {
             return NSLocalizedString("time.now", comment: "Just now")
         }
-        let format = NSLocalizedString("time.ago", comment: "Time ago")
-        return String(format: format, timeString)
+        let days = Int(elapsed / secondsPerDay)
+        let components: DateComponents
+        if elapsed < secondsPerHour {
+            components = DateComponents(minute: Int(elapsed / secondsPerMinute))
+        } else if elapsed < secondsPerDay {
+            components = DateComponents(hour: Int(elapsed / secondsPerHour))
+        } else if days < 7 {
+            components = DateComponents(day: days)
+        } else if days < 365 {
+            components = DateComponents(weekOfMonth: days / 7)
+        } else {
+            components = DateComponents(year: days / 365)
+        }
+        return shortUnitsFormatter().string(for: components)
+            ?? NSLocalizedString("time.now", comment: "Just now")
     }
 
-    private static func compactBareRelativeTime(from date: Date, relativeTo reference: Date) -> String {
-        let calendar = Calendar.current
-        guard calendar.dateComponents([.weekOfYear], from: date, to: reference).weekOfYear ?? 0 < 1 else {
-            if calendar.isDate(date, equalTo: reference, toGranularity: .year) {
-                return date.formatted(.dateTime.month(.abbreviated).day())
-            }
-            return date.formatted(.dateTime.month(.abbreviated).day().year())
-        }
-        guard let timeString = compactUnitString(from: date, relativeTo: reference) else {
+    /// «hace 3 horas»: una unidad por tiempo transcurrido (como `.compact`), palabras completas del sistema.
+    private static func longElapsedTime(from date: Date, relativeTo reference: Date) -> String {
+        let elapsed = reference.timeIntervalSince(date)
+        guard elapsed >= secondsPerMinute else {
             return NSLocalizedString("time.now", comment: "Just now")
         }
-        return timeString
+        let days = Int(elapsed / secondsPerDay)
+        let components: DateComponents
+        if elapsed < secondsPerHour {
+            components = DateComponents(minute: -Int(elapsed / secondsPerMinute))
+        } else if elapsed < secondsPerDay {
+            components = DateComponents(hour: -Int(elapsed / secondsPerHour))
+        } else if days < 7 {
+            components = DateComponents(day: -days)
+        } else if days < 365 {
+            components = DateComponents(weekOfMonth: -(days / 7))
+        } else {
+            components = DateComponents(year: -(days / 365))
+        }
+        return feedRelativeFormatter().localizedString(from: components)
     }
 
     private static func singleUnitRelativeTime(
@@ -345,10 +407,56 @@ enum MomentsFormat {
     }
 
     private static func localizedDateString(from date: Date, template: String) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.setLocalizedDateFormatFromTemplate(template)
+        let formatter: DateFormatter = FormatterCache.shared.formatter(for: "template.\(template)") {
+            let formatter = DateFormatter()
+            formatter.locale = Locale.current
+            formatter.calendar = Calendar.current
+            formatter.setLocalizedDateFormatFromTemplate(template)
+            return formatter
+        }
         return formatter.string(from: date)
+    }
+
+    /// «Ayer, 14:32» / «Yesterday at 2:32 PM» con la palabra relativa del sistema.
+    private static func relativeDayTimeFormatter() -> DateFormatter {
+        FormatterCache.shared.formatter(for: "relativeDayTime") {
+            let formatter = DateFormatter()
+            formatter.locale = Locale.current
+            formatter.calendar = Calendar.current
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            formatter.doesRelativeDateFormatting = true
+            formatter.formattingContext = .beginningOfSentence
+            return formatter
+        }
+    }
+
+    private static func feedRelativeFormatter() -> RelativeDateTimeFormatter {
+        FormatterCache.shared.formatter(for: "feedRelative") {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.locale = Locale.current
+            formatter.calendar = Calendar.current
+            formatter.unitsStyle = .full
+            formatter.dateTimeStyle = .numeric
+            return formatter
+        }
+    }
+
+    /// Estilo por idioma (comprobado en macOS con es, en, de, ja, fr y el resto de idiomas de la app):
+    /// - `.abbreviated` solo en inglés: «5m», «3h», «2d», «4w», «1y» (`.short` alarga a «2 days», «4 wks»).
+    /// - `.short` en el resto: ja «4週間», «1年» (con `.abbreviated` salía «4w», «1y»); de «3 Std.», «2 Tg.»
+    ///   (en vez de «3h», «2d»); tr «5 dk.», «4 hf.» (en vez de «5d», «4h», ambiguos); fr «2 j», «1 an»;
+    ///   es «3 h», «2 d», «4 sem.» (igual que antes salvo el punto de «sem.»).
+    private static func shortUnitsFormatter() -> DateComponentsFormatter {
+        FormatterCache.shared.formatter(for: "shortUnits") {
+            let formatter = DateComponentsFormatter()
+            formatter.calendar = Calendar.current
+            let languageCode = Locale.current.language.languageCode?.identifier
+            formatter.unitsStyle = languageCode == "en" ? .abbreviated : .short
+            formatter.maximumUnitCount = 1
+            formatter.allowedUnits = [.minute, .hour, .day, .weekOfMonth, .year]
+            return formatter
+        }
     }
 
     private static func narrowWeekdaySymbol(for date: Date) -> String {
@@ -360,13 +468,47 @@ enum MomentsFormat {
         return symbols[index]
     }
 
-    private static func compactValueAndUnit(_ value: Int, unit: String) -> String {
-        let separator = unit.count == 1 ? "" : " "
-        return "\(value)\(separator)\(unit)"
-    }
-
     private static func firstNonZero(_ value: Int?) -> Int? {
         guard let value, value != 0 else { return nil }
         return value
+    }
+}
+
+/// Caché de formateadores; se vacía al cambiar idioma, región o zona horaria.
+private final class FormatterCache: @unchecked Sendable {
+    static let shared = FormatterCache()
+
+    private let lock = NSLock()
+    private var storage: [String: AnyObject] = [:]
+    private var observers: [NSObjectProtocol] = []
+
+    private init() {
+        let center = NotificationCenter.default
+        let names: [Foundation.Notification.Name] = [
+            NSLocale.currentLocaleDidChangeNotification,
+            .NSSystemTimeZoneDidChange
+        ]
+        observers = names.map { name in
+            center.addObserver(forName: name, object: nil, queue: nil) { [weak self] _ in
+                self?.removeAll()
+            }
+        }
+    }
+
+    func formatter<T: AnyObject>(for key: String, make: () -> T) -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        if let cached = storage[key] as? T {
+            return cached
+        }
+        let formatter = make()
+        storage[key] = formatter
+        return formatter
+    }
+
+    private func removeAll() {
+        lock.lock()
+        storage.removeAll()
+        lock.unlock()
     }
 }

@@ -356,6 +356,7 @@ struct EmbeddedReplyView: View {
     let onTap: (() -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -370,26 +371,33 @@ struct EmbeddedReplyView: View {
     }
 
     private var accent: Color {
-        repliedToSelf ? adaptiveColors.userAccentColor : adaptiveColors.receivedAccentColor
+        repliedToSelf
+            ? adaptiveColors.receivedAccent(from: chatOutgoingBubbleColor)
+            : adaptiveColors.receivedAccentColor
+    }
+
+    /// En salientes, blanco o negro según el contraste del color de burbuja elegido.
+    private var outgoingInk: Color {
+        chatBubbleTextColor(for: chatOutgoingBubbleColor)
     }
 
     private var tint: Color {
         if isOutgoingBubble {
-            return Color.white.opacity(0.18)
+            return outgoingInk.opacity(0.18)
         }
         return colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.06)
     }
 
     private var barColor: Color {
-        isOutgoingBubble ? Color.white.opacity(0.9) : accent
+        isOutgoingBubble ? outgoingInk.opacity(0.9) : accent
     }
 
     private var titleColor: Color {
-        isOutgoingBubble ? Color.white.opacity(0.95) : accent
+        isOutgoingBubble ? outgoingInk.opacity(0.95) : accent
     }
 
     private var bodyColor: Color {
-        isOutgoingBubble ? Color.white.opacity(0.8) : adaptiveColors.messageTextColor.opacity(0.7)
+        isOutgoingBubble ? outgoingInk.opacity(0.8) : adaptiveColors.messageTextColor.opacity(0.7)
     }
 
     var body: some View {

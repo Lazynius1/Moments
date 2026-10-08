@@ -1486,6 +1486,9 @@ class FirestoreService: ObservableObject {
         }
 
         let dateFormatter = DateFormatter()
+        // Clave interna: formato fijo, ajeno al idioma y calendario del usuario.
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.calendar = Calendar(identifier: .gregorian)
         dateFormatter.dateFormat = "HH:mm"
         dateFormatter.timeZone = TimeZone.current
 

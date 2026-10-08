@@ -635,7 +635,7 @@ struct ModernPostCardView: View {
                         .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundStyle(adaptiveColors.tertiary)
 
-                    Text(moment.timestamp.timeAgoDisplay())
+                    Text(MomentsFormat.smartDate(from: moment.timestamp, context: .feedTimestamp))
                         .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundStyle(adaptiveColors.tertiary)
                 }

@@ -1409,7 +1409,7 @@ struct SearchMessageResultRow: View {
 
                         Spacer(minLength: 4)
 
-                        Text(MomentsFormat.relativeTime(from: result.message.timestamp, style: .compactBare))
+                        Text(MomentsFormat.relativeTime(from: result.message.timestamp, style: .compact))
                             .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundStyle(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.4))
                     }
@@ -1691,8 +1691,15 @@ struct GlassmorphicConversationRow: View {
                 }
                 return String(format: format, conversation.unreadCount)
             } else if isOwnLastMessage,
-                      conversation.lastMessageSeenAt?[conversation.otherParticipantId] != nil {
-                return NSLocalizedString("chat.seen", comment: "Seen")
+                      let seenAt = conversation.lastMessageSeenAt?[conversation.otherParticipantId] {
+                // «Visto hace 5 min» como una sola frase; «Visto ahora» si aún no ha pasado un minuto.
+                if MomentsFormat.isJustNow(seenAt) {
+                    return NSLocalizedString("chat.seen.justNow", comment: "Seen just now")
+                }
+                return String(
+                    format: NSLocalizedString("chat.seen.ago", comment: "Seen %@ ago, short elapsed time"),
+                    MomentsFormat.relativeTime(from: seenAt, style: .compact)
+                )
             } else if isOwnLastMessage {
                 return NSLocalizedString("chat.status.sent", comment: "Sent")
             } else {
@@ -1707,14 +1714,14 @@ struct GlassmorphicConversationRow: View {
         }()
 
         let secondaryColor = colorScheme == .dark ? Color.white.opacity(0.45) : Color.black.opacity(0.38)
-        let relativeTimeSource: Date = {
-            if isOwnLastMessage,
-               let seenAt = conversation.lastMessageSeenAt?[conversation.otherParticipantId] {
-                return seenAt
-            }
-            return conversation.timestamp
-        }()
-        let relativeTime = MomentsFormat.relativeTime(from: relativeTimeSource, style: .compactBare)
+        // La fila «Visto hace…» ya lleva el tiempo dentro de la frase: sin hora relativa suelta al lado.
+        let showsSeenPhrase = !showsUnavailablePreview
+            && !showsDraftPreview
+            && !(conversation.lastMessageReaction != nil && isOwnLastMessage)
+            && conversation.unreadCount < 2
+            && isOwnLastMessage
+            && conversation.lastMessageSeenAt?[conversation.otherParticipantId] != nil
+        let relativeTime = MomentsFormat.relativeTime(from: conversation.timestamp, style: .compact)
 
         // Ver una vez recibido sin abrir: "Ver foto"/"Ver vídeo" destacado, como un no leído.
         let emphasizesViewOnce = !showsDraftPreview && conversation.showsViewOnceInboxPlayButton(for: currentUserId)
@@ -1730,10 +1737,12 @@ struct GlassmorphicConversationRow: View {
             .lineLimit(1)
             .layoutPriority(-1)
 
-            Text(relativeTime)
-                .font(.system(size: 14))
-                .foregroundStyle(secondaryColor)
-                .fixedSize(horizontal: true, vertical: false)
+            if !showsSeenPhrase {
+                Text(relativeTime)
+                    .font(.system(size: 14))
+                    .foregroundStyle(secondaryColor)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
         }
 
         if listInteraction == nil {

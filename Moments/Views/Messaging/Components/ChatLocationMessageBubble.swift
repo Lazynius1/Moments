@@ -52,6 +52,7 @@ struct ChatLocationMessageBubble: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
     @State private var snapshot: UIImage?
     @State private var now = Date()
 
@@ -69,8 +70,41 @@ struct ChatLocationMessageBubble: View {
 
     private var mapWidth: CGFloat { bubbleWidth - (cardInset * 2) }
 
+    private var neutralCardBackground: Color {
+        AdaptiveColors(colorScheme: colorScheme).chatCardBackground
+    }
+
+    /// Propias: el panel adopta el color de burbuja del chat; el mapa queda intacto.
     private var cardBackground: Color {
-        colorScheme == .dark ? Color(hex: "151C1D") : Color(hex: "E8EEF0")
+        isCurrentUser ? chatOutgoingBubbleColor : neutralCardBackground
+    }
+
+    private var outgoingInk: Color {
+        chatBubbleTextColor(for: chatOutgoingBubbleColor)
+    }
+
+    private var titleColor: Color {
+        if isCurrentUser { return outgoingInk }
+        return colorScheme == .dark ? .white : .black
+    }
+
+    private var subtitleColor: Color {
+        if isCurrentUser { return outgoingInk.opacity(0.75) }
+        return colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5)
+    }
+
+    /// Sobre el color del chat el rojo/verde pueden perderse: se usa la tinta de la burbuja.
+    private var infoIconTint: Color {
+        if isCurrentUser { return outgoingInk }
+        if isLive {
+            return isLiveActive ? .green : (colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
+        }
+        return .red
+    }
+
+    private var cardStroke: Color {
+        if isCurrentUser { return .clear }
+        return colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.08)
     }
 
     private var coordinate: CLLocationCoordinate2D? {
@@ -100,7 +134,7 @@ struct ChatLocationMessageBubble: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.08), lineWidth: 0.5)
+                .stroke(cardStroke, lineWidth: 0.5)
         )
         .onAppear {
             loadSnapshot()
@@ -161,21 +195,19 @@ struct ChatLocationMessageBubble: View {
             AttachmentIconView(
                 icon: isLive ? .liveLocation : .location,
                 preset: .locationBubbleInfo,
-                tintColor: isLive
-                    ? (isLiveActive ? .green : (colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6)))
-                    : .red
+                tintColor: infoIconTint
             )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(titleText)
                     .font(.system(size: legacyPoppinsSize(14), weight: .medium))
-                    .foregroundStyle(colorScheme == .dark ? .white : .black)
+                    .foregroundStyle(titleColor)
                     .lineLimit(isLive ? 2 : 1)
                     .fixedSize(horizontal: false, vertical: true)
                 if let subtitle = subtitleText {
                     Text(subtitle)
                         .font(.system(size: legacyPoppinsSize(12)))
-                        .foregroundStyle(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5))
+                        .foregroundStyle(subtitleColor)
                         .lineLimit(1)
                 }
             }
@@ -201,6 +233,8 @@ struct ChatLocationMessageBubble: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
             .background(Color.red.opacity(colorScheme == .dark ? 0.12 : 0.08))
+            // Acción destructiva sobre superficie neutra para que el rojo siga legible.
+            .background(neutralCardBackground)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

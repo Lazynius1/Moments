@@ -138,6 +138,9 @@ extension FirestoreService {
 
     private func updateVisitSummary(targetUserId: String, visitorId: String) {
         let dateFormatter = DateFormatter()
+        // Clave interna: formato fijo, ajeno al idioma y calendario del usuario.
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.calendar = Calendar(identifier: .gregorian)
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let today = dateFormatter.string(from: Date())
 

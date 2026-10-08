@@ -96,8 +96,8 @@ extension GlassmorphicChatView {
                 )
                 .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
             }
-        case .header(let date):
-            GlassmorphicDateHeader(date: date)
+        case .header(_, let firstMessageAt):
+            GlassmorphicDateHeader(date: firstMessageAt)
                 .padding(.vertical, 10)
                 .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
                 .transition(.identity)

@@ -707,6 +707,9 @@ private struct ArchiveCalendarDayBucket: Identifiable {
         self.date = date
         self.stories = stories
         let formatter = DateFormatter()
+        // Clave interna: formato fijo, ajeno al idioma y calendario del usuario.
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "yyyy-MM-dd"
         self.dayKey = formatter.string(from: date)
     }
@@ -715,6 +718,9 @@ private struct ArchiveCalendarDayBucket: Identifiable {
 private struct ArchiveCalendarMonthSection: Identifiable {
     var id: String {
         let formatter = DateFormatter()
+        // Clave interna: formato fijo, ajeno al idioma y calendario del usuario.
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "yyyy-MM"
         return formatter.string(from: monthStart)
     }
@@ -776,6 +782,9 @@ struct ArchiveDateSectionVertical: View {
     
     private func formatDateKey(_ dateKey: String) -> String {
         let formatter = DateFormatter()
+        // Clave interna: formato fijo, ajeno al idioma y calendario del usuario.
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "yyyy-MM-dd"
         
         if let date = formatter.date(from: dateKey) {
@@ -836,6 +845,9 @@ struct ArchiveDateSectionGrid: View {
     
     private func formatDateKey(_ dateKey: String) -> String {
         let formatter = DateFormatter()
+        // Clave interna: formato fijo, ajeno al idioma y calendario del usuario.
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "yyyy-MM-dd"
         
         if let date = formatter.date(from: dateKey) {
@@ -1721,6 +1733,9 @@ class ArchiveViewModel: ObservableObject {
     
     private func groupStoriesByDate(_ stories: [Story]) {
         let formatter = DateFormatter()
+        // Clave interna: formato fijo, ajeno al idioma y calendario del usuario.
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "yyyy-MM-dd"
         
         let grouped = Dictionary(grouping: stories) { story in

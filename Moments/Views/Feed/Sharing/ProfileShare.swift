@@ -265,6 +265,7 @@ struct SharedProfileMessageBubble: View {
                 .padding(.vertical, 4)
             }
         }
+        .environment(\.chatCardIsOutgoing, isCurrentUser)
         .fullScreenCover(item: Binding(
             get: { profileUserIdToOpen.map { SharedProfileNavItem(id: $0) } },
             set: { profileUserIdToOpen = $0?.id }
@@ -309,6 +310,8 @@ struct SharedProfilePreviewCard: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.displayScale) private var displayScale
     @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+    @Environment(\.chatCardIsOutgoing) private var isOutgoing
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
 
     private let cardCornerRadius: CGFloat = 18
     private let cardPadding: CGFloat = 11
@@ -341,9 +344,36 @@ struct SharedProfilePreviewCard: View {
         _viewModel = StateObject(wrappedValue: UserProfileViewModel(userId: profileUserId))
     }
 
-    /// Misma superficie elevada que `SharedDMPostCard` (contraste vs canvas del chat).
+    /// Misma superficie que `SharedDMPostCard`: propias con el color de burbuja del chat.
     private var cardBackground: Color {
-        colorScheme == .dark ? Color(hex: "151C1D") : Color(hex: "E8EEF0")
+        if isOutgoing { return chatOutgoingBubbleColor }
+        return AdaptiveColors(colorScheme: colorScheme).chatCardBackground
+    }
+
+    private var outgoingInk: Color {
+        chatBubbleTextColor(for: chatOutgoingBubbleColor)
+    }
+
+    private var primaryText: Color {
+        isOutgoing ? outgoingInk : UserProfileColors.textPrimary
+    }
+
+    private var secondaryText: Color {
+        isOutgoing ? outgoingInk.opacity(0.72) : UserProfileColors.textSecondary
+    }
+
+    private var progressTint: Color {
+        isOutgoing ? outgoingInk : UserProfileColors.accent
+    }
+
+    private var cardStroke: Color {
+        if isOutgoing { return .clear }
+        return UserProfileColors.borderColor.opacity(colorScheme == .dark ? 0.14 : 0.22)
+    }
+
+    private var statDivider: Color {
+        if isOutgoing { return outgoingInk.opacity(0.25) }
+        return UserProfileColors.borderColor.opacity(colorScheme == .dark ? 0.22 : 0.35)
     }
 
     private var cardShape: RoundedRectangle {
@@ -465,7 +495,7 @@ struct SharedProfilePreviewCard: View {
             ZStack {
                 Color.clear.frame(width: contentWidth, height: cellSize)
                 ProgressView()
-                    .tint(UserProfileColors.accent)
+                    .tint(progressTint)
             }
             statsRow
         }
@@ -474,10 +504,7 @@ struct SharedProfilePreviewCard: View {
         .frame(minHeight: reservedCardHeight, alignment: .topLeading)
         .background(cardBackground)
         .overlay {
-            cardShape.stroke(
-                UserProfileColors.borderColor.opacity(colorScheme == .dark ? 0.14 : 0.22),
-                lineWidth: 1
-            )
+            cardShape.stroke(cardStroke, lineWidth: 1)
         }
         .clipShape(cardShape)
         .contentShape(cardShape)
@@ -497,7 +524,7 @@ struct SharedProfilePreviewCard: View {
                 ProgressView()
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .tint(UserProfileColors.accent)
+                    .tint(progressTint)
             }
 
             statsRow
@@ -507,10 +534,7 @@ struct SharedProfilePreviewCard: View {
         .frame(minHeight: reservedCardHeight, alignment: .topLeading)
         .background(cardBackground)
         .overlay {
-            cardShape.stroke(
-                UserProfileColors.borderColor.opacity(colorScheme == .dark ? 0.14 : 0.22),
-                lineWidth: 1
-            )
+            cardShape.stroke(cardStroke, lineWidth: 1)
         }
         .clipShape(cardShape)
         .contentShape(cardShape)
@@ -545,7 +569,7 @@ struct SharedProfilePreviewCard: View {
                 HStack(spacing: 3) {
                     Text(name)
                         .font(.system(size: legacyPoppinsSize(11), weight: .bold))
-                        .foregroundStyle(UserProfileColors.textPrimary)
+                        .foregroundStyle(primaryText)
                         .lineLimit(1)
 
                     if verified {
@@ -556,7 +580,7 @@ struct SharedProfilePreviewCard: View {
                 if let bio {
                     Text(bio)
                         .font(.system(size: legacyPoppinsSize(9)))
-                        .foregroundStyle(UserProfileColors.textSecondary)
+                        .foregroundStyle(secondaryText)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -608,10 +632,10 @@ struct SharedProfilePreviewCard: View {
                     VStack(spacing: 1) {
                         Text(MomentsFormat.count(stat.count, style: .profileStat))
                             .font(.system(size: legacyPoppinsSize(11), weight: .bold))
-                            .foregroundStyle(UserProfileColors.textPrimary)
+                            .foregroundStyle(primaryText)
                         Text(stat.label)
                             .font(.system(size: legacyPoppinsSize(7), weight: .medium))
-                            .foregroundStyle(UserProfileColors.textSecondary)
+                            .foregroundStyle(secondaryText)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                     }
@@ -619,7 +643,7 @@ struct SharedProfilePreviewCard: View {
 
                     if index < stats.count - 1 {
                         Rectangle()
-                            .fill(UserProfileColors.borderColor.opacity(colorScheme == .dark ? 0.22 : 0.35))
+                            .fill(statDivider)
                             .frame(width: 1, height: 20)
                     }
                 }

@@ -937,7 +937,7 @@ private struct GroupRequestRow: View {
     let onCancel: () -> Void
     @Environment(\.colorScheme) private var colorScheme
     private var relativeDate: String? {
-        row.createdAt.map { RelativeDateTimeFormatter().localizedString(for: $0, relativeTo: Date()) }
+        row.createdAt.map { MomentsFormat.relativeTime(from: $0, style: .compact) }
     }
     var body: some View {
         HStack(alignment: .top, spacing: 12) {

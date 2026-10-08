@@ -412,7 +412,7 @@ private struct NovaWelcomeTodaySection: View {
                     icon: "arrow.uturn.forward",
                     eyebrow: String(localized: "nova.welcome.continue.title"),
                     title: conversation.title,
-                    detail: conversation.lastUpdated.timeAgoDisplay(),
+                    detail: MomentsFormat.relativeTime(from: conversation.lastUpdated, style: .long),
                     action: { onContinueConversation(conversation.id) }
                 )
             }

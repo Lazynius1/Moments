@@ -299,7 +299,7 @@ private struct MemoryFactRow: View {
                             .foregroundStyle(.yellow)
                     }
 
-                    Text(fact.timestamp.timeAgoDisplay())
+                    Text(MomentsFormat.relativeTime(from: fact.timestamp, style: .long))
                         .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundStyle(NovaColors.textTertiary)
                 }

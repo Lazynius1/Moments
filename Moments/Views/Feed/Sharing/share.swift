@@ -1352,6 +1352,8 @@ struct SharedDMPostCard<Media: View>: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+    @Environment(\.chatCardIsOutgoing) private var isOutgoing
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
 
     private var cardWidth: CGFloat {
         ChatBubbleLayoutWidth.capped(SharedDMPostCardMetrics.width, chatListWidth: chatListContainerWidth)
@@ -1361,12 +1363,20 @@ struct SharedDMPostCard<Media: View>: View {
         cardWidth - SharedDMPostCardMetrics.mediaInset * 2
     }
 
+    /// Propias: cabecera y pie con el color de burbuja del chat; la media queda intacta.
     private var cardBackground: Color {
-        colorScheme == .dark ? Color(hex: "151C1D") : Color(hex: "E8EEF0")
+        if isOutgoing { return chatOutgoingBubbleColor }
+        return AdaptiveColors(colorScheme: colorScheme).chatCardBackground
     }
 
     private var primaryText: Color {
-        colorScheme == .dark ? Color(hex: "FAF9F6") : Color(hex: "0B1215")
+        if isOutgoing { return chatBubbleTextColor(for: chatOutgoingBubbleColor) }
+        return colorScheme == .dark ? Color(hex: "FAF9F6") : Color(hex: "0B1215")
+    }
+
+    private var cardStroke: Color {
+        if isOutgoing { return .clear }
+        return colorScheme == .dark ? Color.white.opacity(0.13) : Color.black.opacity(0.09)
     }
 
     private var resolvedMediaHeight: CGFloat {
@@ -1404,10 +1414,7 @@ struct SharedDMPostCard<Media: View>: View {
         .clipShape(RoundedRectangle(cornerRadius: SharedDMPostCardMetrics.cornerRadius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: SharedDMPostCardMetrics.cornerRadius, style: .continuous)
-                .stroke(
-                    colorScheme == .dark ? Color.white.opacity(0.13) : Color.black.opacity(0.09),
-                    lineWidth: 0.75
-                )
+                .stroke(cardStroke, lineWidth: 0.75)
         }
     }
 
@@ -1522,6 +1529,8 @@ extension View {
 struct SharedDMPreviewCardSkeleton: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+    @Environment(\.chatCardIsOutgoing) private var isOutgoing
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
 
     private var cardWidth: CGFloat {
         ChatBubbleLayoutWidth.capped(SharedDMPostCardMetrics.width, chatListWidth: chatListContainerWidth)
@@ -1532,11 +1541,18 @@ struct SharedDMPreviewCardSkeleton: View {
     }
 
     private var cardBackground: Color {
-        colorScheme == .dark ? Color(hex: "151C1D") : Color(hex: "E8EEF0")
+        if isOutgoing { return chatOutgoingBubbleColor }
+        return AdaptiveColors(colorScheme: colorScheme).chatCardBackground
     }
 
     private var placeholderFill: Color {
-        colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.07)
+        if isOutgoing { return chatBubbleTextColor(for: chatOutgoingBubbleColor).opacity(0.14) }
+        return colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.07)
+    }
+
+    private var cardStroke: Color {
+        if isOutgoing { return .clear }
+        return colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.06)
     }
 
     var body: some View {
@@ -1580,7 +1596,7 @@ struct SharedDMPreviewCardSkeleton: View {
         .clipShape(RoundedRectangle(cornerRadius: SharedDMPostCardMetrics.cornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: SharedDMPostCardMetrics.cornerRadius, style: .continuous)
-                .stroke(colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.06), lineWidth: 0.5)
+                .stroke(cardStroke, lineWidth: 0.5)
         )
     }
 }
@@ -1749,6 +1765,7 @@ struct SharedMomentMessageBubble: View {
                     .padding(.vertical, 4)
             }
         }
+        .environment(\.chatCardIsOutgoing, isCurrentUser)
         .modifier(
             ProfileMomentZoomSourceModifier(
                 namespace: zoomNamespace,
@@ -1923,6 +1940,8 @@ struct ReelPreviewCard: View {
     let sharedMomentData: [String: String]
 
     @Environment(\.chatListContainerWidth) private var chatListContainerWidth
+    @Environment(\.chatCardIsOutgoing) private var isOutgoing
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
 
     private var cardSize: CGSize {
         ChatBubbleLayoutWidth.cappedSize(
@@ -1984,6 +2003,10 @@ struct ReelPreviewCard: View {
         }
         .frame(width: cardSize.width, height: cardSize.height)
         .clipShape(RoundedRectangle(cornerRadius: StoryShareCardMetrics.cornerRadius, style: .continuous))
+        .chatOutgoingCardBorder(
+            isOutgoing ? chatOutgoingBubbleColor : nil,
+            cornerRadius: StoryShareCardMetrics.cornerRadius
+        )
     }
 }
 

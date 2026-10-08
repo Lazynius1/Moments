@@ -1102,6 +1102,11 @@ struct ChatMessageContextMenuOverlay: View {
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
     }
 
+    /// «Visto hoy, 14:32», «Visto ayer, 23:00», «Visto el lun, 14:32» o «Visto el 24 sept, 14:32».
+    private func readReceiptLabel(for date: Date) -> String {
+        MomentsFormat.seenReceipt(at: date)
+    }
+
     @ViewBuilder
     private func messageInfo(for message: EnhancedMessage) -> some View {
         let receiptTime = readReceiptTime(for: message)
@@ -1109,7 +1114,7 @@ struct ChatMessageContextMenuOverlay: View {
             if let receiptTime {
                 MessageStatusIcon(status: .read)
 
-                Text("\(MessageStatus.read.displayName) \(receiptTime.formatted(date: .abbreviated, time: .shortened))")
+                Text(readReceiptLabel(for: receiptTime))
                     .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(primaryTextColor)
                     .lineLimit(1)

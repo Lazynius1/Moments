@@ -396,8 +396,11 @@ struct ChatTextBubbleView: View {
         return segments
     }
 
+    /// Recibidos: el color del chat como acento, ajustado para contrastar con la burbuja.
     private var linkColor: Color {
-        isOutgoing ? chatBubbleTextColor(for: chatOutgoingBubbleColor).opacity(0.92) : .blue
+        isOutgoing
+            ? chatBubbleTextColor(for: chatOutgoingBubbleColor).opacity(0.92)
+            : adaptiveColors.receivedAccent(from: chatOutgoingBubbleColor)
     }
 
     private func formattedAttributedString(for rawText: String) -> AttributedString {

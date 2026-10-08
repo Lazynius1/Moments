@@ -584,18 +584,9 @@
 "appeal.understood" = "Understood";
 
 /* Time */
-"time.ago" = "%@ ago";
 "time.viewed" = "Viewed %@ ago";
 "time.reacted" = "Reacted %@ ago";
 "time.relative" = "%@";
-"time.unit.yr" = "yr";
-"time.unit.yrs" = "yrs";
-"time.unit.mo" = "mo";
-"time.unit.mos" = "mos";
-"time.unit.wk" = "w";
-"time.unit.d" = "d";
-"time.unit.h" = "h";
-"time.unit.min" = "min";
 "time.now" = "just now";
 
 /* Nova AI */
@@ -1056,6 +1047,7 @@
 "chat.loading" = "Loading...";
 "chat.audio.duration.accessibility" = "Duration %@";
 "chat.audio.scrub.accessibility" = "Voice message progress";
+"chat.audio.scrub.value" = "%1$@ of %2$@";
 "chat.close" = "Close";
 "chat.replying" = "Replying";
 "chat.replyingToMessage" = "Replying to a message";
@@ -1168,6 +1160,11 @@
 "chat.status.delivered" = "Delivered";
 "chat.status.read" = "Read";
 "chat.seen" = "Seen";
+"chat.seen.ago" = "Seen %@ ago";
+"chat.seen.justNow" = "Seen just now";
+"chat.seen.at.today" = "Seen today at %@";
+"chat.seen.at.yesterday" = "Seen yesterday at %@";
+"chat.seen.at.date" = "Seen %@";
 "chat.status.failed" = "Failed";
 "chat.notification.viewOncePrompt" = "Sent you a message";
 "chat.preview.newConversation" = "New conversation";
@@ -2857,7 +2854,7 @@
 
 /* Whats New v2.16 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Moments comes to iPhone Duo, with chats that feel more yours, more control over stories, original audio, and refreshed maps.";
+"whatsNew.subtitle" = "Moments is here on iPhone Duo! We’ve redesigned Moments to make the most of both screens.";
 "whatsNew.button" = "Explore Moments 2.31";
 /* Best Friends */
 "bestFriends.title" = "Best Friends";
@@ -3879,8 +3876,6 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "chat.deleted.file" = "File deleted";
 "chat.deleted.location" = "Location deleted";
 "chat.deleted.ephemeral" = "Ephemeral moment deleted";
-"chat.date.today" = "Today";
-"chat.date.yesterday" = "Yesterday";
 "chat.error.invalidConversation.text" = "Cannot send message: invalid conversation ID";
 "chat.error.invalidConversation.image" = "Cannot send image: invalid conversation ID";
 "chat.error.invalidConversation.audio" = "Cannot send audio: invalid conversation ID";
@@ -4562,79 +4557,19 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 
 // MARK: - What's New 2.22
 
-"whatsNew.section222.title" = "Moments 2.22";
 
-"whatsNew.replyInChat.title" = "Reply in chat";
-"whatsNew.replyInChat.description" = "Swipe on the bubble to reply. Tap a quote to jump to the original message.";
-"whatsNew.quotePreviews.title" = "Quotes in chat";
-"whatsNew.quotePreviews.description" = "Replies show a thumbnail when you quote a moment, story or profile.";
-"whatsNew.chatTimestamps.title" = "Timestamps in chat";
-"whatsNew.chatTimestamps.description" = "Swipe horizontally on a row to reveal the time, including on your own messages.";
-"whatsNew.composerVoice.title" = "Message input";
-"whatsNew.composerVoice.description" = "Redesigned composer and smoother voice notes, with a clearer cancel animation.";
 
 // MARK: - What's New 2.21
 
-"whatsNew.richChat.title" = "More expressive chat";
-"whatsNew.notificationsAndMentions.title" = "Notifications and mentions";
-"whatsNew.notificationsAndMentions.description" = "Chat and social alerts are clearer, and story mentions now arrive directly in the conversation.";
-"whatsNew.richChat.description" = "Format text, hide spoilers and tap mentions to open profiles. Replies and editing are clearer too.";
-"whatsNew.feedCaptions.title" = "Captions that fit";
-"whatsNew.feedCaptions.description" = "See more appears only when needed and expands the full caption without losing your place.";
-"whatsNew.reelComments.title" = "Comments with the Reel";
-"whatsNew.reelComments.description" = "The video makes room for comments, the composer stays visible and replies are easier to follow.";
-"whatsNew.morePersonal.title" = "More yours";
-"whatsNew.morePersonal.description" = "More interests, 8 new languages and smoother transitions across profiles, QR and your story archive.";
 
-"whatsNew.section221.title" = "Moments 2.21";
 
-"whatsNew.messageRequestThreads.title" = "Message requests";
-"whatsNew.messageRequestThreads.description" = "Up to 5 messages per conversation while you wait, and 10 per day to prevent spam. Requests, Old and Hidden folders, plus hidden-word filters on device.";
-"whatsNew.shareInChat.title" = "Share in chat";
-"whatsNew.shareInChat.description" = "Moments, stories, reels and profiles arrive as cards in the conversation with rich previews — tap to open.";
-"whatsNew.sharedProfilePrivacy.title" = "Live privacy";
-"whatsNew.sharedProfilePrivacy.description" = "Shared profile cards re-check blocks and audience for whoever is viewing.";
-"whatsNew.shareConfirmation.title" = "Share confirmation";
-"whatsNew.shareConfirmation.description" = "When you send a moment, story, reel or profile in chat, you get a confirmation before the picker closes.";
 
 // MARK: - What's New 2.20
 
-"whatsNew.section220.title" = "Moments 2.20";
-"whatsNew.section219.title" = "Moments 2.19";
 
-"whatsNew.profilePreview.title" = "Profile preview";
-"whatsNew.profilePreview.description" = "Long-press a post avatar or username to see a profile preview.";
-"whatsNew.storyPreview.title" = "Story preview";
-"whatsNew.storyPreview.description" = "Long-press a story ring to see a preview. Tap to open it full screen and pick up right where you left off.";
-"whatsNew.feedToggle.title" = "Feed toggle";
-"whatsNew.feedToggle.description" = "On launch, the Moments wordmark morphs into Following and Discover.";
-"whatsNew.nestedComments.title" = "Nested comments";
-"whatsNew.nestedComments.description" = "Fixed a bug where comments sometimes failed to appear.";
-"whatsNew.chatGestures.title" = "Tap in chat";
-"whatsNew.chatGestures.description" = "Tap a photo or video to open it right away.";
-"whatsNew.chatLongPress.title" = "Long-press in chat";
-"whatsNew.chatLongPress.description" = "New context menu: the message lifts, you can see if it was read, and with the menu open a tap opens that photo, video or location.";
 
 // MARK: - What's New 2.19
 
-"whatsNew.floatingTabBar.title" = "Floating tab bar";
-"whatsNew.floatingTabBar.description" = "A new floating tab bar with liquid glass. Nova and Messages have swapped places.";
-"whatsNew.chatRecovery.title" = "Chat recovery";
-"whatsNew.chatRecovery.description" = "Keychain vault with automatic restore, QR migration and a prompt to sync your PIN with iCloud Keychain.";
-"whatsNew.hlsVideo.title" = "Adaptive video";
-"whatsNew.hlsVideo.description" = "HLS playback that adapts to your connection in the feed, Reels and across the app.";
-"whatsNew.reels.title" = "Smoother Reels";
-"whatsNew.reels.description" = "Smoother scrolling and polished immersive chrome for a better Reels experience.";
-"whatsNew.conversationSettings.title" = "Conversation settings";
-"whatsNew.conversationSettings.description" = "Redesigned hero header with quick access to gallery, links and storage.";
-"whatsNew.messageRequests.title" = "Protected requests";
-"whatsNew.messageRequests.description" = "Message requests from profiles now sit behind your chat PIN.";
-"whatsNew.liveLocation.title" = "Live location";
-"whatsNew.liveLocation.description" = "Real-time location bubble and chat map are more reliable and polished.";
-"whatsNew.viewOnce.title" = "View-once fixed";
-"whatsNew.viewOnce.description" = "One-time photos now mark as viewed correctly so the media can be consumed.";
-"whatsNew.note.android.title" = "Moments is on Android!";
-"whatsNew.note.android.description" = "After a good stretch in the workshop, the app is now on Google Play too.\n\nGot friends or family on Android? You can tell them now: they can finally join Moments. Have them search for the app on Google Play and jump in!\n\nBack on iOS: with the leap done, I'm still going full throttle here (though I never really left). Let's build Moments together! 🚀";
 "whatsNew.note.closing" = "Thanks for coming along on this journey! ⚡🤖";
 "messageRequests.folder.picker" = "Folder";
 "messageRequests.folder.requests" = "Requests";
@@ -4859,27 +4794,6 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "storyEditor.toolbar.unmute" = "Unmute video";
 "storyEditor.toolbar.chain" = "Create chain";
 "storyEditor.toolbar.duration" = "Duration";
-"whatsNew.section230.title" = "Moments 2.30";
-"whatsNew.groups.title" = "Groups";
-"whatsNew.groups.description" = "Group chats in the same inbox, with photo, invites, admin roles, and mute.";
-"whatsNew.forYou.title" = "For You & Explore";
-"whatsNew.forYou.description" = "Ranked by affinity and interests, with Not interested, global search, and a cleaner Explore.";
-"whatsNew.chat230.title" = "Smarter chat";
-"whatsNew.chat230.description" = "Draft previews, automatic media cache, and a cue to translate messages that aren’t in your app language.";
-"whatsNew.echoes.title" = "Echoes";
-"whatsNew.echoes.description" = "A cleaner viewer, a clear notice when an Echo isn’t available, and description translation.";
-"whatsNew.stories230.title" = "Stories";
-"whatsNew.stories230.description" = "Alignment guides, a steadier text editor, long-press previews that don’t mark as seen, and group story rings.";
-"whatsNew.create230.title" = "Create Moments";
-"whatsNew.create230.description" = "Refined aspect ratios — more stable and more consistent across platforms.";
-"whatsNew.feedReels.title" = "Feed & Reels";
-"whatsNew.feedReels.description" = "Tap a feed video into Reels, Watch again to replay, and a steadier feed while you scroll.";
-"whatsNew.profile230.title" = "Profile & notifications";
-"whatsNew.profile230.description" = "More reliable followers, following, visits, and mutuals — plus profile previews anchored to where you came from.";
-"whatsNew.nova230.title" = "Nova";
-"whatsNew.nova230.description" = "Daily spark, a refreshed look, and attaching a photo no longer posts a Moment by accident.";
-"whatsNew.offline230.title" = "Offline & polish";
-"whatsNew.offline230.description" = "Better offline behavior, steadier relationship states, and polished copy in every language.";
 /* In-app action toasts */
 "toast.action.commentPosted" = "Comment posted";
 "toast.action.momentSaved" = "Moment saved";
@@ -5054,22 +4968,39 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "settings.group.messagingPrivacy" = "Messages and interactions";
 
 /* What's New 2.31 */
-"whatsNew.section231.title" = "Moments 2.31";
-"whatsNew.duo231.title" = "Made for iPhone Duo";
-"whatsNew.duo231.description" = "Feed and comments, inbox and conversation, or grid and detail: each on its own screen. Open or close your Duo and pick up where you left off.";
-"whatsNew.storyPublish231.title" = "Before you post a story";
-"whatsNew.storyPublish231.description" = "A new screen with the preview and its options: who sees it, 24 or 48 hours, and whether it allows messages, reactions, and replies.";
-"whatsNew.originalAudio231.title" = "Original audio";
-"whatsNew.originalAudio231.description" = "Save audio from public stories and reuse it from Saved in the audio sticker. You decide whether yours can be reused.";
-"whatsNew.chatStyle231.title" = "Chats your way";
-"whatsNew.chatStyle231.description" = "Backgrounds with photos, colors, or themes, adjustable intensity, and your own bubble color. Only you see it.";
-"whatsNew.chatMedia231.title" = "Photos, videos, and replies";
-"whatsNew.chatMedia231.description" = "Thumbnails in their real proportions, a clearer play button, pinch to zoom, and replies that preview what you're quoting.";
+"whatsNew.sectionDuo231" = "iPhone Duo";
+"whatsNew.sectionChat231" = "Chat";
+"whatsNew.sectionStories231" = "Stories";
+"whatsNew.sectionMore231" = "And more";
+"whatsNew.duoArrival231.title" = "Moments is here on iPhone Duo!";
+"whatsNew.duoArrival231.description" = "We’ve redesigned the app to make the most of both screens.";
+"whatsNew.duoFeed231.title" = "Feed and comments together";
+"whatsNew.duoFeed231.description" = "Keep watching the moment while you read and reply on the other screen.";
+"whatsNew.duoChats231.title" = "Your chats, always in view";
+"whatsNew.duoChats231.description" = "Your chat list on one screen and the conversation on the other.";
+"whatsNew.duoCreate231.title" = "Create with everything at hand";
+"whatsNew.duoCreate231.description" = "Gallery and tools on one side, your photo on the other.";
+"whatsNew.duoViewfinder231.title" = "Your outer screen as a viewfinder";
+"whatsNew.duoViewfinder231.description" = "When recording a story or using the chat camera, see yourself live and know how long you’ve been recording.";
+"whatsNew.storyPublish231.title" = "More control when posting stories";
+"whatsNew.storyPublish231.description" = "Choose who sees it, whether it lasts 24 or 48 hours and which replies you allow.";
+"whatsNew.originalAudio231.title" = "Original audio in stories";
+"whatsNew.originalAudio231.description" = "Save audio from other stories and use it in yours.";
+"whatsNew.chatStyle231.title" = "More customizable chats";
+"whatsNew.chatStyle231.description" = "Choose the background and bubble color for each chat. Only you see it.";
+"whatsNew.replies231.title" = "Better chat replies";
+"whatsNew.replies231.description" = "When you reply, you see the photo, video or message you’re quoting.";
+"whatsNew.viewOnce231.title" = "“View once” from your chat list";
+"whatsNew.viewOnce231.description" = "Open it right away, without going into the conversation.";
 "whatsNew.maps231.title" = "Refreshed maps";
-"whatsNew.maps231.description" = "Moments and stories grouped by place, and back to the map without losing context.";
-"whatsNew.banner231.title" = "Clearer alerts";
-"whatsNew.banner231.description" = "A redesigned banner with progress, confirmations, and undo for some actions.";
-"whatsNew.settings231.title" = "Settings and audiences";
-"whatsNew.settings231.description" = "Settings organized by profile, content, messages, and account, and audience lists that are easier to manage.";
-"whatsNew.fluid231.title" = "Smoother";
-"whatsNew.fluid231.description" = "Your music keeps playing while you browse muted content, and chats, stories, and your archive load more smoothly.";
+"whatsNew.maps231.description" = "Moments and stories grouped by place.";
+"whatsNew.banner231.title" = "New in-app alerts";
+"whatsNew.banner231.description" = "See the progress of what you’re doing and undo some actions.";
+"whatsNew.settings231.title" = "Tidier settings";
+"whatsNew.settings231.description" = "Profile, content, messages and account, each in its place.";
+"whatsNew.reliable231.title" = "More reliable chat";
+"whatsNew.reliable231.description" = "Your messages send properly even on a poor connection.";
+"whatsNew.lockPreview231.title" = "Notifications with previews";
+"whatsNew.lockPreview231.description" = "Read chat messages even when your iPhone is locked.";
+"whatsNew.fluid231.title" = "Faster and smoother";
+"whatsNew.fluid231.description" = "Chats load faster and your music keeps playing.";

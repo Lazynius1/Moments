@@ -186,6 +186,9 @@ class TimeSpentManager: ObservableObject {
     // YYYY-MM-DD format
     private func dateKey(for date: Date) -> String {
         let formatter = DateFormatter()
+        // Clave interna: formato fijo, ajeno al idioma y calendario del usuario.
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: date)
     }
