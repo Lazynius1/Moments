@@ -1020,6 +1020,8 @@
 "chat.reply.repliedTo" = "%@ odpisał(a)";
 "chat.voice.play" = "Odtwórz wiadomość głosową";
 "chat.voice.pause" = "Wstrzymaj odtwarzanie wiadomości głosowej";
+"chat.voice.miniPlayer.close" = "Zamknij odtwarzacz";
+"chat.voice.miniPlayer.jump" = "Przejdź do wiadomości głosowej";
 "chat.a11y.photo" = "Zdjęcie";
 "chat.a11y.video" = "Film";
 "chat.a11y.openMedia" = "Dotknij, aby otworzyć";

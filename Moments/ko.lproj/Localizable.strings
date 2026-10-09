@@ -1020,6 +1020,8 @@
 "chat.reply.repliedTo" = "%@님이 답장했어요";
 "chat.voice.play" = "음성 메시지 재생";
 "chat.voice.pause" = "음성 메시지 일시정지";
+"chat.voice.miniPlayer.close" = "플레이어 닫기";
+"chat.voice.miniPlayer.jump" = "음성 메시지로 이동";
 "chat.a11y.photo" = "사진";
 "chat.a11y.video" = "동영상";
 "chat.a11y.openMedia" = "탭하여 열기";

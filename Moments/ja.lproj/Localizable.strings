@@ -1020,6 +1020,8 @@
 "chat.reply.repliedTo" = "%@さんが返信しました";
 "chat.voice.play" = "音声メッセージを再生";
 "chat.voice.pause" = "音声メッセージを一時停止";
+"chat.voice.miniPlayer.close" = "プレーヤーを閉じる";
+"chat.voice.miniPlayer.jump" = "ボイスメッセージへ移動";
 "chat.a11y.photo" = "写真";
 "chat.a11y.video" = "動画";
 "chat.a11y.openMedia" = "タップして開く";

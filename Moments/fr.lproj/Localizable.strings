@@ -1073,6 +1073,8 @@
 "chat.reply.repliedTo" = "%@ a répondu";
 "chat.voice.play" = "Lire le message vocal";
 "chat.voice.pause" = "Mettre en pause le message vocal";
+"chat.voice.miniPlayer.close" = "Fermer le lecteur";
+"chat.voice.miniPlayer.jump" = "Aller au message vocal";
 "chat.a11y.photo" = "Photo";
 "chat.a11y.video" = "Vidéo";
 "chat.a11y.openMedia" = "Toucher pour ouvrir";

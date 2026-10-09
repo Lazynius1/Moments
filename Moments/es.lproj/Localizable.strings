@@ -1096,6 +1096,8 @@
 "chat.reply.repliedTo" = "%@ respondió";
 "chat.voice.play" = "Reproducir nota de voz";
 "chat.voice.pause" = "Pausar nota de voz";
+"chat.voice.miniPlayer.close" = "Cerrar reproductor";
+"chat.voice.miniPlayer.jump" = "Ir a la nota de voz";
 "chat.a11y.photo" = "Foto";
 "chat.a11y.video" = "Vídeo";
 "chat.a11y.openMedia" = "Toca para abrir";

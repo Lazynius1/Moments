@@ -62,6 +62,10 @@ extension GlassmorphicChatView {
                 reduceMotion ? nil : MotionPolicy.Spring.header,
                 value: viewModel.historyLoadNotice
             )
+            .overlay(alignment: .top) {
+                voiceMiniPlayer
+                    .padding(.top, 8)
+            }
     }
 
     var listRows: [ChatRenderRow] {

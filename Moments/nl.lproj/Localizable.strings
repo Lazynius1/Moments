@@ -1020,6 +1020,8 @@
 "chat.reply.repliedTo" = "%@ heeft gereageerd";
 "chat.voice.play" = "Spraakbericht afspelen";
 "chat.voice.pause" = "Spraakbericht pauzeren";
+"chat.voice.miniPlayer.close" = "Speler sluiten";
+"chat.voice.miniPlayer.jump" = "Ga naar spraakbericht";
 "chat.a11y.photo" = "Foto";
 "chat.a11y.video" = "Video";
 "chat.a11y.openMedia" = "Tik om te openen";

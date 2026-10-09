@@ -1020,6 +1020,8 @@
 "chat.reply.repliedTo" = "%@ 回覆了";
 "chat.voice.play" = "播放語音訊息";
 "chat.voice.pause" = "暫停語音訊息";
+"chat.voice.miniPlayer.close" = "關閉播放器";
+"chat.voice.miniPlayer.jump" = "前往語音訊息";
 "chat.a11y.photo" = "照片";
 "chat.a11y.video" = "影片";
 "chat.a11y.openMedia" = "點選以開啟";

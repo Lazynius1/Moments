@@ -1020,6 +1020,8 @@
 "chat.reply.repliedTo" = "%@ yanıt verdi";
 "chat.voice.play" = "Sesli mesajı oynat";
 "chat.voice.pause" = "Sesli mesajı duraklat";
+"chat.voice.miniPlayer.close" = "Oynatıcıyı kapat";
+"chat.voice.miniPlayer.jump" = "Sesli mesaja git";
 "chat.a11y.photo" = "Fotoğraf";
 "chat.a11y.video" = "Video";
 "chat.a11y.openMedia" = "Açmak için dokun";

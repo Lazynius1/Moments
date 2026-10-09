@@ -1076,6 +1076,8 @@
 "chat.reply.repliedTo" = "%@ ha respost";
 "chat.voice.play" = "Reprodueix la nota de veu";
 "chat.voice.pause" = "Posa en pausa la nota de veu";
+"chat.voice.miniPlayer.close" = "Tanca el reproductor";
+"chat.voice.miniPlayer.jump" = "Ves a la nota de veu";
 "chat.a11y.photo" = "Foto";
 "chat.a11y.video" = "Vídeo";
 "chat.a11y.openMedia" = "Toca per obrir";

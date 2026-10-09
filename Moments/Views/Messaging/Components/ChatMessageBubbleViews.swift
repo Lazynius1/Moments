@@ -588,7 +588,8 @@ struct GlassmorphicMessageBubble: View {
                                 isSending: message.status == .sending,
                                 progress: progress,
                                 adaptiveColors: adaptiveColors,
-                                groupPosition: groupPosition
+                                groupPosition: groupPosition,
+                                senderId: message.senderId
                             )
                         )
                         .onAppear {

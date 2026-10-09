@@ -1020,6 +1020,8 @@
 "chat.reply.repliedTo" = "%@ ने जवाब दिया";
 "chat.voice.play" = "वॉइस मैसेज चलाएँ";
 "chat.voice.pause" = "वॉइस मैसेज रोकें";
+"chat.voice.miniPlayer.close" = "प्लेयर बंद करें";
+"chat.voice.miniPlayer.jump" = "वॉइस मैसेज पर जाएं";
 "chat.a11y.photo" = "फ़ोटो";
 "chat.a11y.video" = "वीडियो";
 "chat.a11y.openMedia" = "खोलने के लिए टैप करें";

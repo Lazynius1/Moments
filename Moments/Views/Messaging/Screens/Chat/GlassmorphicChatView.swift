@@ -631,9 +631,11 @@ struct GlassmorphicChatView: View {
             .onAppear {
                 onAppearActions()
                 initializeUnreadDividerIfNeeded()
+                configureVoicePlayback()
             }
             .onDisappear {
                 resetVoiceRecordingInteraction()
+                tearDownVoicePlayback()
                 onDisappearActions()
             }
             .onChange(of: isSearchVisible) { wasVisible, isVisible in

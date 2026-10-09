@@ -496,38 +496,6 @@ enum ChatVoiceWaveformGenerator {
     }
 }
 
-// MARK: - Single active voice playback
-
-@MainActor
-final class ChatAudioPlaybackCenter {
-    static let shared = ChatAudioPlaybackCenter()
-
-    private(set) var activeMessageId: String?
-    private var stopHandler: (() -> Void)?
-
-    private init() {}
-
-    func activate(messageId: String, stopOthers: @escaping () -> Void) {
-        if activeMessageId != messageId {
-            stopHandler?()
-        }
-        activeMessageId = messageId
-        stopHandler = stopOthers
-    }
-
-    func deactivate(messageId: String) {
-        guard activeMessageId == messageId else { return }
-        activeMessageId = nil
-        stopHandler = nil
-    }
-
-    func stopCurrent() {
-        stopHandler?()
-        activeMessageId = nil
-        stopHandler = nil
-    }
-}
-
 // MARK: - Waveform Visualization Components
 
 struct VisualWaveformView: View {
@@ -590,18 +558,13 @@ struct GlassmorphicAudioMessage: View {
     let progress: Double?
     let adaptiveColors: AdaptiveColors
     var groupPosition: ChatMessageGroupPosition = .single
+    var senderId: String = ""
 
-    @State private var isPlaying = false
-    @State private var currentTime: Double = 0
-    @State private var audioPlayer: AVAudioPlayer?
-    @State private var audioSession = MomentsAudioSessionLease()
-    @State private var audioLoadTask: Task<Void, Never>?
-    @State private var playbackFileURL: URL?
-    @State private var timer: Timer?
+    /// El reproductor vive fuera de la celda: la nota sigue sonando al hacer scroll.
+    @ObservedObject private var playback = ChatVoicePlaybackController.shared
     @State private var isAudioAvailable = true
     @State private var isCheckingAvailability = true
     @State private var showErrorMessage = false
-    @State private var playbackRate: Float = 1.0
     @State private var isScrubbing = false
     @State private var scrubFraction: Double?
     @State private var wasPlayingBeforeScrub = false
@@ -612,13 +575,24 @@ struct GlassmorphicAudioMessage: View {
         )
     )
 
-    @StateObject private var proximityManager = SimpleProximityManager()
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
     @Environment(\.chatListContainerWidth) private var chatListContainerWidth
 
     private var layoutContainerWidth: CGFloat {
         ChatBubbleLayoutWidth.containerWidth(chatListWidth: chatListContainerWidth)
+    }
+
+    private var isPlaying: Bool {
+        playback.isPlayingMessage(messageId)
+    }
+
+    private var currentTime: Double {
+        playback.position(for: messageId)
+    }
+
+    private var playbackRate: Float {
+        playback.playbackRate
     }
 
     /// Tuyos: mismo color sólido saliente que el texto. Del otro: glass como el resto.
@@ -728,6 +702,7 @@ struct GlassmorphicAudioMessage: View {
         // Misma forma que el relleno para que el borde siga las esquinas unidas.
         .overlay(bubbleShape.stroke(bubbleStrokeColor, lineWidth: 0.5))
         .onAppear {
+            playback.bubbleAppeared(messageId)
             refreshWaveformLevels()
             checkAudioAvailability()
         }
@@ -739,18 +714,9 @@ struct GlassmorphicAudioMessage: View {
             refreshWaveformLevels()
             checkAudioAvailability()
         }
-        .onReceive(NotificationCenter.default.publisher(for: MomentsAudioSession.interruptionNotification)) { _ in
-            pausePlayback()
-        }
+        // Salir de pantalla no para el audio: solo avisa para mostrar la mini barra.
         .onDisappear {
-            if ChatAudioPlaybackCenter.shared.activeMessageId == messageId {
-                ChatAudioPlaybackCenter.shared.deactivate(messageId: messageId)
-            }
-            stopPlayback(resetTime: false)
-        }
-        .onChange(of: proximityManager.isNearEar) { _, isNear in
-            guard isPlaying else { return }
-            switchAudioRoute(toEarpiece: isNear)
+            playback.bubbleDisappeared(messageId)
         }
     }
 
@@ -951,26 +917,6 @@ struct GlassmorphicAudioMessage: View {
         }
     }
     
-    private func configurePlaybackSession(speaker: Bool) async -> Bool {
-        await audioSession.activate(
-            category: speaker ? .playback : .playAndRecord,
-            mode: speaker ? .default : .voiceChat,
-            options: speaker ? [] : [.allowBluetoothHFP]
-        )
-    }
-
-    /// Cambia altavoz / auricular durante la reproducción (usa el archivo, no `player.data`).
-    private func switchAudioRoute(toEarpiece: Bool) {
-        guard let player = audioPlayer, isPlaying else { return }
-        player.pause()
-        audioLoadTask?.cancel()
-        audioLoadTask = Task { @MainActor in
-            guard await configurePlaybackSession(speaker: !toEarpiece),
-                  !Task.isCancelled, isPlaying else { return }
-            player.play()
-        }
-    }
-
     private func getPlayButtonIcon() -> String {
         if !isAudioAvailable {
             return "exclamationmark.triangle.fill"
@@ -1034,7 +980,7 @@ struct GlassmorphicAudioMessage: View {
         }
 
         if isPlaying {
-            pausePlayback()
+            playback.pause()
         } else {
             startPlayback()
         }
@@ -1045,39 +991,16 @@ struct GlassmorphicAudioMessage: View {
             isAudioAvailable = false
             return
         }
-        audioLoadTask?.cancel()
-        isPlaying = true
-        ChatAudioPlaybackCenter.shared.activate(messageId: messageId) {
-            self.pausePlayback(notifyCenter: false)
-        }
-        audioLoadTask = Task { @MainActor in
-            do {
-                let playbackURL: URL
-                if let playbackFileURL { playbackURL = playbackFileURL }
-                else if url.isFileURL { playbackURL = url }
-                else { playbackURL = try await PersistentAudioCache.shared.localURL(for: url) }
-                guard !Task.isCancelled,
-                      await configurePlaybackSession(speaker: !proximityManager.isNearEar),
-                      !Task.isCancelled, isPlaying else { return }
-                let player = try audioPlayer ?? AVAudioPlayer(contentsOf: playbackURL)
-                player.enableRate = true
-                player.rate = playbackRate
-                player.currentTime = currentTime
-                guard player.prepareToPlay(), player.play() else {
-                    stopPlayback(resetTime: false)
-                    return
-                }
-                playbackFileURL = playbackURL
-                audioPlayer = player
-                proximityManager.startMonitoring()
-                startProgressTimer()
-            } catch {
-                guard !Task.isCancelled else { return }
-                stopPlayback(resetTime: false)
+        playback.play(
+            messageId: messageId,
+            url: url,
+            duration: duration,
+            senderId: senderId,
+            onFailure: {
                 isAudioAvailable = false
                 showErrorMessage = true
             }
-        }
+        )
     }
 
     private func resumeAfterScrub() {
@@ -1085,68 +1008,15 @@ struct GlassmorphicAudioMessage: View {
         startPlayback()
     }
 
-    private func startProgressTimer() {
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
-            guard let player = self.audioPlayer else { return }
-            self.currentTime = player.currentTime
-            if !player.isPlaying {
-                self.stopPlayback(resetTime: true)
-            }
-        }
-    }
-
-    private func pausePlayback(notifyCenter: Bool = true) {
-        audioLoadTask?.cancel()
-        audioLoadTask = nil
-        audioSession.deactivate()
-        audioPlayer?.pause()
-        isPlaying = false
-        timer?.invalidate()
-        proximityManager.stopMonitoring()
-        if notifyCenter {
-            ChatAudioPlaybackCenter.shared.deactivate(messageId: messageId)
-        }
-    }
-
-    private func stopPlayback(resetTime: Bool = true) {
-        audioLoadTask?.cancel()
-        audioLoadTask = nil
-        audioSession.deactivate()
-        audioPlayer?.stop()
-        audioPlayer = nil
-        playbackFileURL = nil
-        isPlaying = false
-        if resetTime {
-            currentTime = 0
-        }
-        timer?.invalidate()
-        timer = nil
-        proximityManager.stopMonitoring()
-        if ChatAudioPlaybackCenter.shared.activeMessageId == messageId {
-            ChatAudioPlaybackCenter.shared.deactivate(messageId: messageId)
-        }
-    }
-    
     private func cyclePlaybackRate() {
-        if playbackRate == 1.0 {
-            playbackRate = 1.5
-        } else if playbackRate == 1.5 {
-            playbackRate = 2.0
-        } else {
-            playbackRate = 1.0
-        }
-        audioPlayer?.rate = playbackRate
+        playback.cyclePlaybackRate()
     }
 
-    /// Seek del reproductor: fija `currentTime` y, si hay player, lo mueve ahí.
+    /// Seek del reproductor: si la nota está activa mueve el player; si no, guarda la posición.
     private func seekToFraction(_ fraction: Double) {
         guard duration > 0 else { return }
         let clamped = max(0, min(1, fraction))
-        currentTime = clamped * duration
-        if let player = audioPlayer {
-            player.currentTime = currentTime
-        }
+        playback.seek(messageId: messageId, to: clamped * duration)
     }
 
     private func fraction(forX x: CGFloat, trackWidth: CGFloat) -> Double {
@@ -1154,15 +1024,13 @@ struct GlassmorphicAudioMessage: View {
         return Double(max(0, min(1, x / trackWidth)))
     }
 
-    /// Inicio del arrastre: pausa (sin soltar la sesión) para reanudar al soltar.
+    /// Inicio del arrastre: pausa para reanudar al soltar.
     private func beginScrub() {
         isScrubbing = true
         scrubFraction = displayedProgress
         wasPlayingBeforeScrub = isPlaying
         if isPlaying {
-            audioPlayer?.pause()
-            isPlaying = false
-            timer?.invalidate()
+            playback.pause()
         }
         HapticManager.shared.lightImpact()
     }

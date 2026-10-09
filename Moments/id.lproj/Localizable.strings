@@ -1020,6 +1020,8 @@
 "chat.reply.repliedTo" = "%@ membalas";
 "chat.voice.play" = "Putar pesan suara";
 "chat.voice.pause" = "Jeda pesan suara";
+"chat.voice.miniPlayer.close" = "Tutup pemutar";
+"chat.voice.miniPlayer.jump" = "Buka pesan suara";
 "chat.a11y.photo" = "Foto";
 "chat.a11y.video" = "Video";
 "chat.a11y.openMedia" = "Ketuk untuk membuka";
