@@ -536,7 +536,14 @@ struct MessagingView: View {
     /// Barra de la nota de voz fuera del chat: abre el chat en esa nota.
     private func openVoiceNoteConversation(conversationId: String, messageId: String) {
         ChatNavigationIntentStore.enqueueHighlight(conversationId: conversationId, messageId: messageId)
-        navigateToConversation(id: conversationId)
+        // Al volver a la lista el chat sigue seleccionado (no se recrea), así que hay que pasar
+        // también a la columna del chat, igual que al tocar su fila.
+        if let conversation = (viewModel.conversations + viewModel.archivedConversations)
+            .first(where: { $0.id == conversationId }) {
+            openConversationFromList(conversation)
+        } else {
+            navigateToConversation(id: conversationId)
+        }
     }
 
     private func navigateToConversation(id: String) {
