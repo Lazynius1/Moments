@@ -11,6 +11,8 @@ extension GlassmorphicChatView {
     // MARK: - Voice Recording Functions
     func startVoiceRecording(interactionId: UUID, startsLocked: Bool) {
         micGate.requestAccess {
+            // Grabar pausa la nota que esté sonando.
+            ChatVoicePlaybackController.shared.pause()
             if let currentId = voiceRecordingInteractionId, currentId != interactionId {
                 finishVoiceRecording(interactionId: currentId, action: .cancel)
             }

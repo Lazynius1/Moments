@@ -6,6 +6,16 @@ extension GlassmorphicChatView {
     /// Conecta el reproductor compartido con este chat (al aparecer).
     func configureVoicePlayback() {
         let playback = ChatVoicePlaybackController.shared
+        let conversation = viewModel.conversation
+        playback.attach(ChatVoiceConversation(
+            id: conversationId,
+            title: otherParticipantDisplayName,
+            isGroup: conversation.isGroup,
+            otherUserId: conversation.otherParticipantId,
+            groupImage: GroupDirectory.shared.groups[conversationId]?.image
+                ?? conversation.otherParticipantProfileImagePath ?? ""
+        ))
+        playback.senderNameProvider = { voicePlaybackSenderName($0) }
         playback.nextVoiceNoteProvider = { messageId in
             guard let next = nextVoiceNoteMessage(after: messageId),
                   let mediaUrl = next.mediaUrl,
@@ -25,12 +35,10 @@ extension GlassmorphicChatView {
         }
     }
 
-    /// Al salir del chat se para la nota y se suelta la referencia a este chat.
+    /// Al salir del chat la nota sigue sonando y su barra pasa a la lista de chats.
+    /// La cola sigue con las notas ya cargadas; al entrar en otro chat se para.
     func tearDownVoicePlayback() {
-        let playback = ChatVoicePlaybackController.shared
-        playback.reset()
-        playback.nextVoiceNoteProvider = nil
-        playback.onActiveMessageChanged = nil
+        ChatVoicePlaybackController.shared.detach(conversationId: conversationId)
     }
 
     /// Siguiente mensaje del hilo si es una nota de voz ya enviada (sin nada entre medias).

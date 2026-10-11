@@ -259,8 +259,11 @@ struct MessagingView: View {
                 onTap: { showingStatusSelector = true }
             )
             .safeAreaInset(edge: .top, spacing: 0) {
-                if !viewModel.conversations.isEmpty || !viewModel.archivedConversations.isEmpty {
-                    searchBar
+                VStack(spacing: 0) {
+                    if !viewModel.conversations.isEmpty || !viewModel.archivedConversations.isEmpty {
+                        searchBar
+                    }
+                    ChatVoiceOutsideChatHost(onOpen: openVoiceNoteConversation)
                 }
             }
             .sheet(isPresented: $showingStatusSelector) {
@@ -528,6 +531,12 @@ struct MessagingView: View {
             }
             ChatSessionEngine.shared.preloadRecentSessions(from: sorted, limit: 5)
         }
+    }
+
+    /// Barra de la nota de voz fuera del chat: abre el chat en esa nota.
+    private func openVoiceNoteConversation(conversationId: String, messageId: String) {
+        ChatNavigationIntentStore.enqueueHighlight(conversationId: conversationId, messageId: messageId)
+        navigateToConversation(id: conversationId)
     }
 
     private func navigateToConversation(id: String) {

@@ -5,6 +5,15 @@ import SwiftUI
 
 // MARK: - Reproductor de notas de voz del chat
 
+/// Chat del que viene la nota que suena: lo que muestra la barra cuando se sale de él.
+struct ChatVoiceConversation: Equatable {
+    let id: String
+    let title: String
+    let isGroup: Bool
+    let otherUserId: String?
+    let groupImage: String
+}
+
 struct ChatVoiceQueueItem {
     let messageId: String
     let url: URL
@@ -12,9 +21,9 @@ struct ChatVoiceQueueItem {
     let senderId: String
 }
 
-/// Un único reproductor para todo el chat. Vive fuera de las celdas para que la nota siga
-/// sonando aunque su burbuja salga de pantalla al hacer scroll (la lista recicla las celdas).
-/// Las burbujas y la mini barra solo leen su estado.
+/// Un único reproductor para toda la app. Vive fuera de las celdas para que la nota siga
+/// sonando aunque su burbuja salga de pantalla al hacer scroll (la lista recicla las celdas)
+/// o se salga del chat. Las burbujas y las mini barras solo leen su estado.
 @MainActor
 final class ChatVoicePlaybackController: ObservableObject {
     static let shared = ChatVoicePlaybackController()
@@ -27,11 +36,25 @@ final class ChatVoicePlaybackController: ObservableObject {
     @Published private(set) var playbackRate: Float = 1.0
     /// Si la burbuja de la nota activa está en pantalla. La mini barra solo aparece cuando no.
     @Published private(set) var isActiveBubbleVisible = true
+    /// Chat de la nota activa y chat que está en pantalla ahora (nil fuera de los chats).
+    @Published private(set) var activeConversation: ChatVoiceConversation?
+    @Published private(set) var presentedConversationId: String?
+    /// Quién envió la nota activa (para la barra de fuera en grupos).
+    @Published private(set) var activeSenderName = ""
+
+    /// La nota sigue sonando fuera de su chat: se muestra la barra de la lista de chats.
+    var isPlayingOutsideChat: Bool {
+        guard activeMessageId != nil, let activeConversation else { return false }
+        return presentedConversationId != activeConversation.id
+    }
 
     /// Lo fija el chat: devuelve la nota de voz que va justo después de un mensaje, si la hay.
     var nextVoiceNoteProvider: ((String) -> ChatVoiceQueueItem?)?
     /// Lo fija el chat: se llama al empezar una nota nueva (para preparar la siguiente).
     var onActiveMessageChanged: ((String) -> Void)?
+    /// Lo fija el chat: nombre que se muestra para un remitente.
+    var senderNameProvider: ((String) -> String)?
+    private var presentedConversation: ChatVoiceConversation?
 
     private var player: AVAudioPlayer?
     private var playbackFileURL: URL?
@@ -62,6 +85,25 @@ final class ChatVoicePlaybackController: ObservableObject {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.pause() }
         }
+    }
+
+    // MARK: Chat en pantalla
+
+    /// Al entrar en un chat. Si suena una nota de otro chat, se para.
+    func attach(_ conversation: ChatVoiceConversation) {
+        if activeMessageId != nil, let activeConversation, activeConversation.id != conversation.id {
+            reset()
+        }
+        presentedConversation = conversation
+        presentedConversationId = conversation.id
+        if activeConversation?.id == conversation.id { activeConversation = conversation }
+    }
+
+    /// Al salir del chat: la nota sigue sonando y la barra pasa a la lista de chats.
+    func detach(conversationId: String) {
+        guard presentedConversationId == conversationId else { return }
+        presentedConversation = nil
+        presentedConversationId = nil
     }
 
     // MARK: Estado por mensaje
@@ -148,12 +190,14 @@ final class ChatVoicePlaybackController: ObservableObject {
         releasePlayer()
         activeMessageId = nil
         activeSenderId = nil
+        activeConversation = nil
+        activeSenderName = ""
         currentTime = 0
         duration = 0
         updateActiveBubbleVisibility()
     }
 
-    /// Al salir del chat: además de parar, se olvidan las posiciones guardadas.
+    /// Para y además olvida las posiciones guardadas (otro chat, cerrar sesión).
     func reset() {
         stop()
         savedPositions.removeAll()
@@ -200,6 +244,8 @@ final class ChatVoicePlaybackController: ObservableObject {
         releasePlayer()
         activeMessageId = messageId
         activeSenderId = senderId
+        if let presentedConversation { activeConversation = presentedConversation }
+        activeSenderName = senderNameProvider?(senderId) ?? ""
         duration = knownDuration
         currentTime = savedPositions.removeValue(forKey: messageId) ?? 0
         if duration > 0, currentTime >= duration - 0.05 { currentTime = 0 }
@@ -235,6 +281,8 @@ final class ChatVoicePlaybackController: ObservableObject {
         releasePlayer()
         activeMessageId = nil
         activeSenderId = nil
+        activeConversation = nil
+        activeSenderName = ""
         currentTime = 0
         duration = 0
         updateActiveBubbleVisibility()
@@ -292,12 +340,16 @@ final class ChatVoicePlaybackController: ObservableObject {
 
 // MARK: - Mini barra «reproduciendo»
 
-/// Barra compacta arriba del chat mientras suena (o está en pausa) una nota de voz
-/// cuya burbuja no está en pantalla. Tocarla lleva al mensaje.
+/// Barra compacta de la nota de voz que suena (o está en pausa).
+/// - En el chat (`avatar == nil`): arriba, cuando la burbuja no está en pantalla.
+/// - Fuera del chat: sobre la lista de chats, con la foto del chat delante.
+/// Tocar el nombre (o la foto) lleva al mensaje.
 struct ChatVoiceMiniPlayerBar: View {
     @ObservedObject var playback: ChatVoicePlaybackController
     let senderName: String
+    var subtitlePrefix: String?
     let adaptiveColors: AdaptiveColors
+    var avatar: AnyView?
     let onTap: () -> Void
 
     @Environment(\.chatOutgoingBubbleColor) private var bubbleColor
@@ -318,41 +370,44 @@ struct ChatVoiceMiniPlayerBar: View {
         }
     }
 
+    private var timeLabel: String {
+        let time = "\(formatTime(playback.currentTime)) / \(formatTime(playback.duration))"
+        guard let subtitlePrefix, !subtitlePrefix.isEmpty else { return time }
+        return "\(subtitlePrefix) · \(time)"
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
-            Button {
-                if playback.isPlaying {
-                    playback.pause()
-                } else if let messageId = playback.activeMessageId {
-                    playback.resume(messageId: messageId)
-                }
-            } label: {
-                Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(onBubble)
-                    .frame(width: 36, height: 36)
-                    .contentShape(Rectangle())
+        HStack(spacing: avatar == nil ? 12 : 10) {
+            if let avatar {
+                avatar
+                    .frame(width: 34, height: 34)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(onBubble.opacity(0.35), lineWidth: 1.5))
+                    .contentShape(Circle())
+                    .onTapGesture(perform: onTap)
+                    .accessibilityHidden(true)
+            } else {
+                playPauseButton
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text(playback.isPlaying
-                ? NSLocalizedString("chat.voice.pause", comment: "Pause voice note")
-                : NSLocalizedString("chat.voice.play", comment: "Play voice note")))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(senderName)
                     .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                     .foregroundStyle(onBubble)
                     .lineLimit(1)
-                Text("\(formatTime(playback.currentTime)) / \(formatTime(playback.duration))")
+                Text(timeLabel)
                     .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(onBubble.opacity(0.72))
+                    .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .onTapGesture(perform: onTap)
             .accessibilityAddTraits(.isButton)
             .accessibilityHint(Text("chat.voice.miniPlayer.jump"))
+
+            if avatar != nil { playPauseButton }
 
             Button(action: playback.cyclePlaybackRate) {
                 Text(speedLabel)
@@ -376,7 +431,7 @@ struct ChatVoiceMiniPlayerBar: View {
             .buttonStyle(.plain)
             .accessibilityLabel(Text("chat.voice.miniPlayer.close"))
         }
-        .padding(.leading, 6)
+        .padding(.leading, avatar == nil ? 6 : 8)
         .padding(.trailing, 8)
         .padding(.vertical, 6)
         .momentsChromeGlass(
@@ -395,8 +450,74 @@ struct ChatVoiceMiniPlayerBar: View {
         }
     }
 
+    private var playPauseButton: some View {
+        Button {
+            if playback.isPlaying {
+                playback.pause()
+            } else if let messageId = playback.activeMessageId {
+                playback.resume(messageId: messageId)
+            }
+        } label: {
+            Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(onBubble)
+                .frame(width: 36, height: 36)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(playback.isPlaying
+            ? NSLocalizedString("chat.voice.pause", comment: "Pause voice note")
+            : NSLocalizedString("chat.voice.play", comment: "Play voice note")))
+    }
+
     private func formatTime(_ time: Double) -> String {
         let totalSeconds = max(0, Int(time.rounded(.down)))
         return String(format: "%d:%02d", totalSeconds / 60, totalSeconds % 60)
+    }
+}
+
+// MARK: - Barra fuera del chat
+
+/// Sobre la lista de chats mientras sigue sonando una nota de un chat del que se ha salido.
+/// Desaparece al volver a ese chat (allí manda su propia mini barra).
+struct ChatVoiceOutsideChatHost: View {
+    @ObservedObject private var playback = ChatVoicePlaybackController.shared
+    /// Abre el chat (`conversationId`) y salta a la nota (`messageId`).
+    let onOpen: (String, String) -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            if playback.isPlayingOutsideChat,
+               let conversation = playback.activeConversation,
+               let messageId = playback.activeMessageId {
+                ChatVoiceMiniPlayerBar(
+                    playback: playback,
+                    senderName: conversation.title,
+                    subtitlePrefix: conversation.isGroup ? playback.activeSenderName : nil,
+                    adaptiveColors: AdaptiveColors(colorScheme: colorScheme),
+                    avatar: AnyView(avatar(for: conversation)),
+                    onTap: { onOpen(conversation.id, messageId) }
+                )
+                .environment(\.chatOutgoingBubbleColor, ChatWallpaper.cachedBubbleColor(conversationId: conversation.id))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(reduceMotion ? nil : MotionPolicy.Spring.header, value: playback.isPlayingOutsideChat)
+    }
+
+    @ViewBuilder
+    private func avatar(for conversation: ChatVoiceConversation) -> some View {
+        if conversation.isGroup {
+            GroupChatAvatar(name: conversation.title, image: conversation.groupImage, size: 34)
+        } else if let userId = conversation.otherUserId, !userId.isEmpty {
+            AsyncProfileImageView(userId: userId)
+        } else {
+            ProfileUnavailableAvatar(size: 34)
+        }
     }
 }

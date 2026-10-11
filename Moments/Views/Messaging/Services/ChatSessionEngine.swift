@@ -91,6 +91,8 @@ final class ChatSessionEngine: ObservableObject {
     }
 
     func invalidateAll() {
+        // Cerrar sesión o cambiar de usuario: la nota que sonara no debe seguir.
+        ChatVoicePlaybackController.shared.reset()
         activeConversationId = nil
         for session in sessions.values {
             session.stopListening()
