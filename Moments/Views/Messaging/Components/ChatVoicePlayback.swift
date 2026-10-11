@@ -300,7 +300,10 @@ struct ChatVoiceMiniPlayerBar: View {
     let adaptiveColors: AdaptiveColors
     let onTap: () -> Void
 
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.chatOutgoingBubbleColor) private var bubbleColor
+
+    /// Mismo color que las burbujas enviadas del chat, con el texto legible encima (≡ burbuja).
+    private var onBubble: Color { chatBubbleTextColor(for: bubbleColor) }
 
     private var progress: Double {
         guard playback.duration > 0 else { return 0 }
@@ -326,7 +329,7 @@ struct ChatVoiceMiniPlayerBar: View {
             } label: {
                 Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(adaptiveColors.userAccentColor)
+                    .foregroundStyle(onBubble)
                     .frame(width: 36, height: 36)
                     .contentShape(Rectangle())
             }
@@ -338,12 +341,12 @@ struct ChatVoiceMiniPlayerBar: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(senderName)
                     .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
-                    .foregroundStyle(adaptiveColors.messageTextColor)
+                    .foregroundStyle(onBubble)
                     .lineLimit(1)
                 Text("\(formatTime(playback.currentTime)) / \(formatTime(playback.duration))")
                     .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                     .monospacedDigit()
-                    .foregroundStyle(adaptiveColors.timestampColor)
+                    .foregroundStyle(onBubble.opacity(0.72))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
@@ -355,10 +358,10 @@ struct ChatVoiceMiniPlayerBar: View {
                 Text(speedLabel)
                     .font(.system(size: 11, weight: .bold))
                     .monospacedDigit()
-                    .foregroundStyle(adaptiveColors.messageTextColor)
+                    .foregroundStyle(onBubble)
                     .frame(width: 38)
                     .padding(.vertical, 5)
-                    .background(adaptiveColors.messageTextColor.opacity(colorScheme == .dark ? 0.15 : 0.1))
+                    .background(onBubble.opacity(0.16))
                     .clipShape(Capsule())
             }
             .buttonStyle(.plain)
@@ -366,7 +369,7 @@ struct ChatVoiceMiniPlayerBar: View {
             Button(action: playback.stop) {
                 Image(systemName: "xmark")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(adaptiveColors.messageTextColor.opacity(0.6))
+                    .foregroundStyle(onBubble.opacity(0.72))
                     .frame(width: 32, height: 32)
                     .contentShape(Rectangle())
             }
@@ -376,11 +379,15 @@ struct ChatVoiceMiniPlayerBar: View {
         .padding(.leading, 6)
         .padding(.trailing, 8)
         .padding(.vertical, 6)
-        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), style: .tinted)
+        .momentsChromeGlass(
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous),
+            style: .tinted,
+            tint: bubbleColor.opacity(0.9)
+        )
         .overlay(alignment: .bottom) {
             GeometryReader { proxy in
                 Capsule()
-                    .fill(adaptiveColors.userAccentColor)
+                    .fill(onBubble.opacity(0.85))
                     .frame(width: proxy.size.width * progress, height: 2)
             }
             .frame(height: 2)
