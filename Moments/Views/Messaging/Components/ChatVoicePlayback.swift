@@ -48,13 +48,20 @@ final class ChatVoicePlaybackController: ObservableObject {
         return presentedConversationId != activeConversation.id
     }
 
-    /// Lo fija el chat: devuelve la nota de voz que va justo después de un mensaje, si la hay.
+    /// Los fija el chat en pantalla. Al empezar una nota desde ese chat pasan a ser los de la
+    /// nota activa, así la cola sigue con las notas de su chat aunque luego se entre en otro.
+    /// Devuelve la nota de voz que va justo después de un mensaje, si la hay.
     var nextVoiceNoteProvider: ((String) -> ChatVoiceQueueItem?)?
-    /// Lo fija el chat: se llama al empezar una nota nueva (para preparar la siguiente).
+    /// Se llama al empezar una nota nueva (para preparar la siguiente).
     var onActiveMessageChanged: ((String) -> Void)?
-    /// Lo fija el chat: nombre que se muestra para un remitente.
+    /// Nombre que se muestra para un remitente.
     var senderNameProvider: ((String) -> String)?
     private var presentedConversation: ChatVoiceConversation?
+    private var activeNextProvider: ((String) -> ChatVoiceQueueItem?)?
+    private var activeOnMessageChanged: ((String) -> Void)?
+    private var activeSenderNameProvider: ((String) -> String)?
+    /// La nota nueva viene de la cola (fin de la anterior), no de tocarla en el chat en pantalla.
+    private var isAdvancingQueue = false
 
     private var player: AVAudioPlayer?
     private var playbackFileURL: URL?
@@ -89,11 +96,8 @@ final class ChatVoicePlaybackController: ObservableObject {
 
     // MARK: Chat en pantalla
 
-    /// Al entrar en un chat. Si suena una nota de otro chat, se para.
+    /// Al entrar en un chat. Si suena una nota de otro chat, sigue sonando (con su barra arriba).
     func attach(_ conversation: ChatVoiceConversation) {
-        if activeMessageId != nil, let activeConversation, activeConversation.id != conversation.id {
-            reset()
-        }
         presentedConversation = conversation
         presentedConversationId = conversation.id
         if activeConversation?.id == conversation.id { activeConversation = conversation }
@@ -192,6 +196,9 @@ final class ChatVoicePlaybackController: ObservableObject {
         activeSenderId = nil
         activeConversation = nil
         activeSenderName = ""
+        activeNextProvider = nil
+        activeOnMessageChanged = nil
+        activeSenderNameProvider = nil
         currentTime = 0
         duration = 0
         updateActiveBubbleVisibility()
@@ -244,13 +251,18 @@ final class ChatVoicePlaybackController: ObservableObject {
         releasePlayer()
         activeMessageId = messageId
         activeSenderId = senderId
-        if let presentedConversation { activeConversation = presentedConversation }
-        activeSenderName = senderNameProvider?(senderId) ?? ""
+        if !isAdvancingQueue, let presentedConversation {
+            activeConversation = presentedConversation
+            activeNextProvider = nextVoiceNoteProvider
+            activeOnMessageChanged = onActiveMessageChanged
+            activeSenderNameProvider = senderNameProvider
+        }
+        activeSenderName = activeSenderNameProvider?(senderId) ?? ""
         duration = knownDuration
         currentTime = savedPositions.removeValue(forKey: messageId) ?? 0
         if duration > 0, currentTime >= duration - 0.05 { currentTime = 0 }
         updateActiveBubbleVisibility()
-        onActiveMessageChanged?(messageId)
+        activeOnMessageChanged?(messageId)
     }
 
     private func releasePlayer() {
@@ -270,11 +282,13 @@ final class ChatVoicePlaybackController: ObservableObject {
 
         // Si el siguiente mensaje también es una nota de voz, la reproducción sigue con ella.
         if let finishedMessageId,
-           let next = nextVoiceNoteProvider?(finishedMessageId),
+           let next = activeNextProvider?(finishedMessageId),
            next.messageId != finishedMessageId {
             savedPositions.removeValue(forKey: next.messageId)
             releasePlayer()
+            isAdvancingQueue = true
             play(messageId: next.messageId, url: next.url, duration: next.duration, senderId: next.senderId, onFailure: {})
+            isAdvancingQueue = false
             return
         }
 
@@ -478,8 +492,8 @@ struct ChatVoiceMiniPlayerBar: View {
 
 // MARK: - Barra fuera del chat
 
-/// Sobre la lista de chats mientras sigue sonando una nota de un chat del que se ha salido.
-/// Desaparece al volver a ese chat (allí manda su propia mini barra).
+/// Mientras sigue sonando una nota de un chat del que se ha salido: sobre la lista de chats
+/// y arriba de cualquier otro chat. Desaparece al volver a ese chat (allí manda su mini barra).
 struct ChatVoiceOutsideChatHost: View {
     @ObservedObject private var playback = ChatVoicePlaybackController.shared
     /// Abre el chat (`conversationId`) y salta a la nota (`messageId`).

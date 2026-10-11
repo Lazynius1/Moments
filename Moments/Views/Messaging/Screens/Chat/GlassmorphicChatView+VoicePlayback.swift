@@ -65,11 +65,18 @@ extension GlassmorphicChatView {
     }
 
     var voiceMiniPlayer: some View {
-        ChatVoiceMiniPlayerHost(
-            adaptiveColors: adaptiveColors,
-            senderName: { voicePlaybackSenderName($0) },
-            onJump: { messageId in handleJumpToMessageFromOutside(messageId) }
-        )
+        ZStack(alignment: .top) {
+            ChatVoiceMiniPlayerHost(
+                adaptiveColors: adaptiveColors,
+                senderName: { voicePlaybackSenderName($0) },
+                onJump: { messageId in handleJumpToMessageFromOutside(messageId) }
+            )
+            // Nota de otro chat que sigue sonando: su barra (foto y color de ese chat) lleva a él.
+            ChatVoiceOutsideChatHost { conversationId, messageId in
+                ChatNavigationIntentStore.enqueueHighlight(conversationId: conversationId, messageId: messageId)
+                NotificationNavigationService.shared.navigateToConversation(conversationId: conversationId)
+            }
+        }
     }
 }
 
@@ -84,7 +91,7 @@ struct ChatVoiceMiniPlayerHost: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var isVisible: Bool {
-        playback.activeMessageId != nil && !playback.isActiveBubbleVisible
+        playback.activeMessageId != nil && !playback.isActiveBubbleVisible && !playback.isPlayingOutsideChat
     }
 
     var body: some View {
