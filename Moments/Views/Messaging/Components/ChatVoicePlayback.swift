@@ -222,7 +222,7 @@ final class ChatVoicePlaybackController: ObservableObject {
         let finishedMessageId = activeMessageId
         if let finishedMessageId { savedPositions.removeValue(forKey: finishedMessageId) }
 
-        // Como WhatsApp: si el siguiente mensaje también es una nota de voz, sigue con ella.
+        // Si el siguiente mensaje también es una nota de voz, la reproducción sigue con ella.
         if let finishedMessageId,
            let next = nextVoiceNoteProvider?(finishedMessageId),
            next.messageId != finishedMessageId {
@@ -376,11 +376,7 @@ struct ChatVoiceMiniPlayerBar: View {
         .padding(.leading, 6)
         .padding(.trailing, 8)
         .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(adaptiveColors.messageBubbleBackground)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        )
+        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), style: .tinted)
         .overlay(alignment: .bottom) {
             GeometryReader { proxy in
                 Capsule()
@@ -390,11 +386,6 @@ struct ChatVoiceMiniPlayerBar: View {
             .frame(height: 2)
             .padding(.horizontal, 14)
         }
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
-        )
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.08), radius: 10, y: 4)
     }
 
     private func formatTime(_ time: Double) -> String {
