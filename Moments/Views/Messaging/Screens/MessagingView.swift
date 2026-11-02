@@ -101,7 +101,7 @@ struct MessagingView: View {
     @StateObject private var navigationService = NotificationNavigationService.shared
     @State private var showingMessageRequests = false
     @State private var pendingRequestCount = 0
-    @StateObject private var onlineStatusService = OnlineStatusService()
+    @ObservedObject private var onlineStatusService = OnlineStatusService.shared
     @State private var showingStatusSelector = false
     @State private var conversationMenuSelection: ConversationMenuSelection?
     @State private var conversationRowFrames: [String: CGRect] = [:]

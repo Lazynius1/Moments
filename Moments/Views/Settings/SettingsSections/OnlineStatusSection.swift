@@ -16,7 +16,7 @@ struct SettingsListRowBackground: View {
 // MARK: - Online Status Section
 struct OnlineStatusSection: View {
     @Environment(\.colorScheme) var colorScheme
-    @StateObject private var onlineStatusService = OnlineStatusService()
+    @ObservedObject private var onlineStatusService = OnlineStatusService.shared
 
     var body: some View {
         VStack(spacing: 0) {

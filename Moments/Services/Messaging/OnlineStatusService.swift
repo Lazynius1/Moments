@@ -10,6 +10,9 @@ struct PresenceDisplay {
 }
 
 class OnlineStatusService: ObservableObject {
+    /// Una sola instancia: cada pantalla creaba la suya y todas escribían el perfil a la vez.
+    static let shared = OnlineStatusService()
+
     private let db = Firestore.firestore()
     private var cancellables = Set<AnyCancellable>()
     private var onlineStatusTimer: Timer?
@@ -42,8 +45,8 @@ class OnlineStatusService: ObservableObject {
     
     // MARK: - Setup
     private func setupOnlineStatusTracking() {
-        // Actualizar estado cada 30 segundos
-        onlineStatusTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+        // Latido cada 2 minutos: basta para que lastSeen no pase de los 5 que marcan "ausente".
+        onlineStatusTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { [weak self] _ in
             self?.updateOnlineStatus()
         }
         

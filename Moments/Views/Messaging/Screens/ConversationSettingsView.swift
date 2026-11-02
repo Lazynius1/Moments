@@ -12,7 +12,7 @@ struct ConversationSettingsView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = ConversationSettingsViewModel()
-    @StateObject private var onlineStatusService = OnlineStatusService()
+    @ObservedObject private var onlineStatusService = OnlineStatusService.shared
     @ObservedObject private var groupDirectory = GroupDirectory.shared
     @State private var otherUserStatus: OnlineStatus = .offline
     @State private var otherUserLastSeen: Date?

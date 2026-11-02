@@ -437,7 +437,7 @@ struct GroupDetailsView: View {
     @State private var adding = false
     @State private var removing: GroupMember?
     @State private var memberSearch = ""
-    @StateObject private var onlineStatusService = OnlineStatusService()
+    @ObservedObject private var onlineStatusService = OnlineStatusService.shared
     @State private var followEpoch = 0
     @State private var selectedProfileRoute: FeedProfileSheetRoute?
     @Namespace private var profileZoomNamespace

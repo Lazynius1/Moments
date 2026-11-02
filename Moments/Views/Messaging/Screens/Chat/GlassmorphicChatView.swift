@@ -57,7 +57,7 @@ struct ChatMediaViewerPresentation: Identifiable {
 struct GlassmorphicChatView: View {
     @ObservedObject var session: ConversationChatSession
     @StateObject var wallpaperStore = ChatWallpaperStore()
-    @StateObject var onlineStatusService = OnlineStatusService()
+    @ObservedObject var onlineStatusService = OnlineStatusService.shared
     @StateObject var keyboardScrollCoordinator = ChatKeyboardScrollCoordinator()
     @StateObject var pendingMessageRequestService = MessageRequestService()
     @State var messageText: String = ""
