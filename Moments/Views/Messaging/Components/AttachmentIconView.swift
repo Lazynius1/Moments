@@ -22,6 +22,8 @@ enum AttachmentIcon: String {
     case groups = "AttachmentGroupsIcon"
     case waiting = "AttachmentWaitingIcon"
     case messageRequests = "AttachmentMessageRequestsIcon"
+    /// Contenido creado con IA: la ö con los puntos hechos píxeles.
+    case aiLabel = "AILabelIcon"
 }
 
 /// Tamaños calibrados para iconos PNG custom vs SF Symbols equivalentes.

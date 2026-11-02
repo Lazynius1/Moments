@@ -384,7 +384,7 @@ struct CaptionAndDetailsView: View {
                                 categoryDivider
 
                                 MinimalToggleRow(
-                                    icon: "sparkles",
+                                    icon: AttachmentIcon.aiLabel.rawValue,
                                     title: NSLocalizedString("ai.toggle.title", comment: "Made with AI toggle"),
                                     subtitle: NSLocalizedString(
                                         aiAutoDetected ? "ai.toggle.detected" : "ai.toggle.subtitle",

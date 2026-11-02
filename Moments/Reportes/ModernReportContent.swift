@@ -258,10 +258,16 @@ struct NativeReportOptionRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 14) {
-                Image(systemName: icon)
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(primaryText)
-                    .frame(width: 22)
+                Group {
+                    if let attachmentIcon = AttachmentIcon(rawValue: icon) {
+                        AttachmentIconView(icon: attachmentIcon, size: 21, tintColor: primaryText)
+                    } else {
+                        Image(systemName: icon)
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(primaryText)
+                    }
+                }
+                .frame(width: 22)
 
                 VStack(alignment: .leading, spacing: subtitle.isEmpty ? 0 : 3) {
                     Text(title)

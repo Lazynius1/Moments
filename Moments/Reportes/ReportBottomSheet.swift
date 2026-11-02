@@ -231,7 +231,7 @@ enum ReportCategory: String, CaseIterable {
         case .falseInfo:
             return "info.circle.and.exclamationmark"
         case .unlabeledAI:
-            return "sparkles"
+            return AttachmentIcon.aiLabel.rawValue
         case .intellectualProperty:
             return "c.circle"
         }

@@ -86,8 +86,11 @@ struct AIContentBadgeLabel: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "sparkles")
-                .font(.system(size: iconSize, weight: .medium))
+            Image("AILabelIcon")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: iconSize + 2, height: iconSize + 2)
             Text(NSLocalizedString("ai.badge", comment: "AI info badge"))
                 .font(.system(size: fontSize))
                 .lineLimit(1)
@@ -143,8 +146,11 @@ struct AIContentInfoSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 17, weight: .semibold))
+                Image("AILabelIcon")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 20, height: 20)
                 Text(NSLocalizedString("ai.info.title", comment: "AI info sheet title"))
                     .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
             }
