@@ -128,8 +128,13 @@ struct StoryShareSheet: View {
                 Divider()
                 // Etiqueta de contenido creado con IA
                 VStack(alignment: .leading, spacing: 8) {
-                    Toggle("ai.toggle.title", isOn: $aiGenerated)
-                        .tint(SettingsProfileColors.toggleTint)
+                    Toggle(isOn: $aiGenerated) {
+                        HStack(spacing: 10) {
+                            AttachmentIconView(icon: .aiLabel, size: 21)
+                            Text("ai.toggle.title")
+                        }
+                    }
+                    .tint(SettingsProfileColors.toggleTint)
                     Text(LocalizedStringKey(aiAutoDetected ? "ai.toggle.detected" : "ai.toggle.subtitle"))
                         .font(.footnote).foregroundStyle(.secondary)
                 }.padding(.vertical, 16)
