@@ -52,6 +52,31 @@ struct FeedListSection: View {
     /// Momento visible antes de abrir o cerrar. El scroll se recrea; esto lo devuelve.
     var restoreMomentId: String? = nil
 
+    /// Recorrido acumulado en la dirección actual del scroll (para ocultar/mostrar la cabecera).
+    @State private var headerScrollTravel: CGFloat = 0
+
+    /// Bajar ≥ 40 pt oculta la cabecera; subir ≥ 28 pt o volver arriba la muestra.
+    private func updateHeaderVisibility(from oldOffset: CGFloat, to newOffset: CGFloat) {
+        let delta = newOffset - oldOffset
+        guard delta != 0 else { return }
+        if (delta > 0) != (headerScrollTravel > 0) { headerScrollTravel = 0 }
+        headerScrollTravel += delta
+        let shouldHide: Bool?
+        if newOffset <= 0 {
+            shouldHide = false
+        } else if headerScrollTravel > 40 {
+            shouldHide = true
+        } else if headerScrollTravel < -28 {
+            shouldHide = false
+        } else {
+            shouldHide = nil
+        }
+        guard let shouldHide, shouldHide != isFeedHeaderHidden else { return }
+        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
+            isFeedHeaderHidden = shouldHide
+        }
+    }
+
     private var displayedMoments: [Moment] {
         guard selectedFeedType == .forYou else { return viewModel.moments }
         let hidden = recommendations.hiddenKeys()
@@ -121,20 +146,13 @@ struct FeedListSection: View {
                 }
                 .adoptForFloatingTabBar()
                 .id(selectedFeedType)
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 8)
-                        .onChanged { value in
-                            if value.translation.height < -40 && !isFeedHeaderHidden {
-                                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
-                                    isFeedHeaderHidden = true
-                                }
-                            } else if value.translation.height > 28 && isFeedHeaderHidden {
-                                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
-                                    isFeedHeaderHidden = false
-                                }
-                            }
-                        }
-                )
+                // Cabecera según el scroll (no un gesto de arrastre: ese capturaba los
+                // deslizamientos horizontales de toda la lista y no dejaba cambiar de pestaña).
+                .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                    geometry.contentOffset.y + geometry.contentInsets.top
+                } action: { oldOffset, newOffset in
+                    updateHeaderVisibility(from: oldOffset, to: newOffset)
+                }
 
                 if displayedMoments.isEmpty && !viewModel.isLoading {
                     ModernEmptyFeedView(feedType: selectedFeedType)

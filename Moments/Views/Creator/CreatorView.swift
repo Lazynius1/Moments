@@ -94,6 +94,8 @@ struct CreatorView: View {
                     showCreatorView: $showCreatorView,
                     animation: animation // ✅ Pass namespace
                 )
+                // Pantalla inicial: abierto deslizando desde Inicio, deslizar de vuelta lo cierra.
+                .momentsTabSwipeRoot(MomentsTabPages.creator)
             case .mediaSelection:
                 MediaSelectionView(
                     selectedMediaItems: $selectedMediaItems,
@@ -130,6 +132,7 @@ struct CreatorView: View {
                     showCreatorView: $showCreatorView,
                     startsInTextMode: $storyStartsInTextMode
                 )
+                .momentsTabSwipeRoot(MomentsTabPages.creator)
             case .storyEditing:
                 StoryEditingView(
                     selectedMediaItems: $selectedMediaItems,

@@ -56,6 +56,7 @@ struct ExploreView: View {
     private var exploreNavigationStack: some View {
         NavigationStack {
             exploreNavigationRoot
+                .momentsTabSwipeRoot(3)
         }
     }
 

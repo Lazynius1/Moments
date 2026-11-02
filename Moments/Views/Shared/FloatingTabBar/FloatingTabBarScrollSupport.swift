@@ -67,10 +67,12 @@ private struct MomentsFloatingTabBarHiddenModifier: ViewModifier {
     }
 }
 
-/// Drag + onScrollGeometryChange → progress 0…1.
+/// Fase del scroll + onScrollGeometryChange → progress 0…1.
+/// Sin gestos de arrastre: uno encima del scroll capturaba los deslizamientos horizontales
+/// y no dejaba pasar de pestaña.
 fileprivate struct FloatingTabBarScrollViewModifier: ViewModifier {
     @EnvironmentObject private var minimize: TabBarMinimizeController
-    @GestureState private var isDragging: Bool = false
+    @State private var isDragging: Bool = false
     @State private var isScrolledUp: Bool?
     @State private var shiftOffset: CGFloat = 0
     @State private var scrollOffset: CGFloat = 0
@@ -84,38 +86,24 @@ fileprivate struct FloatingTabBarScrollViewModifier: ViewModifier {
             .safeAreaPadding(.bottom, 50)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(.rect)
-            // minDistance > 0 + solo vertical: un DragGesture(0) se come taps y
-            // el scroll horizontal del picker de reacciones del feed.
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 12, coordinateSpace: .scrollView)
-                    .updating($isDragging) { value, out, _ in
-                        let vertical = abs(value.translation.height)
-                        let horizontal = abs(value.translation.width)
-                        out = vertical >= horizontal
-                    }
-                    .onEnded { value in
-                        guard scrollPhase != .idle else { return }
-                        let vertical = abs(value.translation.height)
-                        let horizontal = abs(value.translation.width)
-                        guard vertical >= horizontal else { return }
-
-                        let velocity = -value.velocity.height / 5
-                        let resultOffset = scrollOffset + velocity
-                        let rawProgress = (resultOffset - shiftOffset) / distance
-                        let clampedProgress = max(0, min(1, rawProgress))
-
-                        withAnimation(animation) {
-                            minimize.progress = resultOffset > (distance / 2) && isLargerContent
-                                ? (clampedProgress > 0.5 ? 1 : 0)
-                                : 0
-                        }
-
-                        isScrolledUp = nil
-                        shiftOffset = scrollOffset - (minimize.progress * distance)
-                    }
-            )
-            .onScrollPhaseChange { _, newPhase in
+            .onScrollPhaseChange { oldPhase, newPhase, context in
                 scrollPhase = newPhase
+                isDragging = newPhase == .interacting
+                // Al soltar: encaja la barra según hasta dónde llegará el scroll con la inercia.
+                guard oldPhase == .interacting, newPhase != .interacting else { return }
+                let velocity = (context.velocity?.dy ?? 0) / 5
+                let resultOffset = scrollOffset + velocity
+                let rawProgress = (resultOffset - shiftOffset) / distance
+                let clampedProgress = max(0, min(1, rawProgress))
+
+                withAnimation(animation) {
+                    minimize.progress = resultOffset > (distance / 2) && isLargerContent
+                        ? (clampedProgress > 0.5 ? 1 : 0)
+                        : 0
+                }
+
+                isScrolledUp = nil
+                shiftOffset = scrollOffset - (minimize.progress * distance)
             }
             .onScrollGeometryChange(for: CGFloat.self, of: {
                 $0.contentSize.height - $0.containerSize.height

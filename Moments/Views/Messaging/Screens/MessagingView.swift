@@ -320,6 +320,7 @@ struct MessagingView: View {
 
             conversationList
                 .task { groupRequests.start() }
+                .momentsTabSwipeRoot(1)
 
             GeometryReader { proxy in
                 ConversationContextMenuOverlay(

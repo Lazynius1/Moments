@@ -46,6 +46,8 @@ struct TabBarView: View {
     @State private var echoInvitationRoute: EchoInvitationRoute?
     @State private var showEchoViewer: Bool = false
     @State private var messagesTargetConversationId: String? = nil
+    @StateObject private var tabRootVisibility = MomentsTabRootVisibility()
+    @StateObject private var tabSwipe = MomentsTabSwipeState()
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -53,6 +55,19 @@ struct TabBarView: View {
             Group {
                 if shouldShowMainApp {
                     MomentsToolbarVerticalEdgeProvider { _ in
+                        MomentsTabSwipeContainer(
+                            selectedTab: $selectedTab,
+                            previousSelectedTab: $previousSelectedTab,
+                            state: tabSwipe,
+                            roots: tabRootVisibility
+                        ) { close in
+                            // El creador de siempre, a la izquierda de Inicio.
+                            CreatorView(
+                                isCreatingStory: $isCreatingStory,
+                                showCreatorView: Binding(get: { true }, set: { isOpen in if !isOpen { close() } })
+                            )
+                            .environmentObject(authService)
+                        } content: {
                         Group {
                             if #available(iOS 26.0, *) {
                                 ModernTabView(
@@ -78,17 +93,21 @@ struct TabBarView: View {
                                 legacyTabView
                             }
                         }
+                        }
+                        .environment(\.momentsTabRootVisibility, tabRootVisibility)
                         .environmentObject(tabBarMinimize)
                         .environmentObject(messagingViewModel)
                         .environmentObject(firestoreService)
                         .overlay {
                             // Pill: abajo, o rail vertical si toolbarVerticalEdge ≠ nil.
-                            MomentsFloatingTabBar(
-                                selectedTab: $selectedTab,
-                                showCreatorView: $showCreatorView,
-                                previousSelectedTab: $previousSelectedTab,
-                                minimize: tabBarMinimize
-                            )
+                            MomentsTabBarSwipeFade(state: tabSwipe) {
+                                MomentsFloatingTabBar(
+                                    selectedTab: $selectedTab,
+                                    showCreatorView: $showCreatorView,
+                                    previousSelectedTab: $previousSelectedTab,
+                                    minimize: tabBarMinimize
+                                )
+                            }
                         }
                         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowMessages"))) { _ in
                             selectedTab = 1
@@ -234,6 +253,7 @@ struct ModernTabView: View {
             Tab(NSLocalizedString("tabBar.home", comment: ""), systemImage: "house", value: AppTab.home) {
                 NavigationStack {
                     FeedView(showCreatorView: $showCreatorView)
+                        .momentsTabSwipeRoot(0)
                 }
                 .environmentObject(authService)
                 .hideNativeTabBar()
@@ -258,6 +278,7 @@ struct ModernTabView: View {
             Tab(NSLocalizedString("tabBar.profile", comment: ""), systemImage: "person", value: AppTab.profile) {
                 NavigationStack {
                     ProfileView(selectedTab: $selectedTab)
+                        .momentsTabSwipeRoot(4)
                 }
                 .hideNativeTabBar()
             }
@@ -323,6 +344,7 @@ struct ModernTabView: View {
         TabView(selection: $selectedTab) {
             NavigationStack {
                 FeedView(showCreatorView: $showCreatorView)
+                    .momentsTabSwipeRoot(0)
             }
             .hideNativeTabBar()
             .tag(0)
@@ -338,6 +360,7 @@ struct ModernTabView: View {
                 .tag(3)
             NavigationStack {
                 ProfileView(selectedTab: $selectedTab)
+                    .momentsTabSwipeRoot(4)
             }
             .hideNativeTabBar()
             .tag(4)
