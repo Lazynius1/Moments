@@ -4789,3 +4789,32 @@
 "whatsNew.lockPreview231.description" = "iPhone이 잠겨 있어도 채팅 메시지를 읽을 수 있어요.";
 "whatsNew.fluid231.title" = "더 빠르고 매끄럽게";
 "whatsNew.fluid231.description" = "채팅이 더 빨리 열리고 음악도 계속 재생돼요.";
+
+/* Icono de la app */
+"settings.group.appearance" = "모양";
+"settings.appIcon.title" = "앱 아이콘";
+"appIcon.picker.description" = "홈 화면에 표시될 Moments의 모습을 선택하세요. 언제든지 바꿀 수 있어요.";
+"appIcon.picker.activate" = "이 아이콘 사용";
+"appIcon.picker.active" = "현재 아이콘";
+"appIcon.name.Classic" = "클래식";
+"appIcon.name.Night" = "나이트";
+"appIcon.name.Purple" = "퍼플";
+"appIcon.name.PurpleFlat" = "단색 퍼플";
+"appIcon.name.WhiteFlat" = "단색 화이트";
+"appIcon.name.Grape" = "그레이프";
+"appIcon.name.Ink" = "잉크";
+"appIcon.name.Silver" = "실버";
+"appIcon.name.Gold" = "골드";
+"appIcon.name.Glow" = "글로우";
+"appIcon.name.Outline" = "윤곽선";
+"appIcon.name.Cosmic" = "코스믹";
+"appIcon.name.Pixel" = "픽셀";
+"appIcon.name.Pride" = "프라이드";
+"appIcon.name.PrideFlag" = "깃발";
+"appIcon.name.PrideRing" = "링";
+"appIcon.name.Fire" = "파이어";
+"appIcon.name.Chrome" = "크롬";
+"appIcon.name.Neon" = "네온";
+"appIcon.name.Slime" = "슬라임";
+"appIcon.name.Flowers" = "플라워";
+"appIcon.name.Planet" = "플래닛";

@@ -5027,3 +5027,32 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "whatsNew.lockPreview231.description" = "Lee los mensajes del chat aunque tengas el iPhone bloqueado.";
 "whatsNew.fluid231.title" = "Más rápido y fluido";
 "whatsNew.fluid231.description" = "Los chats cargan antes y tu música sigue sonando.";
+
+/* Icono de la app */
+"settings.group.appearance" = "APARIENCIA";
+"settings.appIcon.title" = "Icono de la app";
+"appIcon.picker.description" = "Elige cómo se ve Moments en tu pantalla de inicio. Puedes cambiarlo cuando quieras.";
+"appIcon.picker.activate" = "Usar este icono";
+"appIcon.picker.active" = "Icono actual";
+"appIcon.name.Classic" = "Clásico";
+"appIcon.name.Night" = "Noche";
+"appIcon.name.Purple" = "Morado";
+"appIcon.name.PurpleFlat" = "Morado liso";
+"appIcon.name.WhiteFlat" = "Blanco liso";
+"appIcon.name.Grape" = "Uva";
+"appIcon.name.Ink" = "Tinta";
+"appIcon.name.Silver" = "Plata";
+"appIcon.name.Gold" = "Oro";
+"appIcon.name.Glow" = "Brillo";
+"appIcon.name.Outline" = "Contorno";
+"appIcon.name.Cosmic" = "Cósmico";
+"appIcon.name.Pixel" = "Píxel";
+"appIcon.name.Pride" = "Orgullo";
+"appIcon.name.PrideFlag" = "Bandera";
+"appIcon.name.PrideRing" = "Aro";
+"appIcon.name.Fire" = "Fuego";
+"appIcon.name.Chrome" = "Cromo";
+"appIcon.name.Neon" = "Neón";
+"appIcon.name.Slime" = "Slime";
+"appIcon.name.Flowers" = "Flores";
+"appIcon.name.Planet" = "Planeta";

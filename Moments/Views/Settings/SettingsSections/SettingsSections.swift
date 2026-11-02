@@ -102,6 +102,13 @@ struct SettingsFormView: View {
                 .offset(y: animateSections ? 0 : 20)
                 .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.25), value: animateSections), value: animateSections)
 
+                SettingsGroup(title: NSLocalizedString("settings.group.appearance", comment: "Appearance")) {
+                    AppIconSection()
+                }
+                .opacity(animateSections ? 1 : 0)
+                .offset(y: animateSections ? 0 : 20)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.onboarding.delay(0.3), value: animateSections), value: animateSections)
+
                 SettingsGroup(title: NSLocalizedString("settings.group.support", comment: "Support & Legal")) {
                     HelpSection(route: $route)
                 }

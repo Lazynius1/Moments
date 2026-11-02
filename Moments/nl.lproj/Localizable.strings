@@ -4789,3 +4789,32 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "whatsNew.lockPreview231.description" = "Lees chatberichten, ook als je iPhone vergrendeld is.";
 "whatsNew.fluid231.title" = "Sneller en soepeler";
 "whatsNew.fluid231.description" = "Chats laden sneller en je muziek blijft spelen.";
+
+/* Icono de la app */
+"settings.group.appearance" = "WEERGAVE";
+"settings.appIcon.title" = "App-icoon";
+"appIcon.picker.description" = "Kies hoe Moments eruitziet op je beginscherm. Je kunt het altijd wijzigen.";
+"appIcon.picker.activate" = "Dit icoon gebruiken";
+"appIcon.picker.active" = "Huidig icoon";
+"appIcon.name.Classic" = "Klassiek";
+"appIcon.name.Night" = "Nacht";
+"appIcon.name.Purple" = "Paars";
+"appIcon.name.PurpleFlat" = "Effen paars";
+"appIcon.name.WhiteFlat" = "Effen wit";
+"appIcon.name.Grape" = "Druif";
+"appIcon.name.Ink" = "Inkt";
+"appIcon.name.Silver" = "Zilver";
+"appIcon.name.Gold" = "Goud";
+"appIcon.name.Glow" = "Gloed";
+"appIcon.name.Outline" = "Omtrek";
+"appIcon.name.Cosmic" = "Kosmisch";
+"appIcon.name.Pixel" = "Pixel";
+"appIcon.name.Pride" = "Pride";
+"appIcon.name.PrideFlag" = "Vlag";
+"appIcon.name.PrideRing" = "Ring";
+"appIcon.name.Fire" = "Vuur";
+"appIcon.name.Chrome" = "Chroom";
+"appIcon.name.Neon" = "Neon";
+"appIcon.name.Slime" = "Slijm";
+"appIcon.name.Flowers" = "Bloemen";
+"appIcon.name.Planet" = "Planeet";

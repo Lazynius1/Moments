@@ -5075,3 +5075,32 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "whatsNew.lockPreview231.description" = "Llegeix els missatges del xat encara que tinguis l’iPhone bloquejat.";
 "whatsNew.fluid231.title" = "Més ràpid i fluid";
 "whatsNew.fluid231.description" = "Els xats carreguen abans i la teva música continua sonant.";
+
+/* Icono de la app */
+"settings.group.appearance" = "APARENÇA";
+"settings.appIcon.title" = "Icona de l'app";
+"appIcon.picker.description" = "Tria com es veu Moments a la pantalla d'inici. Pots canviar-ho quan vulguis.";
+"appIcon.picker.activate" = "Fes servir aquesta icona";
+"appIcon.picker.active" = "Icona actual";
+"appIcon.name.Classic" = "Clàssic";
+"appIcon.name.Night" = "Nit";
+"appIcon.name.Purple" = "Morat";
+"appIcon.name.PurpleFlat" = "Morat llis";
+"appIcon.name.WhiteFlat" = "Blanc llis";
+"appIcon.name.Grape" = "Raïm";
+"appIcon.name.Ink" = "Tinta";
+"appIcon.name.Silver" = "Plata";
+"appIcon.name.Gold" = "Or";
+"appIcon.name.Glow" = "Brillantor";
+"appIcon.name.Outline" = "Contorn";
+"appIcon.name.Cosmic" = "Còsmic";
+"appIcon.name.Pixel" = "Píxel";
+"appIcon.name.Pride" = "Orgull";
+"appIcon.name.PrideFlag" = "Bandera";
+"appIcon.name.PrideRing" = "Anell";
+"appIcon.name.Fire" = "Foc";
+"appIcon.name.Chrome" = "Crom";
+"appIcon.name.Neon" = "Neó";
+"appIcon.name.Slime" = "Slime";
+"appIcon.name.Flowers" = "Flors";
+"appIcon.name.Planet" = "Planeta";

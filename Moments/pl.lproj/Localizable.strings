@@ -4789,3 +4789,32 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "whatsNew.lockPreview231.description" = "Czytaj wiadomości z czatu, nawet gdy iPhone jest zablokowany.";
 "whatsNew.fluid231.title" = "Szybciej i płynniej";
 "whatsNew.fluid231.description" = "Czaty ładują się szybciej, a muzyka gra dalej.";
+
+/* Icono de la app */
+"settings.group.appearance" = "WYGLĄD";
+"settings.appIcon.title" = "Ikona aplikacji";
+"appIcon.picker.description" = "Wybierz, jak Moments wygląda na ekranie głównym. Możesz to zmienić w każdej chwili.";
+"appIcon.picker.activate" = "Użyj tej ikony";
+"appIcon.picker.active" = "Obecna ikona";
+"appIcon.name.Classic" = "Klasyczna";
+"appIcon.name.Night" = "Noc";
+"appIcon.name.Purple" = "Fiolet";
+"appIcon.name.PurpleFlat" = "Jednolity fiolet";
+"appIcon.name.WhiteFlat" = "Jednolita biel";
+"appIcon.name.Grape" = "Winogrono";
+"appIcon.name.Ink" = "Atrament";
+"appIcon.name.Silver" = "Srebro";
+"appIcon.name.Gold" = "Złoto";
+"appIcon.name.Glow" = "Blask";
+"appIcon.name.Outline" = "Kontur";
+"appIcon.name.Cosmic" = "Kosmiczna";
+"appIcon.name.Pixel" = "Piksel";
+"appIcon.name.Pride" = "Duma";
+"appIcon.name.PrideFlag" = "Flaga";
+"appIcon.name.PrideRing" = "Pierścień";
+"appIcon.name.Fire" = "Ogień";
+"appIcon.name.Chrome" = "Chrom";
+"appIcon.name.Neon" = "Neon";
+"appIcon.name.Slime" = "Glut";
+"appIcon.name.Flowers" = "Kwiaty";
+"appIcon.name.Planet" = "Planeta";

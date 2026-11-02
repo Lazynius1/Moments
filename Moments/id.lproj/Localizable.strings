@@ -4789,3 +4789,32 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "whatsNew.lockPreview231.description" = "Baca pesan chat meski iPhone terkunci.";
 "whatsNew.fluid231.title" = "Lebih cepat dan mulus";
 "whatsNew.fluid231.description" = "Chat dimuat lebih cepat dan musikmu tetap diputar.";
+
+/* Icono de la app */
+"settings.group.appearance" = "TAMPILAN";
+"settings.appIcon.title" = "Ikon aplikasi";
+"appIcon.picker.description" = "Pilih tampilan Moments di layar utama. Kamu bisa mengubahnya kapan saja.";
+"appIcon.picker.activate" = "Gunakan ikon ini";
+"appIcon.picker.active" = "Ikon saat ini";
+"appIcon.name.Classic" = "Klasik";
+"appIcon.name.Night" = "Malam";
+"appIcon.name.Purple" = "Ungu";
+"appIcon.name.PurpleFlat" = "Ungu polos";
+"appIcon.name.WhiteFlat" = "Putih polos";
+"appIcon.name.Grape" = "Anggur";
+"appIcon.name.Ink" = "Tinta";
+"appIcon.name.Silver" = "Perak";
+"appIcon.name.Gold" = "Emas";
+"appIcon.name.Glow" = "Kilau";
+"appIcon.name.Outline" = "Garis";
+"appIcon.name.Cosmic" = "Kosmik";
+"appIcon.name.Pixel" = "Piksel";
+"appIcon.name.Pride" = "Pride";
+"appIcon.name.PrideFlag" = "Bendera";
+"appIcon.name.PrideRing" = "Cincin";
+"appIcon.name.Fire" = "Api";
+"appIcon.name.Chrome" = "Krom";
+"appIcon.name.Neon" = "Neon";
+"appIcon.name.Slime" = "Slime";
+"appIcon.name.Flowers" = "Bunga";
+"appIcon.name.Planet" = "Planet";

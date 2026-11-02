@@ -4789,3 +4789,32 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "whatsNew.lockPreview231.description" = "iPhoneがロック中でも、チャットのメッセージを読めます。";
 "whatsNew.fluid231.title" = "より速く、なめらかに";
 "whatsNew.fluid231.description" = "チャットの読み込みが速くなり、音楽も止まりません。";
+
+/* Icono de la app */
+"settings.group.appearance" = "外観";
+"settings.appIcon.title" = "アプリアイコン";
+"appIcon.picker.description" = "ホーム画面での Moments の見た目を選べます。いつでも変更できます。";
+"appIcon.picker.activate" = "このアイコンを使う";
+"appIcon.picker.active" = "現在のアイコン";
+"appIcon.name.Classic" = "クラシック";
+"appIcon.name.Night" = "ナイト";
+"appIcon.name.Purple" = "パープル";
+"appIcon.name.PurpleFlat" = "パープル（単色）";
+"appIcon.name.WhiteFlat" = "ホワイト（単色）";
+"appIcon.name.Grape" = "グレープ";
+"appIcon.name.Ink" = "インク";
+"appIcon.name.Silver" = "シルバー";
+"appIcon.name.Gold" = "ゴールド";
+"appIcon.name.Glow" = "グロウ";
+"appIcon.name.Outline" = "アウトライン";
+"appIcon.name.Cosmic" = "コズミック";
+"appIcon.name.Pixel" = "ピクセル";
+"appIcon.name.Pride" = "プライド";
+"appIcon.name.PrideFlag" = "フラッグ";
+"appIcon.name.PrideRing" = "リング";
+"appIcon.name.Fire" = "ファイア";
+"appIcon.name.Chrome" = "クローム";
+"appIcon.name.Neon" = "ネオン";
+"appIcon.name.Slime" = "スライム";
+"appIcon.name.Flowers" = "フラワー";
+"appIcon.name.Planet" = "プラネット";

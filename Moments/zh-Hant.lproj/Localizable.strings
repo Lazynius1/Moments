@@ -4789,3 +4789,32 @@
 "whatsNew.lockPreview231.description" = "iPhone 鎖定時，也能閱讀聊天訊息。";
 "whatsNew.fluid231.title" = "更快更流暢";
 "whatsNew.fluid231.description" = "聊天載入更快，音樂也會繼續播放。";
+
+/* Icono de la app */
+"settings.group.appearance" = "外觀";
+"settings.appIcon.title" = "App 圖示";
+"appIcon.picker.description" = "選擇 Moments 在主畫面上的樣子，隨時都可以更改。";
+"appIcon.picker.activate" = "使用此圖示";
+"appIcon.picker.active" = "目前的圖示";
+"appIcon.name.Classic" = "經典";
+"appIcon.name.Night" = "夜晚";
+"appIcon.name.Purple" = "紫色";
+"appIcon.name.PurpleFlat" = "純紫";
+"appIcon.name.WhiteFlat" = "純白";
+"appIcon.name.Grape" = "葡萄";
+"appIcon.name.Ink" = "墨色";
+"appIcon.name.Silver" = "銀色";
+"appIcon.name.Gold" = "金色";
+"appIcon.name.Glow" = "光暈";
+"appIcon.name.Outline" = "線條";
+"appIcon.name.Cosmic" = "宇宙";
+"appIcon.name.Pixel" = "像素";
+"appIcon.name.Pride" = "驕傲";
+"appIcon.name.PrideFlag" = "彩虹旗";
+"appIcon.name.PrideRing" = "彩虹環";
+"appIcon.name.Fire" = "火焰";
+"appIcon.name.Chrome" = "鉻";
+"appIcon.name.Neon" = "霓虹";
+"appIcon.name.Slime" = "史萊姆";
+"appIcon.name.Flowers" = "花朵";
+"appIcon.name.Planet" = "星球";

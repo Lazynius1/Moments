@@ -4789,3 +4789,32 @@
 "whatsNew.lockPreview231.description" = "iPhone लॉक होने पर भी चैट मैसेज पढ़ें।";
 "whatsNew.fluid231.title" = "तेज़ और स्मूद";
 "whatsNew.fluid231.description" = "चैट जल्दी लोड होते हैं और आपका म्यूज़िक चलता रहता है।";
+
+/* Icono de la app */
+"settings.group.appearance" = "रूप-रंग";
+"settings.appIcon.title" = "ऐप आइकन";
+"appIcon.picker.description" = "चुनें कि होम स्क्रीन पर Moments कैसा दिखे। आप इसे कभी भी बदल सकते हैं।";
+"appIcon.picker.activate" = "यह आइकन इस्तेमाल करें";
+"appIcon.picker.active" = "मौजूदा आइकन";
+"appIcon.name.Classic" = "क्लासिक";
+"appIcon.name.Night" = "रात";
+"appIcon.name.Purple" = "बैंगनी";
+"appIcon.name.PurpleFlat" = "सादा बैंगनी";
+"appIcon.name.WhiteFlat" = "सादा सफ़ेद";
+"appIcon.name.Grape" = "अंगूरी";
+"appIcon.name.Ink" = "स्याही";
+"appIcon.name.Silver" = "चांदी";
+"appIcon.name.Gold" = "सोना";
+"appIcon.name.Glow" = "चमक";
+"appIcon.name.Outline" = "रूपरेखा";
+"appIcon.name.Cosmic" = "ब्रह्मांड";
+"appIcon.name.Pixel" = "पिक्सेल";
+"appIcon.name.Pride" = "प्राइड";
+"appIcon.name.PrideFlag" = "प्राइड झंडा";
+"appIcon.name.PrideRing" = "प्राइड रिंग";
+"appIcon.name.Fire" = "आग";
+"appIcon.name.Chrome" = "क्रोम";
+"appIcon.name.Neon" = "नियॉन";
+"appIcon.name.Slime" = "स्लाइम";
+"appIcon.name.Flowers" = "फूल";
+"appIcon.name.Planet" = "ग्रह";

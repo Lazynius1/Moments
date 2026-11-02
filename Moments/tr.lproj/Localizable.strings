@@ -4789,3 +4789,32 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "whatsNew.lockPreview231.description" = "iPhone kilitliyken de sohbet mesajlarını oku.";
 "whatsNew.fluid231.title" = "Daha hızlı ve akıcı";
 "whatsNew.fluid231.description" = "Sohbetler daha hızlı yüklenir, müziğin çalmaya devam eder.";
+
+/* Icono de la app */
+"settings.group.appearance" = "GÖRÜNÜM";
+"settings.appIcon.title" = "Uygulama simgesi";
+"appIcon.picker.description" = "Moments'ın ana ekranında nasıl görüneceğini seç. İstediğin zaman değiştirebilirsin.";
+"appIcon.picker.activate" = "Bu simgeyi kullan";
+"appIcon.picker.active" = "Mevcut simge";
+"appIcon.name.Classic" = "Klasik";
+"appIcon.name.Night" = "Gece";
+"appIcon.name.Purple" = "Mor";
+"appIcon.name.PurpleFlat" = "Düz mor";
+"appIcon.name.WhiteFlat" = "Düz beyaz";
+"appIcon.name.Grape" = "Üzüm";
+"appIcon.name.Ink" = "Mürekkep";
+"appIcon.name.Silver" = "Gümüş";
+"appIcon.name.Gold" = "Altın";
+"appIcon.name.Glow" = "Parıltı";
+"appIcon.name.Outline" = "Kontur";
+"appIcon.name.Cosmic" = "Kozmik";
+"appIcon.name.Pixel" = "Piksel";
+"appIcon.name.Pride" = "Onur";
+"appIcon.name.PrideFlag" = "Bayrak";
+"appIcon.name.PrideRing" = "Halka";
+"appIcon.name.Fire" = "Ateş";
+"appIcon.name.Chrome" = "Krom";
+"appIcon.name.Neon" = "Neon";
+"appIcon.name.Slime" = "Slime";
+"appIcon.name.Flowers" = "Çiçekler";
+"appIcon.name.Planet" = "Gezegen";
