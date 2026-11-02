@@ -5,7 +5,22 @@ import Kingfisher
 /// (10 por segundo) redibujaba el visor entero. Solo la barra de progreso lo observa.
 @MainActor
 final class StoryPlaybackProgress: ObservableObject {
+    /// Tramo de una historia de foto en marcha: desde cuándo y desde qué punto.
+    struct ImageRun: Equatable {
+        let start: Date
+        let base: Double
+        let duration: Double
+    }
+
     @Published fileprivate(set) var value: Double = 0.0
+    /// Con una foto en marcha la barra se calcula por tiempo en cada fotograma (fluida);
+    /// en pausa o con vídeo, nil, y vale `value`.
+    @Published fileprivate(set) var imageRun: ImageRun?
+
+    func displayValue(at date: Date) -> Double {
+        guard let run = imageRun, run.duration > 0 else { return value }
+        return min(max(run.base + date.timeIntervalSince(run.start) / run.duration, 0.0), 1.0)
+    }
 }
 
 @MainActor
@@ -47,6 +62,7 @@ final class StoryPlaybackCoordinator: ObservableObject {
     }
 
     func prepareStory(_ story: Story, initialElapsed: TimeInterval = 0, onImageComplete: @escaping () -> Void) {
+        invalidateImageTimer()
         let duration = story.duration > 0 ? story.duration : defaultStoryDuration
         if initialElapsed > 0, duration > 0 {
             progress = min(max(initialElapsed / duration, 0.0), 0.99)
@@ -62,10 +78,10 @@ final class StoryPlaybackCoordinator: ObservableObject {
     }
 
     func stopStory() {
+        invalidateImageTimer()
         isPaused = true
         progress = 0.0
         currentStoryId = nil
-        invalidateImageTimer()
     }
 
     func pauseStory() {
@@ -214,6 +230,8 @@ final class StoryPlaybackCoordinator: ObservableObject {
         let duration = story.duration > 0 ? story.duration : defaultStoryDuration
         invalidateImageTimer()
 
+        progressState.imageRun = .init(start: Date(), base: progress, duration: duration)
+        // El temporizador solo detecta el final; la barra se dibuja por tiempo en cada fotograma.
         imageTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.tickImageStory(duration: duration, onComplete: onComplete)
@@ -224,7 +242,7 @@ final class StoryPlaybackCoordinator: ObservableObject {
     private func tickImageStory(duration: Double, onComplete: @escaping () -> Void) {
         guard !isPaused else { return }
 
-        progress += 0.1 / duration
+        progress = progressState.displayValue(at: Date())
 
         if progress >= 1.0 {
             progress = 1.0
@@ -236,5 +254,10 @@ final class StoryPlaybackCoordinator: ObservableObject {
     private func invalidateImageTimer() {
         imageTimer?.invalidate()
         imageTimer = nil
+        // Congela la barra donde iba (pausa, cambio o fin de historia).
+        if progressState.imageRun != nil {
+            progress = progressState.displayValue(at: Date())
+            progressState.imageRun = nil
+        }
     }
 }

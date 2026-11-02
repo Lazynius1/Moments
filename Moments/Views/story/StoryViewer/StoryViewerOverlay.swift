@@ -16,6 +16,8 @@ struct GlassmorphicProgressBar: View {
     let progress: Double
     let isActive: Bool
     let audience: String?
+    /// Suaviza entre actualizaciones (vídeo); sin animación cuando ya se dibuja en cada fotograma.
+    var animates: Bool = true
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -67,7 +69,7 @@ struct GlassmorphicProgressBar: View {
                     .clipShape(RoundedRectangle(cornerRadius: 1.25, style: .continuous))
                     .shadow(color: shadowColor, radius: 3, x: 0, y: 0)
                     .animation(
-                        isActive ? .linear(duration: 0.1) : .none,
+                        isActive && animates ? .linear(duration: 0.1) : .none,
                         value: progress
                     )
             }

@@ -25,15 +25,25 @@ struct StorySegmentProgressChrome: View {
     }
 
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<storyCount, id: \.self) { index in
-                GlassmorphicProgressBar(
-                    progress: playbackCoordinator.progressForSegment(index: index, storyIndex: storyIndex),
-                    isActive: index == storyIndex,
-                    audience: audienceForSegment(index)
-                )
+        // Con una foto en marcha se redibuja en cada fotograma, como la barra de una historia normal.
+        TimelineView(.animation(minimumInterval: nil, paused: progressState.imageRun == nil)) { context in
+            HStack(spacing: 4) {
+                ForEach(0..<storyCount, id: \.self) { index in
+                    GlassmorphicProgressBar(
+                        progress: segmentProgress(index, at: context.date),
+                        isActive: index == storyIndex,
+                        audience: audienceForSegment(index),
+                        animates: progressState.imageRun == nil
+                    )
+                }
             }
         }
+    }
+
+    private func segmentProgress(_ index: Int, at date: Date) -> Double {
+        if index < storyIndex { return 1.0 }
+        if index > storyIndex { return 0.0 }
+        return progressState.displayValue(at: date)
     }
 }
 
