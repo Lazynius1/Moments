@@ -108,7 +108,8 @@ struct FeedView: View {
     private var feedHeaderHeight: CGFloat { 88 }
     private var feedSelectorHeight: CGFloat { 44 }
     private var floatingSelectorTopInset: CGFloat { feedHeaderHeight }
-    private var feedContentTopInset: CGFloat { isFeedHeaderHidden ? 18 : feedHeaderHeight + feedSelectorHeight + 40 }
+    // Fijo: si encogiera al ocultar la cabecera, el scroll se recolocaría y la volvería a mostrar.
+    private var feedContentTopInset: CGFloat { feedHeaderHeight + feedSelectorHeight + 40 }
     
     var body: some View {
         ZStack {

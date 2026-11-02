@@ -55,14 +55,15 @@ struct FeedListSection: View {
     /// Recorrido acumulado en la dirección actual del scroll (para ocultar/mostrar la cabecera).
     @State private var headerScrollTravel: CGFloat = 0
 
-    /// Bajar ≥ 40 pt oculta la cabecera; subir ≥ 28 pt o volver arriba la muestra.
+    /// Bajar ≥ 40 pt (pasado el hueco de la cabecera) la oculta; subir ≥ 28 pt o volver arriba la muestra.
     private func updateHeaderVisibility(from oldOffset: CGFloat, to newOffset: CGFloat) {
         let delta = newOffset - oldOffset
         guard delta != 0 else { return }
         if (delta > 0) != (headerScrollTravel > 0) { headerScrollTravel = 0 }
         headerScrollTravel += delta
         let shouldHide: Bool?
-        if newOffset <= 0 {
+        // Mientras el hueco de la cabecera sigue a la vista, la cabecera se queda.
+        if newOffset <= feedContentTopInset {
             shouldHide = false
         } else if headerScrollTravel > 40 {
             shouldHide = true
