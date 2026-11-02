@@ -278,3 +278,89 @@ test('groups: el historial previo a memberJoinedAt sigue legible (sin cambio, ve
   await assertSucceeds(getDocs(query(messages, orderBy('timestamp'), limitToLast(50))));
   await assertFails(getDocs(collection(as('carol'), `groupConversations/${gid}/groupMessages`)));
 });
+
+// ─── Seguridad (noviembre 2026) ──────────────────────────────────────────────
+
+test('usernames: se puede consultar un nombre pero no listar ni buscar por email', { skip }, async () => {
+  await seed(async db => { await setDoc(doc(db, 'usernames/alice'), { userId: 'alice' }); });
+  const anon = env.unauthenticatedContext().firestore();
+  await assertSucceeds(getDoc(doc(anon, 'usernames/alice')));
+  await assertFails(getDocs(collection(anon, 'usernames')));
+  await assertFails(getDocs(query(collection(as('bob'), 'usernames'), where('email', '==', 'alice@example.com'))));
+});
+
+test('suspensión: no se levanta mientras dura, sí cuando ha caducado', { skip }, async () => {
+  const future = Timestamp.fromMillis(Date.now() + 86400000);
+  const past = Timestamp.fromMillis(Date.now() - 86400000);
+  await seed(async db => {
+    await updateDoc(doc(db, 'users/alice'), { isSuspended: true, suspendedUntil: future, suspensionReason: 'spam' });
+    await updateDoc(doc(db, 'users/bob'), { isSuspended: true, suspendedUntil: past, suspensionReason: 'spam' });
+    await updateDoc(doc(db, 'users/carol'), { isSuspended: true, suspensionReason: 'spam' });
+  });
+  const lift = { isSuspended: false, suspendedUntil: deleteField(), suspensionReason: deleteField() };
+  await assertFails(updateDoc(doc(as('alice'), 'users/alice'), lift));
+  await assertFails(updateDoc(doc(as('alice'), 'users/alice'), { isSuspended: false }));
+  await assertFails(updateDoc(doc(as('alice'), 'users/alice'), { suspendedUntil: past }));
+  await assertFails(updateDoc(doc(as('carol'), 'users/carol'), lift));
+  await assertSucceeds(updateDoc(doc(as('bob'), 'users/bob'), lift));
+  // Nadie puede suspenderse ni tocar el campo sin estar suspendido.
+  await assertFails(updateDoc(doc(as('carol'), 'users/carol'), { suspensionReason: 'x' }));
+});
+
+test('notificaciones: nada de avisos de sistema en el buzón de otro', { skip }, async () => {
+  const n = id => doc(as('bob'), `users/alice/notifications/${id}`);
+  await assertSucceeds(setDoc(n('r1'), { senderId: 'bob', type: 'reaction', timestamp: Timestamp.now() }));
+  await assertFails(setDoc(n('m1'), { senderId: 'bob', type: 'mediaModeration', timestamp: Timestamp.now() }));
+  await assertFails(setDoc(n('a1'), { type: 'appeal_approved', timestamp: Timestamp.now() }));
+  await assertFails(setDoc(n('f1'), { senderId: 'carol', type: 'reaction', timestamp: Timestamp.now() }));
+  // A uno mismo (moderación de la propia subida) sigue permitido.
+  await assertSucceeds(setDoc(doc(as('alice'), 'users/alice/notifications/self'),
+    { type: 'mediaModeration', timestamp: Timestamp.now() }));
+});
+
+test('historias: otro solo puede poner la caducidad oficial de su cadena', { skip }, async () => {
+  const created = Timestamp.fromMillis(Date.now() - 3600000);
+  const official = Timestamp.fromMillis(created.toMillis() + 48 * 3600000);
+  await seed(async db => {
+    await setDoc(doc(db, 'storyChains/ch1'), { id: 'ch1', title: 't', createdBy: 'alice', createdAt: created, partCount: 2 });
+    await setDoc(doc(db, 'users/alice/stories/s1'), { authorId: 'alice', mediaItem: { url: 'u' }, chainId: 'ch1',
+      expirationDate: Timestamp.fromMillis(Date.now() + 3600000) });
+    await setDoc(doc(db, 'users/alice/stories/s2'), { authorId: 'alice', mediaItem: { url: 'u' },
+      expirationDate: Timestamp.fromMillis(Date.now() + 3600000) });
+  });
+  await assertSucceeds(updateDoc(doc(as('bob'), 'users/alice/stories/s1'), { expirationDate: official }));
+  await assertFails(updateDoc(doc(as('bob'), 'users/alice/stories/s1'), { expirationDate: Timestamp.now() }));
+  await assertFails(updateDoc(doc(as('bob'), 'users/alice/stories/s2'), { expirationDate: official }));
+  await assertSucceeds(updateDoc(doc(as('alice'), 'users/alice/stories/s2'), { expirationDate: Timestamp.now() }));
+});
+
+test('listas de audiencia: el dueño y los miembros, nadie más', { skip }, async () => {
+  await seed(async db => {
+    await setDoc(doc(db, 'users/alice/customAudienceLists/l1'), { name: 'amigos', members: ['bob'], createdAt: Timestamp.now() });
+  });
+  await assertSucceeds(getDoc(doc(as('alice'), 'users/alice/customAudienceLists/l1')));
+  await assertSucceeds(getDocs(collection(as('alice'), 'users/alice/customAudienceLists')));
+  await assertSucceeds(getDoc(doc(as('bob'), 'users/alice/customAudienceLists/l1')));
+  await assertFails(getDoc(doc(as('carol'), 'users/alice/customAudienceLists/l1')));
+  await assertFails(getDocs(collection(as('bob'), 'users/alice/customAudienceLists')));
+});
+
+test('historias: reacciones y respuestas a stickers solo del autor y de cada uno', { skip }, async () => {
+  await seed(async db => {
+    await setDoc(doc(db, 'users/alice/stories/s1'), { authorId: 'alice', mediaItem: { url: 'u' }, audience: 'everyone',
+      expirationDate: Timestamp.fromMillis(Date.now() + 3600000) });
+    await setDoc(doc(db, 'users/alice/stories/s1/reactions/bob'), { userId: 'bob', reaction: '🔥', timestamp: Timestamp.now() });
+    await setDoc(doc(db, 'users/alice/stories/s1/stickerInteractions/q1_bob'), { userId: 'bob', selectedIndex: 1 });
+  });
+  await assertSucceeds(getDocs(collection(as('alice'), 'users/alice/stories/s1/reactions')));
+  await assertSucceeds(getDoc(doc(as('bob'), 'users/alice/stories/s1/reactions/bob')));
+  await assertFails(getDocs(collection(as('carol'), 'users/alice/stories/s1/reactions')));
+  const si = (uid, id) => doc(as(uid), `users/alice/stories/s1/stickerInteractions/${id}`);
+  await assertSucceeds(getDoc(si('bob', 'q1_bob')));
+  await assertFails(getDoc(si('carol', 'q1_bob')));
+  await assertFails(setDoc(si('carol', 'q1_bob'), { userId: 'carol', selectedIndex: 0 }));
+  await assertFails(deleteDoc(si('carol', 'q1_bob')));
+  await assertSucceeds(setDoc(si('carol', 'q1_carol'),
+    { userId: 'carol', stickerId: 'q1', type: 'quiz', selectedIndex: 0, isCorrect: false, timestamp: serverTimestamp() }));
+  await assertSucceeds(getDocs(collection(as('alice'), 'users/alice/stories/s1/stickerInteractions')));
+});

@@ -99,9 +99,9 @@ extension FirestoreService {
             userData.removeValue(forKey: "suspendedUntil")
             userData.removeValue(forKey: "suspensionReason")
 
+            // El índice público de nombres no guarda el email (lo resuelve el servidor).
             let usernameData: [String: Any] = [
                 "userId": userId,
-                "email": email,
                 "createdAt": FieldValue.serverTimestamp(),
                 "updatedAt": FieldValue.serverTimestamp()
             ]
@@ -174,8 +174,6 @@ extension FirestoreService {
             guard let self = self else { return }
             if let error = error { completion(.failure(error)); return }
             let userData = userSnap?.data() ?? [:]
-            let userEmail = (userData["email"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let fallbackAuthEmail = Auth.auth().currentUser?.email?.trimmingCharacters(in: .whitespacesAndNewlines)
 
             if let ts = userData["lastUsernameChange"] as? Timestamp {
                 let lastChange = ts.dateValue()
@@ -202,11 +200,8 @@ extension FirestoreService {
                     newUsernameData["userId"] = userId
                     newUsernameData["updatedAt"] = FieldValue.serverTimestamp()
 
-                    if let email = userEmail, !email.isEmpty {
-                        newUsernameData["email"] = email
-                    } else if let email = fallbackAuthEmail, !email.isEmpty {
-                        newUsernameData["email"] = email
-                    }
+                    // El índice público de nombres no guarda el email (lo resuelve el servidor).
+                    newUsernameData.removeValue(forKey: "email")
 
                     if newUsernameData["createdAt"] == nil {
                         newUsernameData["createdAt"] = FieldValue.serverTimestamp()

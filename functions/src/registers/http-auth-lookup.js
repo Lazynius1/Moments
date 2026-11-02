@@ -136,8 +136,20 @@ const purgeVisitsOnBlock = onDocumentWritten('users/{userId}', async (event) => 
   }
 });
 
+/**
+ * El índice público `usernames` ya no guarda el email (lo resuelven las funciones de arriba
+ * desde Auth). Las versiones antiguas de las apps aún lo escriben al registrarse o cambiar
+ * de nombre: aquí se borra en cuanto aparece.
+ */
+const stripUsernameEmail = onDocumentWritten('usernames/{username}', async (event) => {
+  const after = event.data && event.data.after;
+  if (!after || !after.exists || after.get('email') === undefined) return;
+  await after.ref.update({ email: admin.firestore.FieldValue.delete() });
+});
+
 module.exports = {
   resolveLoginEmail,
   checkEmailAvailable,
-  purgeVisitsOnBlock
+  purgeVisitsOnBlock,
+  stripUsernameEmail
 };
