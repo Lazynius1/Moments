@@ -61,6 +61,15 @@ struct CaptionAndDetailsView: View {
     @AppStorage("hideLikeCounts") private var hideLikeCounts = false
     @AppStorage("allowSharing") private var allowSharing = true
 
+    // Etiqueta IA: por publicación, nunca persistida
+    @State private var aiGenerated = false
+    @State private var aiUserChanged = false
+
+    /// Alguno de los archivos elegidos trae la marca de IA en sus metadatos
+    private var aiAutoDetected: Bool {
+        selectedMediaItems.contains { $0.isAIGenerated }
+    }
+
     // Scheduling (New)
     @State private var isSchedulingEnabled = false
     @State private var scheduledDate = Date().addingTimeInterval(3600) // Default to 1 hour from now
@@ -371,6 +380,24 @@ struct CaptionAndDetailsView: View {
                                     title: NSLocalizedString("creator.interactions.allowSharing", comment: ""),
                                     isOn: $allowSharing
                                 )
+
+                                categoryDivider
+
+                                MinimalToggleRow(
+                                    icon: "sparkles",
+                                    title: NSLocalizedString("ai.toggle.title", comment: "Made with AI toggle"),
+                                    subtitle: NSLocalizedString(
+                                        aiAutoDetected ? "ai.toggle.detected" : "ai.toggle.subtitle",
+                                        comment: "Made with AI toggle subtitle"
+                                    ),
+                                    isOn: Binding(
+                                        get: { aiGenerated },
+                                        set: { newValue in
+                                            aiGenerated = newValue
+                                            aiUserChanged = true
+                                        }
+                                    )
+                                )
                             }
                             .padding(.top, 25)
 
@@ -546,11 +573,13 @@ struct CaptionAndDetailsView: View {
         .onAppear {
             loadDefaultPostAudience()
             hiddenLayersDetent = .large
+            syncAIInitialState()
         }
         .onChange(of: selectedMediaItems.map(\.id)) { _, _ in
             if !canUseHiddenLayers {
                 hiddenLayerDrafts.removeAll()
             }
+            syncAIInitialState()
         }
         .onChange(of: captionText) { _, newValue in
             activeCaptionMention = MentionParsing.detectActiveToken(in: newValue)
@@ -587,6 +616,11 @@ struct CaptionAndDetailsView: View {
         let finalDisableComments = disableComments
         let finalHideLikeCounts = hideLikeCounts
         let finalAllowSharing = allowSharing
+        let finalAIGenerated = aiGenerated
+        let finalAILabelSource = AILabelSource.resolve(
+            isOn: aiGenerated,
+            autoDetected: aiAutoDetected
+        )
         let finalScheduledDate = isSchedulingEnabled ? scheduledDate : nil
         let mediaSnapshot = mediaForPublish
         let detectedAspectRatio = preferredMomentAspectRatio(for: mediaSnapshot)
@@ -621,6 +655,8 @@ struct CaptionAndDetailsView: View {
                     disableComments: finalDisableComments,
                     hideLikeCounts: finalHideLikeCounts,
                     allowSharing: finalAllowSharing,
+                    aiGenerated: finalAIGenerated,
+                    aiLabelSource: finalAILabelSource,
                     scheduledDate: finalScheduledDate,
                     hiddenLayers: hiddenLayersSnapshot
                 )
@@ -711,6 +747,14 @@ struct CaptionAndDetailsView: View {
         selectedListName = nil
         audienceSetting = .everyone
         hiddenLayerDrafts = []
+        aiGenerated = false
+        aiUserChanged = false
+    }
+
+    /// Valor inicial de la etiqueta IA según los metadatos, si el usuario no la ha tocado
+    private func syncAIInitialState() {
+        guard !aiUserChanged else { return }
+        aiGenerated = aiAutoDetected
     }
 
     // MediaStackPreview eliminado (reemplazado por imagen grande inline)
@@ -837,6 +881,7 @@ struct CaptionAndDetailsView: View {
     struct MinimalToggleRow: View {
         let icon: String
         let title: String
+        var subtitle: String? = nil
         @Binding var isOn: Bool
         @Environment(\.colorScheme) private var colorScheme
 
@@ -857,9 +902,18 @@ struct CaptionAndDetailsView: View {
                 }
                 .frame(width: 32)
 
-                Text(title)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(ink)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(ink)
+
+                    if let subtitle, !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(.system(size: 12))
+                            .foregroundStyle(ink.opacity(colorScheme == .dark ? 0.6 : 0.5))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
 
                 Spacer()
 

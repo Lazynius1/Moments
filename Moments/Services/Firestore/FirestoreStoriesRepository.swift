@@ -79,6 +79,8 @@ extension FirestoreService {
         expirationHours: Int? = 24,
         duration: Double? = nil,
         interactionSettings: [String: Bool]? = nil,
+        aiGenerated: Bool = false,
+        aiLabelSource: String? = nil,
         storyId: String? = nil,
         completion: @escaping (String?, Error?) -> Void
     ) {
@@ -109,6 +111,8 @@ extension FirestoreService {
             continuationCustomListName: continuationCustomListName,
             duration: duration,
             interactionSettings: interactionSettings,
+            aiGenerated: aiGenerated,
+            aiLabelSource: aiLabelSource,
             storyId: storyId,
             completion: completion
         )
@@ -139,6 +143,8 @@ extension FirestoreService {
         expirationHours: Int? = 24,
         duration: Double? = nil,
         interactionSettings: [String: Bool]? = nil,
+        aiGenerated: Bool = false,
+        aiLabelSource: String? = nil,
         storyId: String? = nil,
         completion: @escaping (String?, Error?) -> Void
     ) {
@@ -169,6 +175,8 @@ extension FirestoreService {
             continuationCustomListName: continuationCustomListName,
             duration: duration,
             interactionSettings: interactionSettings,
+            aiGenerated: aiGenerated,
+            aiLabelSource: aiLabelSource,
             storyId: storyId,
             completion: completion
         )
@@ -201,6 +209,8 @@ extension FirestoreService {
         continuationCustomListName: String?,
         duration: Double?,
         interactionSettings: [String: Bool]? = nil,
+        aiGenerated: Bool = false,
+        aiLabelSource: String? = nil,
         storyId: String? = nil,
         completion: @escaping (String?, Error?) -> Void
     ) {
@@ -268,7 +278,9 @@ extension FirestoreService {
                     backgroundBlurredFrameURL: backgroundBlurredFrameURL,
                     chainId: chainId,
                     chainPosition: chainPosition,
-                    chainTitle: chainTitle
+                    chainTitle: chainTitle,
+                    aiGenerated: aiGenerated,
+                    aiLabelSource: aiLabelSource
                 )
 
                 do {

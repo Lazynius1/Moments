@@ -4818,3 +4818,23 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "appIcon.name.Slime" = "Slime";
 "appIcon.name.Flowers" = "Bunga";
 "appIcon.name.Planet" = "Planet";
+
+/* Etiqueta de contenido creado con IA */
+"ai.toggle.title" = "Dibuat dengan AI";
+"ai.toggle.subtitle" = "Aktifkan jika gambar, video, atau audio terlihat nyata dan dibuat atau diubah dengan AI.";
+"ai.toggle.detected" = "Kami mendeteksi bahwa konten ini dibuat dengan AI.";
+"ai.badge" = "Info AI";
+"ai.info.title" = "Konten dibuat dengan AI";
+"ai.info.creator" = "Orang yang mempostingnya menyatakan bahwa konten ini dibuat atau diubah dengan kecerdasan buatan.";
+"ai.info.metadata" = "Konten ini berisi data yang menunjukkan bahwa konten dibuat atau diubah dengan kecerdasan buatan.";
+"ai.info.footer" = "Label membantumu memahami apa yang kamu lihat. Jika melihat konten AI tanpa label, kamu bisa melaporkannya.";
+"report.category.unlabeledAI.title" = "Konten AI tanpa label";
+"report.category.unlabeledAI.subtitle" = "Gambar, video, atau audio AI yang terlihat nyata tanpa label";
+"appIcon.name.SantaHat" = "Topi Santa";
+"appIcon.name.CandyCane" = "Permen tongkat";
+"appIcon.name.Snow" = "Salju";
+"appIcon.name.Baubles" = "Bola hias";
+"appIcon.name.Lights" = "Lampu";
+"appIcon.name.Gingerbread" = "Kue jahe";
+"appIcon.name.ChristmasTree" = "Pohon Natal";
+"appIcon.name.Snowman" = "Manusia salju";

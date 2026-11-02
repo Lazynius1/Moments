@@ -4818,3 +4818,23 @@
 "appIcon.name.Slime" = "슬라임";
 "appIcon.name.Flowers" = "플라워";
 "appIcon.name.Planet" = "플래닛";
+
+/* Etiqueta de contenido creado con IA */
+"ai.toggle.title" = "AI로 생성됨";
+"ai.toggle.subtitle" = "이미지, 동영상 또는 오디오가 실제처럼 보이고 AI로 생성되거나 편집된 경우 켜 주세요.";
+"ai.toggle.detected" = "이 콘텐츠가 AI로 생성된 것으로 감지되었어요.";
+"ai.badge" = "AI 정보";
+"ai.info.title" = "AI로 생성된 콘텐츠";
+"ai.info.creator" = "게시자가 이 콘텐츠를 인공지능으로 생성하거나 편집했다고 밝혔어요.";
+"ai.info.metadata" = "이 콘텐츠에는 인공지능으로 생성되거나 편집되었음을 나타내는 데이터가 포함되어 있어요.";
+"ai.info.footer" = "라벨은 보고 있는 콘텐츠를 이해하는 데 도움이 돼요. 라벨이 없는 AI 콘텐츠를 보면 신고할 수 있어요.";
+"report.category.unlabeledAI.title" = "라벨 없는 AI 콘텐츠";
+"report.category.unlabeledAI.subtitle" = "라벨 없이 AI로 만든 실제 같은 이미지, 동영상, 오디오";
+"appIcon.name.SantaHat" = "산타 모자";
+"appIcon.name.CandyCane" = "캔디케인";
+"appIcon.name.Snow" = "눈";
+"appIcon.name.Baubles" = "오너먼트";
+"appIcon.name.Lights" = "조명";
+"appIcon.name.Gingerbread" = "진저브레드";
+"appIcon.name.ChristmasTree" = "트리";
+"appIcon.name.Snowman" = "눈사람";

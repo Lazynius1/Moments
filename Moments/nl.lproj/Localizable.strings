@@ -4818,3 +4818,23 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "appIcon.name.Slime" = "Slijm";
 "appIcon.name.Flowers" = "Bloemen";
 "appIcon.name.Planet" = "Planeet";
+
+/* Etiqueta de contenido creado con IA */
+"ai.toggle.title" = "Gemaakt met AI";
+"ai.toggle.subtitle" = "Zet dit aan als de afbeelding, video of audio realistisch is en met AI is gemaakt of bewerkt.";
+"ai.toggle.detected" = "We hebben gedetecteerd dat deze content met AI is gemaakt.";
+"ai.badge" = "AI-info";
+"ai.info.title" = "Met AI gemaakte content";
+"ai.info.creator" = "Degene die dit plaatste, geeft aan dat deze content met kunstmatige intelligentie is gemaakt of bewerkt.";
+"ai.info.metadata" = "Deze content bevat gegevens die laten zien dat hij met kunstmatige intelligentie is gemaakt of bewerkt.";
+"ai.info.footer" = "Labels helpen je te begrijpen wat je ziet. Zie je AI-content zonder label, dan kun je die melden.";
+"report.category.unlabeledAI.title" = "AI-content zonder label";
+"report.category.unlabeledAI.subtitle" = "Realistische AI-afbeeldingen, -video's of -audio zonder label";
+"appIcon.name.SantaHat" = "Kerstmuts";
+"appIcon.name.CandyCane" = "Zuurstok";
+"appIcon.name.Snow" = "Sneeuw";
+"appIcon.name.Baubles" = "Kerstballen";
+"appIcon.name.Lights" = "Lichtjes";
+"appIcon.name.Gingerbread" = "Peperkoek";
+"appIcon.name.ChristmasTree" = "Kerstboom";
+"appIcon.name.Snowman" = "Sneeuwpop";

@@ -5081,3 +5081,23 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "appIcon.name.Slime" = "Schleim";
 "appIcon.name.Flowers" = "Blumen";
 "appIcon.name.Planet" = "Planet";
+
+/* Etiqueta de contenido creado con IA */
+"ai.toggle.title" = "Mit KI erstellt";
+"ai.toggle.subtitle" = "Aktiviere das, wenn Bild, Video oder Audio realistisch sind und mit KI erstellt oder bearbeitet wurden.";
+"ai.toggle.detected" = "Wir haben erkannt, dass dieser Inhalt mit KI erstellt wurde.";
+"ai.badge" = "KI-Info";
+"ai.info.title" = "Mit KI erstellter Inhalt";
+"ai.info.creator" = "Die Person, die das gepostet hat, gibt an, dass dieser Inhalt mit künstlicher Intelligenz erstellt oder bearbeitet wurde.";
+"ai.info.metadata" = "Dieser Inhalt enthält Daten, die zeigen, dass er mit künstlicher Intelligenz erstellt oder bearbeitet wurde.";
+"ai.info.footer" = "Labels helfen dir zu verstehen, was du siehst. Wenn du KI-Inhalte ohne Label siehst, kannst du sie melden.";
+"report.category.unlabeledAI.title" = "KI-Inhalt ohne Label";
+"report.category.unlabeledAI.subtitle" = "Realistische KI-Bilder, -Videos oder -Audios ohne Label";
+"appIcon.name.SantaHat" = "Mütze";
+"appIcon.name.CandyCane" = "Zuckerstange";
+"appIcon.name.Snow" = "Schnee";
+"appIcon.name.Baubles" = "Kugeln";
+"appIcon.name.Lights" = "Lichter";
+"appIcon.name.Gingerbread" = "Lebkuchen";
+"appIcon.name.ChristmasTree" = "Tannenbaum";
+"appIcon.name.Snowman" = "Schneemann";

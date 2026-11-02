@@ -5856,3 +5856,23 @@ Para dúvidas ou solicitações sobre privacidade, contacta-nos pelo e-mail supo
 "appIcon.name.Slime" = "Slime";
 "appIcon.name.Flowers" = "Flores";
 "appIcon.name.Planet" = "Planeta";
+
+/* Etiqueta de contenido creado con IA */
+"ai.toggle.title" = "Criado com IA";
+"ai.toggle.subtitle" = "Ativa se a imagem, o vídeo ou o áudio forem realistas e tiverem sido gerados ou modificados com IA.";
+"ai.toggle.detected" = "Detetámos que este conteúdo foi criado com IA.";
+"ai.badge" = "Info de IA";
+"ai.info.title" = "Conteúdo criado com IA";
+"ai.info.creator" = "Quem publicou indicou que este conteúdo foi gerado ou modificado com inteligência artificial.";
+"ai.info.metadata" = "Este conteúdo inclui dados que indicam que foi gerado ou modificado com inteligência artificial.";
+"ai.info.footer" = "As etiquetas ajudam-te a perceber o que estás a ver. Se vires conteúdo de IA sem etiqueta, podes denunciá-lo.";
+"report.category.unlabeledAI.title" = "Conteúdo de IA sem etiqueta";
+"report.category.unlabeledAI.subtitle" = "Imagens, vídeos ou áudios realistas feitos com IA sem a etiqueta";
+"appIcon.name.SantaHat" = "Gorro";
+"appIcon.name.CandyCane" = "Bengala";
+"appIcon.name.Snow" = "Neve";
+"appIcon.name.Baubles" = "Bolas";
+"appIcon.name.Lights" = "Luzes";
+"appIcon.name.Gingerbread" = "Bolacha";
+"appIcon.name.ChristmasTree" = "Árvore";
+"appIcon.name.Snowman" = "Boneco de neve";

@@ -971,6 +971,9 @@ struct Moment: Identifiable, Codable, Equatable {
     let disableComments: Bool
     let hideLikeCounts: Bool
     let allowSharing: Bool
+    // Etiqueta de contenido creado con IA
+    let aiGenerated: Bool
+    let aiLabelSource: String?
 
     // ✅ NUEVO: Estructura para coordenadas de ubicación
     struct LocationCoordinate: Codable, Equatable {
@@ -991,6 +994,7 @@ struct Moment: Identifiable, Codable, Equatable {
         case videoUrl
         // ✅ NUEVAS CLAVES
         case disableComments, hideLikeCounts, allowSharing
+        case aiGenerated, aiLabelSource
         case scheduledDate
         case isArchived, archivedAt
         case isPinned, pinnedAt
@@ -1070,6 +1074,8 @@ struct Moment: Identifiable, Codable, Equatable {
         self.disableComments = (try? container.decodeIfPresent(Bool.self, forKey: .disableComments)) ?? false
         self.hideLikeCounts = (try? container.decodeIfPresent(Bool.self, forKey: .hideLikeCounts)) ?? false
         self.allowSharing = (try? container.decodeIfPresent(Bool.self, forKey: .allowSharing)) ?? true
+        self.aiGenerated = (try? container.decodeIfPresent(Bool.self, forKey: .aiGenerated)) ?? false
+        self.aiLabelSource = try? container.decodeIfPresent(String.self, forKey: .aiLabelSource)
         self.hasHiddenLayers = (try? container.decodeIfPresent(Bool.self, forKey: .hasHiddenLayers)) ?? false
         self.hiddenLayerCount = (try? container.decodeIfPresent(Int.self, forKey: .hiddenLayerCount)) ?? 0
         self.isModerationHidden = try container.decodeIfPresent(Bool.self, forKey: .isModerationHidden)
@@ -1129,6 +1135,11 @@ struct Moment: Identifiable, Codable, Equatable {
         try container.encode(disableComments, forKey: .disableComments)
         try container.encode(hideLikeCounts, forKey: .hideLikeCounts)
         try container.encode(allowSharing, forKey: .allowSharing)
+        // Solo se escribe cuando es true
+        if aiGenerated {
+            try container.encode(true, forKey: .aiGenerated)
+            try container.encodeIfPresent(aiLabelSource, forKey: .aiLabelSource)
+        }
         try container.encode(hasHiddenLayers, forKey: .hasHiddenLayers)
         try container.encode(hiddenLayerCount, forKey: .hiddenLayerCount)
         try container.encodeIfPresent(isModerationHidden, forKey: .isModerationHidden)
@@ -1168,6 +1179,8 @@ struct Moment: Identifiable, Codable, Equatable {
         disableComments: Bool,
         hideLikeCounts: Bool,
         allowSharing: Bool,
+        aiGenerated: Bool = false,
+        aiLabelSource: String? = nil,
         scheduledDate: Date? = nil,
         isArchived: Bool? = nil,
         archivedAt: Date? = nil,
@@ -1210,6 +1223,8 @@ struct Moment: Identifiable, Codable, Equatable {
         self.disableComments = disableComments
         self.hideLikeCounts = hideLikeCounts
         self.allowSharing = allowSharing
+        self.aiGenerated = aiGenerated
+        self.aiLabelSource = aiGenerated ? aiLabelSource : nil
         self.scheduledDate = scheduledDate // ✅ FIXED: Asignar fecha programada
         self.isArchived = isArchived
         self.archivedAt = archivedAt
@@ -1310,6 +1325,9 @@ struct Story: Identifiable, Codable {
     let chainId: String? // 🔗 AÑADIDO: ID de la cadena de historias
     let chainPosition: Int? // 🔗 AÑADIDO: Posición en la cadena (1, 2, 3...)
     let chainTitle: String? // 🔗 AÑADIDO: Título de la cadena
+    // Etiqueta de contenido creado con IA
+    let aiGenerated: Bool
+    let aiLabelSource: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -1350,6 +1368,8 @@ struct Story: Identifiable, Codable {
         case chainId // 🔗 AÑADIDO: Clave de codificación
         case chainPosition // 🔗 AÑADIDO: Clave de codificación
         case chainTitle // 🔗 AÑADIDO: Clave de codificación
+        case aiGenerated
+        case aiLabelSource
 
         // Claves antiguas para compatibilidad al leer
         case imagePath
@@ -1391,7 +1411,9 @@ struct Story: Identifiable, Codable {
          backgroundBlurredFrameURL: String? = nil,
          chainId: String? = nil, // 🔗 AÑADIDO: ID de la cadena
          chainPosition: Int? = nil, // 🔗 AÑADIDO: Posición en la cadena
-         chainTitle: String? = nil) { // 🔗 AÑADIDO: Título de la cadena
+         chainTitle: String? = nil, // 🔗 AÑADIDO: Título de la cadena
+         aiGenerated: Bool = false,
+         aiLabelSource: String? = nil) {
         self.id = id
         self.authorId = authorId
         self.username = username
@@ -1428,6 +1450,8 @@ struct Story: Identifiable, Codable {
         self.chainId = chainId // 🔗 AÑADIDO: Asignar ID de la cadena
         self.chainPosition = chainPosition // 🔗 AÑADIDO: Asignar posición en la cadena
         self.chainTitle = chainTitle // 🔗 AÑADIDO: Asignar título de la cadena
+        self.aiGenerated = aiGenerated
+        self.aiLabelSource = aiGenerated ? aiLabelSource : nil
     }
 
     init(from decoder: Decoder) throws {
@@ -1477,6 +1501,8 @@ struct Story: Identifiable, Codable {
         self.chainId = try container.decodeIfPresent(String.self, forKey: .chainId) // 🔗 AÑADIDO: Decodificar ID de la cadena
         self.chainPosition = try container.decodeIfPresent(Int.self, forKey: .chainPosition) // 🔗 AÑADIDO: Decodificar posición en la cadena
         self.chainTitle = try container.decodeIfPresent(String.self, forKey: .chainTitle) // 🔗 AÑADIDO: Decodificar título de la cadena
+        self.aiGenerated = (try? container.decodeIfPresent(Bool.self, forKey: .aiGenerated)) ?? false
+        self.aiLabelSource = try? container.decodeIfPresent(String.self, forKey: .aiLabelSource)
         self.expirationHours = try container.decodeIfPresent(Int.self, forKey: .expirationHours)
             ?? (self.chainId != nil ? 48 : 24)
 
@@ -1534,6 +1560,11 @@ struct Story: Identifiable, Codable {
         try container.encodeIfPresent(chainId, forKey: .chainId) // 🔗 AÑADIDO: Codificar ID de la cadena
         try container.encodeIfPresent(chainPosition, forKey: .chainPosition) // 🔗 AÑADIDO: Codificar posición en la cadena
         try container.encodeIfPresent(chainTitle, forKey: .chainTitle) // 🔗 AÑADIDO: Codificar título de la cadena
+        // Solo se escribe cuando es true
+        if aiGenerated {
+            try container.encode(true, forKey: .aiGenerated)
+            try container.encodeIfPresent(aiLabelSource, forKey: .aiLabelSource)
+        }
 
         // Mantener compatibilidad
         try container.encodeIfPresent(mediaItem.type == .image ? mediaItem.url : nil, forKey: .imagePath)

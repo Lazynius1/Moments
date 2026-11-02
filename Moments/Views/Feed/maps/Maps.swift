@@ -1520,6 +1520,8 @@ extension LocationMapView {
             disableComments: liveMoment.disableComments,
             hideLikeCounts: liveMoment.hideLikeCounts,
             allowSharing: liveMoment.allowSharing,
+            aiGenerated: liveMoment.aiGenerated,
+            aiLabelSource: liveMoment.aiLabelSource,
             scheduledDate: liveMoment.scheduledDate,
             isArchived: liveMoment.isArchived,
             archivedAt: liveMoment.archivedAt,

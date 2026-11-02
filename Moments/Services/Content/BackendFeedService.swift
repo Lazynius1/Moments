@@ -99,6 +99,8 @@ struct BackendStoryDocument: Codable {
     let chainId: String?
     let chainPosition: Int?
     let chainTitle: String?
+    let aiGenerated: Bool?
+    let aiLabelSource: String?
     let mediaItem: BackendStoryMediaItem?
     let imagePath: String?
     let videoUrl: String?
@@ -176,6 +178,8 @@ struct BackendMoment: Codable {
     let disableComments: Bool?
     let hideLikeCounts: Bool?
     let allowSharing: Bool?
+    let aiGenerated: Bool?
+    let aiLabelSource: String?
     let scheduledDate: Double? // epoch millis
     let isPinned: Bool?
     let pinnedAt: Double? // epoch millis
@@ -215,6 +219,8 @@ struct BackendMoment: Codable {
             disableComments: disableComments ?? false,
             hideLikeCounts: hideLikeCounts ?? false,
             allowSharing: allowSharing ?? true,
+            aiGenerated: aiGenerated ?? false,
+            aiLabelSource: aiLabelSource,
             scheduledDate: scheduledDate.map { Date(timeIntervalSince1970: $0 / 1000) },
             isPinned: isPinned == true ? true : nil,
             pinnedAt: pinnedAt.map { Date(timeIntervalSince1970: $0 / 1000) },

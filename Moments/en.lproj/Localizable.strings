@@ -5035,3 +5035,23 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "appIcon.name.Slime" = "Slime";
 "appIcon.name.Flowers" = "Flowers";
 "appIcon.name.Planet" = "Planet";
+
+/* Etiqueta de contenido creado con IA */
+"ai.toggle.title" = "Made with AI";
+"ai.toggle.subtitle" = "Turn this on if the image, video or audio is realistic and was generated or edited with AI.";
+"ai.toggle.detected" = "We detected that this content was made with AI.";
+"ai.badge" = "AI info";
+"ai.info.title" = "Made with AI";
+"ai.info.creator" = "The person who posted this said it was generated or edited with artificial intelligence.";
+"ai.info.metadata" = "This content includes data showing it was generated or edited with artificial intelligence.";
+"ai.info.footer" = "Labels help you understand what you're seeing. If you see unlabeled AI content, you can report it.";
+"report.category.unlabeledAI.title" = "Unlabeled AI content";
+"report.category.unlabeledAI.subtitle" = "Realistic AI images, videos or audio without the label";
+"appIcon.name.SantaHat" = "Santa hat";
+"appIcon.name.CandyCane" = "Candy cane";
+"appIcon.name.Snow" = "Snow";
+"appIcon.name.Baubles" = "Baubles";
+"appIcon.name.Lights" = "Lights";
+"appIcon.name.Gingerbread" = "Gingerbread";
+"appIcon.name.ChristmasTree" = "Tree";
+"appIcon.name.Snowman" = "Snowman";

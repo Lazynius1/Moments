@@ -28,6 +28,9 @@ class UploadingMoment: ObservableObject, Identifiable {
     let disableComments: Bool
     let hideLikeCounts: Bool
     let allowSharing: Bool
+    // Etiqueta IA: solo se escribe cuando aiGenerated es true
+    let aiGenerated: Bool
+    let aiLabelSource: String?
     let scheduledDate: Date?
     let hiddenLayers: [HiddenLayerDraft]
     /// ID de Firestore reservado antes de subir media (rutas Storage bajo users/{uid}/moments/{id}/).
@@ -59,6 +62,8 @@ class UploadingMoment: ObservableObject, Identifiable {
         disableComments: Bool = false,
         hideLikeCounts: Bool = false,
         allowSharing: Bool = true,
+        aiGenerated: Bool = false,
+        aiLabelSource: String? = nil,
         scheduledDate: Date? = nil,
         hiddenLayers: [HiddenLayerDraft] = [],
         tempId: String? = nil,
@@ -86,6 +91,8 @@ class UploadingMoment: ObservableObject, Identifiable {
         self.disableComments = disableComments
         self.hideLikeCounts = hideLikeCounts
         self.allowSharing = allowSharing
+        self.aiGenerated = aiGenerated
+        self.aiLabelSource = aiGenerated ? aiLabelSource : nil
         self.scheduledDate = scheduledDate
         self.hiddenLayers = hiddenLayers
     }
@@ -152,6 +159,9 @@ struct MomentUploadPayload: Codable {
     let disableComments: Bool
     let hideLikeCounts: Bool
     let allowSharing: Bool
+    // Opcionales para poder leer payloads antiguos
+    let aiGenerated: Bool?
+    let aiLabelSource: String?
     let scheduledDate: Date?
 }
 
@@ -224,6 +234,8 @@ class BackgroundMomentUploadService: ObservableObject {
         disableComments: Bool = false,
         hideLikeCounts: Bool = false,
         allowSharing: Bool = true,
+        aiGenerated: Bool = false,
+        aiLabelSource: String? = nil,
         scheduledDate: Date? = nil,
         hiddenLayers: [HiddenLayerDraft] = [],
         recoveryActionId: String? = nil,
@@ -251,6 +263,8 @@ class BackgroundMomentUploadService: ObservableObject {
             disableComments: disableComments,
             hideLikeCounts: hideLikeCounts,
             allowSharing: allowSharing,
+            aiGenerated: aiGenerated,
+            aiLabelSource: aiLabelSource,
             scheduledDate: scheduledDate,
             hiddenLayers: hiddenLayers,
             tempId: recoveryActionId,
@@ -790,6 +804,8 @@ class BackgroundMomentUploadService: ObservableObject {
                     disableComments: uploadingMoment.disableComments,
                     hideLikeCounts: uploadingMoment.hideLikeCounts,
                     allowSharing: uploadingMoment.allowSharing,
+                    aiGenerated: uploadingMoment.aiGenerated,
+                    aiLabelSource: uploadingMoment.aiLabelSource,
                     scheduledDate: uploadingMoment.scheduledDate,
                     momentId: uploadingMoment.plannedMomentId
                 ) { momentId, error in // 🔥 Captura el momentId
@@ -819,6 +835,8 @@ class BackgroundMomentUploadService: ObservableObject {
                     disableComments: uploadingMoment.disableComments,
                     hideLikeCounts: uploadingMoment.hideLikeCounts,
                     allowSharing: uploadingMoment.allowSharing,
+                    aiGenerated: uploadingMoment.aiGenerated,
+                    aiLabelSource: uploadingMoment.aiLabelSource,
                     scheduledDate: uploadingMoment.scheduledDate,
                     momentId: uploadingMoment.plannedMomentId
                 ) { momentId, error in // 🔥 Captura el momentId
@@ -1237,6 +1255,8 @@ class BackgroundMomentUploadService: ObservableObject {
                     disableComments: uploadingMoment.disableComments,
                     hideLikeCounts: uploadingMoment.hideLikeCounts,
                     allowSharing: uploadingMoment.allowSharing,
+                    aiGenerated: uploadingMoment.aiGenerated,
+                    aiLabelSource: uploadingMoment.aiLabelSource,
                     scheduledDate: uploadingMoment.scheduledDate
                 )
 
@@ -1546,6 +1566,8 @@ class BackgroundMomentUploadService: ObservableObject {
                 disableComments: payload.disableComments,
                 hideLikeCounts: payload.hideLikeCounts,
                 allowSharing: payload.allowSharing,
+                aiGenerated: payload.aiGenerated ?? false,
+                aiLabelSource: payload.aiLabelSource,
                 scheduledDate: payload.scheduledDate,
                 hiddenLayers: hiddenLayers,
                 recoveryActionId: action.id,

@@ -4818,3 +4818,23 @@
 "appIcon.name.Slime" = "स्लाइम";
 "appIcon.name.Flowers" = "फूल";
 "appIcon.name.Planet" = "ग्रह";
+
+/* Etiqueta de contenido creado con IA */
+"ai.toggle.title" = "AI से बनाया गया";
+"ai.toggle.subtitle" = "अगर इमेज, वीडियो या ऑडियो असली जैसा है और AI से बनाया या बदला गया है, तो इसे चालू करें।";
+"ai.toggle.detected" = "हमें पता चला है कि यह कंटेंट AI से बनाया गया है।";
+"ai.badge" = "AI जानकारी";
+"ai.info.title" = "AI से बनाया गया कंटेंट";
+"ai.info.creator" = "पोस्ट करने वाले ने बताया है कि यह कंटेंट आर्टिफ़िशियल इंटेलिजेंस से बनाया या बदला गया है।";
+"ai.info.metadata" = "इस कंटेंट में ऐसा डेटा है जो बताता है कि इसे आर्टिफ़िशियल इंटेलिजेंस से बनाया या बदला गया है।";
+"ai.info.footer" = "लेबल से आपको समझने में मदद मिलती है कि आप क्या देख रहे हैं। अगर आपको बिना लेबल वाला AI कंटेंट दिखे, तो आप उसकी रिपोर्ट कर सकते हैं।";
+"report.category.unlabeledAI.title" = "बिना लेबल वाला AI कंटेंट";
+"report.category.unlabeledAI.subtitle" = "बिना लेबल के AI से बनी असली जैसी इमेज, वीडियो या ऑडियो";
+"appIcon.name.SantaHat" = "सांता टोपी";
+"appIcon.name.CandyCane" = "कैंडी केन";
+"appIcon.name.Snow" = "बर्फ़";
+"appIcon.name.Baubles" = "सजावटी गेंदें";
+"appIcon.name.Lights" = "लाइट्स";
+"appIcon.name.Gingerbread" = "जिंजरब्रेड";
+"appIcon.name.ChristmasTree" = "क्रिसमस ट्री";
+"appIcon.name.Snowman" = "स्नोमैन";

@@ -73,6 +73,7 @@ struct StoryViewerScreen: View {
 
     @State private var musicTrackSheet: StoryMusicTrack?
     @State private var originalAudioSheet: StoryOriginalAudioSource?
+    @State private var showAIInfoSheet = false
     @State private var pendingOriginalAudioCreatorId: String?
     @State private var showMomentDetail: Bool = false
     @State private var targetMomentId: String? = nil
@@ -661,6 +662,9 @@ struct StoryViewerScreen: View {
         .sheet(item: $musicTrackSheet, onDismiss: { resumeStory() }) { track in
             StoryMusicTrackSheet(track: track)
         }
+        .sheet(isPresented: $showAIInfoSheet, onDismiss: { resumeStory() }) {
+            AIContentInfoSheet(source: story.aiLabelSource)
+        }
         .sheet(isPresented: $showMomentDetail) {
             if let momentId = targetMomentId, let userId = targetMomentUserId,
                !momentId.isEmpty, !userId.isEmpty {
@@ -1048,6 +1052,14 @@ struct StoryViewerScreen: View {
                                     .font(.caption2).foregroundStyle(.white).lineLimit(1)
                                     .shadow(color: .black.opacity(0.55), radius: 4)
                             }.buttonStyle(.plain)
+                        }
+
+                        // Etiqueta de contenido creado con IA
+                        if story.aiGenerated {
+                            AIContentBadgeLabel(foreground: .white.opacity(0.85))
+                                .shadow(color: .black.opacity(0.55), radius: 4)
+                                .contentShape(Rectangle())
+                                .highPriorityGesture(TapGesture().onEnded { pauseStory(); showAIInfoSheet = true })
                         }
                     }
                 }
@@ -2686,7 +2698,7 @@ struct StoryViewerScreen: View {
 
     private func resumeStory() {
         // ✅ REFUERZO SEGURO: No reanudar si cualquier overlay está visible o si hay teclado/drag
-        let isAnyOverlayVisible = musicTrackSheet != nil || originalAudioSheet != nil || showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || profileRoute != nil || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation || showDeleteConfirmation || showUnfollowConfirmation || showMuteConfirmation
+        let isAnyOverlayVisible = musicTrackSheet != nil || originalAudioSheet != nil || showAIInfoSheet || showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || profileRoute != nil || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation || showDeleteConfirmation || showUnfollowConfirmation || showMuteConfirmation
 
         let canResume = !isKeyboardVisible && !isDragging && !isMenuInteractionActive && !isAnyOverlayVisible && isDeckPageActive
         playbackCoordinator.resumeStory(story, canResume: canResume, onImageComplete: onNext)

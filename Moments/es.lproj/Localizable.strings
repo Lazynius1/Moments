@@ -5056,3 +5056,23 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "appIcon.name.Slime" = "Slime";
 "appIcon.name.Flowers" = "Flores";
 "appIcon.name.Planet" = "Planeta";
+
+/* Etiqueta de contenido creado con IA */
+"ai.toggle.title" = "Creado con IA";
+"ai.toggle.subtitle" = "Actívalo si la imagen, el vídeo o el audio son realistas y se han generado o modificado con IA.";
+"ai.toggle.detected" = "Hemos detectado que este contenido se ha creado con IA.";
+"ai.badge" = "Info de IA";
+"ai.info.title" = "Contenido creado con IA";
+"ai.info.creator" = "Quien lo publicó ha indicado que este contenido se ha generado o modificado con inteligencia artificial.";
+"ai.info.metadata" = "Este contenido incluye datos que indican que se ha generado o modificado con inteligencia artificial.";
+"ai.info.footer" = "Las etiquetas ayudan a entender qué estás viendo. Si ves contenido de IA sin etiquetar, puedes denunciarlo.";
+"report.category.unlabeledAI.title" = "Contenido de IA sin etiquetar";
+"report.category.unlabeledAI.subtitle" = "Imágenes, vídeos o audios realistas hechos con IA sin la etiqueta";
+"appIcon.name.SantaHat" = "Gorro";
+"appIcon.name.CandyCane" = "Bastón";
+"appIcon.name.Snow" = "Nieve";
+"appIcon.name.Baubles" = "Bolas";
+"appIcon.name.Lights" = "Luces";
+"appIcon.name.Gingerbread" = "Galleta";
+"appIcon.name.ChristmasTree" = "Arbolito";
+"appIcon.name.Snowman" = "Muñeco";

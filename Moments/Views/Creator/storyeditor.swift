@@ -88,6 +88,9 @@ struct StoryEditingView: View {
         usesSystemEditorToolbar || usesChatDuoSystemToolbar
     }
     @State private var allowOriginalAudioReuse = false
+    // Etiqueta IA: por historia, nunca persistida
+    @State private var aiGenerated = false
+    @State private var aiUserChanged = false
     @State private var isPrivateAccount = false
     @State private var showingShareSheet = false
     @State private var showingShareAudienceSelector = false
@@ -477,6 +480,8 @@ struct StoryEditingView: View {
             .onChange(of: selectedMediaItems.first?.id) { _, _ in
                 resetBaseMediaTransform()
                 refreshPrimaryVideoAspectRatio()
+                aiUserChanged = false
+                syncAIInitialState()
             }
             .onDisappear {
                 removeStickerListener()
@@ -532,6 +537,14 @@ struct StoryEditingView: View {
                 allowMessages: $allowStoryMessages,
                 allowReactions: $allowStoryReactions,
                 allowEphemeralPhotos: $allowStoryEphemeralPhotos,
+                aiGenerated: Binding(
+                    get: { aiGenerated },
+                    set: { newValue in
+                        aiGenerated = newValue
+                        aiUserChanged = true
+                    }
+                ),
+                aiAutoDetected: aiAutoDetected,
                 onAudience: { showingShareAudienceSelector = true },
                 onChainSettings: { showingShareChainConfiguration = true },
                 onShare: publishStory
@@ -2902,7 +2915,19 @@ struct StoryEditingView: View {
         let hasStoryContent = !selectedMediaItems.isEmpty || hasAnyTextOverlays || !selectedStickers.isEmpty || drawingImage != nil
         guard hasStoryContent else { return }
         commitActiveTextOverlayIfNeeded(canvasSize: currentMediaCanvasRect().size)
+        syncAIInitialState()
         showingShareSheet = true
+    }
+
+    /// Alguno de los archivos elegidos trae la marca de IA en sus metadatos
+    private var aiAutoDetected: Bool {
+        selectedMediaItems.contains { $0.isAIGenerated }
+    }
+
+    /// Valor inicial de la etiqueta IA según los metadatos, si el usuario no la ha tocado
+    private func syncAIInitialState() {
+        guard !aiUserChanged else { return }
+        aiGenerated = aiAutoDetected
     }
 
     private func publishStory() {
@@ -3021,6 +3046,11 @@ struct StoryEditingView: View {
                 "allowStoryEphemeralPhotos": allowStoryEphemeralPhotos,
                 "allowOriginalAudioReuse": allowOriginalAudioReuse && !isPrivateAccount && contentAudience == .everyone
             ],
+            aiGenerated: aiGenerated,
+            aiLabelSource: AILabelSource.resolve(
+                isOn: aiGenerated,
+                autoDetected: aiAutoDetected
+            ),
             expirationHours: resolvedExpirationHours,
             storyVideoMode: media.storyVideoMode
         ) else {
@@ -3099,7 +3129,8 @@ struct StoryEditingView: View {
         storyTextAlignment = .center
         storyTextBackground = .none
         storyTextFontSize = 30
-
+        aiGenerated = false
+        aiUserChanged = false
     }
 
     private func seedStoryTextPosition(canvasSize: CGSize) {

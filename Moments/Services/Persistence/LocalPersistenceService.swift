@@ -2141,6 +2141,8 @@ final class LocalPersistenceService: ObservableObject {
         existing.disableComments = new.disableComments
         existing.hideLikeCounts = new.hideLikeCounts
         existing.allowSharing = new.allowSharing
+        existing.aiGenerated = new.aiGenerated
+        existing.aiLabelSource = new.aiLabelSource
         existing.scheduledDate = new.scheduledDate
         existing.isPinned = new.isPinned
         existing.pinnedAt = new.pinnedAt

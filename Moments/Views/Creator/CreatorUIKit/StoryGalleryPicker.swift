@@ -54,7 +54,7 @@ struct StoryGalleryPicker: View {
                 StoryMediaPicker(
                     selectedImage: $selectedImage,
                     selectedVideoURL: $selectedVideoURL,
-                    onSelect: { image, videoURL in
+                    onSelect: { image, videoURL, isAIGenerated in
                         if let image = image {
                             let media = CreatorMedia(
                                 id: UUID().uuidString,
@@ -62,13 +62,14 @@ struct StoryGalleryPicker: View {
                                 videoURL: nil,
                                 type: .image,
                                 aspectRatio: .nineBySixteen,
-                                recommendedAspectRatio: .nineBySixteen
+                                recommendedAspectRatio: .nineBySixteen,
+                                isAIGenerated: isAIGenerated
                             )
                             onSelect(media)
                             closeIfSheet()
                         } else if let videoURL = videoURL {
                             Task {
-                                await handleSelectedVideo(videoURL)
+                                await handleSelectedVideo(videoURL, isAIGenerated: isAIGenerated)
                             }
                         }
                     }
@@ -85,6 +86,8 @@ struct StoryGalleryPicker: View {
                         },
                         onComplete: { trimmedMedia in
                             showingTrimEditor = false
+                            var trimmedMedia = trimmedMedia
+                            trimmedMedia.isAIGenerated = media.isAIGenerated
                             onSelect(trimmedMedia)
                             closeIfSheet()
                         }
@@ -143,7 +146,7 @@ struct StoryGalleryPicker: View {
             }
     }
 
-    private func handleSelectedVideo(_ videoURL: URL) async {
+    private func handleSelectedVideo(_ videoURL: URL, isAIGenerated: Bool = false) async {
         do {
             let duration = try await StoryVideoProcessingService.shared.duration(for: videoURL)
             let thumbnail = (try? await StoryVideoProcessingService.shared.generateStoryThumbnail(videoURL: videoURL, time: 0.1))
@@ -156,7 +159,8 @@ struct StoryGalleryPicker: View {
                 type: .video,
                 aspectRatio: .nineBySixteen,
                 recommendedAspectRatio: .nineBySixteen,
-                videoDuration: duration
+                videoDuration: duration,
+                isAIGenerated: isAIGenerated
             )
 
             await MainActor.run {
@@ -216,7 +220,7 @@ struct StoryGalleryPicker: View {
             StoryMediaPicker(
                 selectedImage: $selectedImage,
                 selectedVideoURL: $selectedVideoURL,
-                onSelect: { image, videoURL in
+                onSelect: { image, videoURL, isAIGenerated in
                     if let image = image {
                         let media = CreatorMedia(
                             id: UUID().uuidString,
@@ -224,12 +228,13 @@ struct StoryGalleryPicker: View {
                             videoURL: nil,
                             type: .image,
                             aspectRatio: .nineBySixteen,
-                            recommendedAspectRatio: .nineBySixteen
+                            recommendedAspectRatio: .nineBySixteen,
+                            isAIGenerated: isAIGenerated
                         )
                         onSelect(media)
                     } else if let videoURL = videoURL {
                         Task {
-                            await handleSelectedVideo(videoURL)
+                            await handleSelectedVideo(videoURL, isAIGenerated: isAIGenerated)
                         }
                     }
                 }

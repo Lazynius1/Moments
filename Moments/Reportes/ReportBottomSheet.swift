@@ -159,6 +159,7 @@ enum ReportCategory: String, CaseIterable {
     case nudity = "desnudos_actividad_sexual"
     case scams = "estafas_fraudes_spam"
     case falseInfo = "informacion_falsa"
+    case unlabeledAI = "ia_sin_etiquetar"
     case intellectualProperty = "propiedad_intelectual"
     
     var title: String {
@@ -179,6 +180,8 @@ enum ReportCategory: String, CaseIterable {
             return NSLocalizedString("report.category.scams.title", comment: "Scams category title")
         case .falseInfo:
             return NSLocalizedString("report.category.falseInfo.title", comment: "False info category title")
+        case .unlabeledAI:
+            return NSLocalizedString("report.category.unlabeledAI.title", comment: "Unlabeled AI content category title")
         case .intellectualProperty:
             return NSLocalizedString("report.category.intellectualProperty.title", comment: "Intellectual property category title")
         }
@@ -202,6 +205,8 @@ enum ReportCategory: String, CaseIterable {
             return NSLocalizedString("report.category.scams.subtitle", comment: "Scams category subtitle")
         case .falseInfo:
             return NSLocalizedString("report.category.falseInfo.subtitle", comment: "False info category subtitle")
+        case .unlabeledAI:
+            return NSLocalizedString("report.category.unlabeledAI.subtitle", comment: "Unlabeled AI content category subtitle")
         case .intellectualProperty:
             return NSLocalizedString("report.category.intellectualProperty.subtitle", comment: "Intellectual property category subtitle")
         }
@@ -225,6 +230,8 @@ enum ReportCategory: String, CaseIterable {
             return "questionmark.diamond"
         case .falseInfo:
             return "info.circle.and.exclamationmark"
+        case .unlabeledAI:
+            return "sparkles"
         case .intellectualProperty:
             return "c.circle"
         }
@@ -234,7 +241,7 @@ enum ReportCategory: String, CaseIterable {
         switch self {
         case .dislike:
             return .low
-        case .bullying, .scams, .falseInfo:
+        case .bullying, .scams, .falseInfo, .unlabeledAI:
             return .medium
         case .selfHarm, .violence, .nudity, .restrictedSales:
             return .high

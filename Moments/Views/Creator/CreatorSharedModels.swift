@@ -78,6 +78,8 @@ struct CreatorMedia: Identifiable {
     var immersiveImage: UIImage? = nil
     var immersiveAspectRatio: AspectRatio? = nil
     var feedCrop: MediaItemFeedCrop? = nil
+    /// Detectado en los metadatos del archivo original (C2PA/IPTC)
+    var isAIGenerated: Bool = false
 
     // Helper para acceder al thumbnail de manera segura
     var thumbnail: UIImage? {
@@ -196,7 +198,7 @@ struct CreatorMedia: Identifiable {
 
     // MARK: - Initializers & Helpers
 
-    init(id: String, image: UIImage, videoURL: URL?, type: MediaType, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool = false, thumbnailURL: URL? = nil, tags: [PhotoTag]? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil, feedCrop: MediaItemFeedCrop? = nil) {
+    init(id: String, image: UIImage, videoURL: URL?, type: MediaType, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool = false, thumbnailURL: URL? = nil, tags: [PhotoTag]? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil, feedCrop: MediaItemFeedCrop? = nil, isAIGenerated: Bool = false) {
         self.id = id
         self.image = image
         self.videoURL = videoURL
@@ -213,9 +215,10 @@ struct CreatorMedia: Identifiable {
         self.immersiveImage = nil
         self.immersiveAspectRatio = nil
         self.feedCrop = feedCrop
+        self.isAIGenerated = isAIGenerated
     }
 
-    init(type: MediaType, image: UIImage, videoURL: URL?, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, thumbnailURL: URL? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil, feedCrop: MediaItemFeedCrop? = nil) {
+    init(type: MediaType, image: UIImage, videoURL: URL?, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, thumbnailURL: URL? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil, feedCrop: MediaItemFeedCrop? = nil, isAIGenerated: Bool = false) {
         self.id = UUID().uuidString
         self.image = image
         self.videoURL = videoURL
@@ -231,6 +234,7 @@ struct CreatorMedia: Identifiable {
         self.immersiveImage = nil
         self.immersiveAspectRatio = nil
         self.feedCrop = feedCrop
+        self.isAIGenerated = isAIGenerated
     }
 
     func with(videoURL: URL? = nil, aspectRatio: AspectRatio? = nil, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool? = nil, thumbnailURL: URL? = nil, image: UIImage? = nil, tags: [PhotoTag]? = nil, storyVideoMode: StoryVideoMode? = nil, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil) -> CreatorMedia {
@@ -252,6 +256,7 @@ struct CreatorMedia: Identifiable {
         copy.immersiveImage = self.immersiveImage
         copy.immersiveAspectRatio = self.immersiveAspectRatio
         copy.feedCrop = self.feedCrop
+        copy.isAIGenerated = self.isAIGenerated
         return copy
     }
 

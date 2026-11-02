@@ -665,6 +665,9 @@ function serializeMoment(docId, data) {
     disableComments: data.disableComments || false,
     hideLikeCounts: data.hideLikeCounts || false,
     allowSharing: data.allowSharing !== false,
+    // Etiqueta de contenido creado con IA.
+    aiGenerated: data.aiGenerated === true,
+    aiLabelSource: data.aiGenerated === true ? (data.aiLabelSource || 'creator') : null,
     scheduledDate: tsToMillis(data.scheduledDate),
     isPinned: data.isPinned === true ? true : null,
     pinnedAt: tsToMillis(data.pinnedAt),

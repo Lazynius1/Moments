@@ -5,7 +5,8 @@ import UniformTypeIdentifiers
 struct StoryMediaPicker: UIViewControllerRepresentable {
     @Binding var selectedImage: UIImage?
     @Binding var selectedVideoURL: URL?
-    let onSelect: (UIImage?, URL?) -> Void
+    /// Imagen o vídeo elegido y si sus metadatos lo marcan como creado con IA.
+    let onSelect: (UIImage?, URL?, Bool) -> Void
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
@@ -68,25 +69,35 @@ struct StoryMediaPicker: UIViewControllerRepresentable {
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
             guard let result = results.first else {
-                parent.onSelect(nil, nil)
+                parent.onSelect(nil, nil, false)
                 parent.dismiss()
                 return
             }
 
             if result.itemProvider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
-                result.itemProvider.loadObject(ofClass: UIImage.self) { object, error in
-                    DispatchQueue.main.async {
-                        if let image = object as? UIImage {
-                            self.parent.selectedImage = image
-                            self.parent.onSelect(image, nil)
-                        } else {
-                            self.parent.onSelect(nil, nil)
+                let provider = result.itemProvider
+                provider.loadObject(ofClass: UIImage.self) { object, _ in
+                    guard let image = object as? UIImage else {
+                        DispatchQueue.main.async {
+                            self.parent.onSelect(nil, nil, false)
+                            self.parent.dismiss()
                         }
-                        self.parent.dismiss()
+                        return
+                    }
+                    // Bytes originales para buscar la marca de IA en los metadatos
+                    provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
+                        let isAIGenerated = data.map { AIContentProvenance.isAIGenerated(data: $0) } ?? false
+                        DispatchQueue.main.async {
+                            self.parent.selectedImage = image
+                            self.parent.onSelect(image, nil, isAIGenerated)
+                            self.parent.dismiss()
+                        }
                     }
                 }
             } else if result.itemProvider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) {
                 result.itemProvider.loadDataRepresentation(forTypeIdentifier: UTType.movie.identifier) { data, error in
+                    // Se analiza en la cola del proveedor, fuera del hilo principal
+                    let isAIGenerated = data.map { AIContentProvenance.isAIGenerated(data: $0) } ?? false
                     DispatchQueue.main.async {
                         if let videoData = data {
                             let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
@@ -96,18 +107,18 @@ struct StoryMediaPicker: UIViewControllerRepresentable {
                             do {
                                 try videoData.write(to: tempURL)
                                 self.parent.selectedVideoURL = tempURL
-                                self.parent.onSelect(nil, tempURL)
+                                self.parent.onSelect(nil, tempURL, isAIGenerated)
                             } catch {
-                                self.parent.onSelect(nil, nil)
+                                self.parent.onSelect(nil, nil, false)
                             }
                         } else {
-                            self.parent.onSelect(nil, nil)
+                            self.parent.onSelect(nil, nil, false)
                         }
                         self.parent.dismiss()
                     }
                 }
             } else {
-                parent.onSelect(nil, nil)
+                parent.onSelect(nil, nil, false)
                 parent.dismiss()
             }
         }

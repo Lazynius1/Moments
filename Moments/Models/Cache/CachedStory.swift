@@ -31,6 +31,9 @@ final class CachedStory {
     var chainId: String?
     var chainPosition: Int?
     var chainTitle: String?
+    // Etiqueta IA (con valor por defecto para la migración ligera)
+    var aiGenerated: Bool = false
+    var aiLabelSource: String? = nil
     
     var cachedAt: Date
 
@@ -58,7 +61,9 @@ final class CachedStory {
          backgroundBlurredFrameURL: String? = nil,
          chainId: String? = nil,
          chainPosition: Int? = nil,
-         chainTitle: String? = nil) {
+         chainTitle: String? = nil,
+         aiGenerated: Bool = false,
+         aiLabelSource: String? = nil) {
         self.id = id
         self.authorId = authorId
         self.username = username
@@ -84,6 +89,8 @@ final class CachedStory {
         self.chainId = chainId
         self.chainPosition = chainPosition
         self.chainTitle = chainTitle
+        self.aiGenerated = aiGenerated
+        self.aiLabelSource = aiLabelSource
         self.cachedAt = Date()
     }
     
@@ -122,7 +129,9 @@ final class CachedStory {
             backgroundBlurredFrameURL: story.backgroundBlurredFrameURL,
             chainId: story.chainId,
             chainPosition: story.chainPosition,
-            chainTitle: story.chainTitle
+            chainTitle: story.chainTitle,
+            aiGenerated: story.aiGenerated,
+            aiLabelSource: story.aiLabelSource
         )
     }
     
@@ -170,7 +179,9 @@ final class CachedStory {
             backgroundBlurredFrameURL: backgroundBlurredFrameURL,
             chainId: chainId,
             chainPosition: chainPosition,
-            chainTitle: chainTitle
+            chainTitle: chainTitle,
+            aiGenerated: aiGenerated,
+            aiLabelSource: aiLabelSource
         )
     }
 }

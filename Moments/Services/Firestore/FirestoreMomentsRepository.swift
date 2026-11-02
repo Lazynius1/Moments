@@ -784,6 +784,8 @@ extension FirestoreService {
         disableComments: Bool = false,
         hideLikeCounts: Bool = false,
         allowSharing: Bool = true,
+        aiGenerated: Bool = false,
+        aiLabelSource: String? = nil,
         scheduledDate: Date? = nil,
         momentId: String? = nil,
         completion: @escaping (String?, Error?) -> Void
@@ -839,6 +841,8 @@ extension FirestoreService {
                     disableComments: disableComments,
                     hideLikeCounts: hideLikeCounts,
                     allowSharing: allowSharing,
+                    aiGenerated: aiGenerated,
+                    aiLabelSource: aiLabelSource,
                     scheduledDate: scheduledDate
                 )
 
@@ -919,6 +923,8 @@ extension FirestoreService {
         disableComments: Bool = false,
         hideLikeCounts: Bool = false,
         allowSharing: Bool = true,
+        aiGenerated: Bool = false,
+        aiLabelSource: String? = nil,
         scheduledDate: Date? = nil,
         momentId: String? = nil,
         completion: @escaping (String?, Error?) -> Void
@@ -965,6 +971,8 @@ extension FirestoreService {
                     disableComments: disableComments,
                     hideLikeCounts: hideLikeCounts,
                     allowSharing: allowSharing,
+                    aiGenerated: aiGenerated,
+                    aiLabelSource: aiLabelSource,
                     scheduledDate: scheduledDate
                 )
 

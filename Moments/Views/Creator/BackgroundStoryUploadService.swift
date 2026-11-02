@@ -48,6 +48,9 @@ class UploadingStory: ObservableObject, Identifiable {
     let continuationCustomListId: String? // 🔗 AÑADIDO: Lista específica que puede continuar
     let continuationCustomListName: String? // 🔗 AÑADIDO: Nombre de la lista que puede continuar
     let interactionSettings: [String: Bool]?
+    // Etiqueta IA: solo se escribe cuando aiGenerated es true
+    let aiGenerated: Bool
+    let aiLabelSource: String?
     let expirationHours: Int
     let storyVideoMode: CreatorMedia.StoryVideoMode
     let plannedStoryId: String
@@ -85,6 +88,8 @@ class UploadingStory: ObservableObject, Identifiable {
         continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
         continuationCustomListName: String? = nil, // 🔗 AÑADIDO: Nombre de la lista que puede continuar
         interactionSettings: [String: Bool]? = nil,
+        aiGenerated: Bool = false,
+        aiLabelSource: String? = nil,
         expirationHours: Int = 24,
         storyVideoMode: CreatorMedia.StoryVideoMode = .normal,
         tempId: String? = nil,
@@ -116,6 +121,8 @@ class UploadingStory: ObservableObject, Identifiable {
         self.continuationCustomListId = continuationCustomListId // 🔗 AÑADIDO: Asignar lista específica
         self.continuationCustomListName = continuationCustomListName // 🔗 AÑADIDO: Asignar nombre de lista
         self.interactionSettings = interactionSettings
+        self.aiGenerated = aiGenerated
+        self.aiLabelSource = aiGenerated ? aiLabelSource : nil
         self.expirationHours = expirationHours == 48 ? 48 : 24
         self.storyVideoMode = storyVideoMode
         self.createdAt = Date()
@@ -155,6 +162,9 @@ struct StoryUploadPayload: Codable {
     let continuationCustomListName: String?
     let expirationHours: Int?
     let interactionSettings: [String: Bool]?
+    // Opcionales para poder leer payloads antiguos
+    let aiGenerated: Bool?
+    let aiLabelSource: String?
 }
 
 struct CachedSticker: Codable {
@@ -263,6 +273,8 @@ class BackgroundStoryUploadService: ObservableObject {
         continuationCustomListId: String? = nil,
         continuationCustomListName: String? = nil,
         interactionSettings: [String: Bool]? = nil,
+        aiGenerated: Bool = false,
+        aiLabelSource: String? = nil,
         expirationHours: Int = 24,
         storyVideoMode: CreatorMedia.StoryVideoMode = .normal,
         tempId: String? = nil
@@ -298,6 +310,8 @@ class BackgroundStoryUploadService: ObservableObject {
             continuationCustomListId: continuationCustomListId,
             continuationCustomListName: continuationCustomListName,
             interactionSettings: interactionSettings,
+            aiGenerated: aiGenerated,
+            aiLabelSource: aiLabelSource,
             expirationHours: expirationHours,
             storyVideoMode: storyVideoMode,
             tempId: tempId
@@ -406,6 +420,8 @@ class BackgroundStoryUploadService: ObservableObject {
         continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
         continuationCustomListName: String? = nil, // 🔗 AÑADIDO: Nombre de la lista que puede continuar
         interactionSettings: [String: Bool]? = nil,
+        aiGenerated: Bool = false,
+        aiLabelSource: String? = nil,
         expirationHours: Int = 24,
         recoveryActionId: String? = nil,
         shouldPersistAction: Bool = true,
@@ -432,7 +448,8 @@ class BackgroundStoryUploadService: ObservableObject {
                 hasEdits: mediaItem.hasEdits,
                 thumbnailURL: mediaItem.thumbnailURL,
                 storyVideoMode: mediaItem.storyVideoMode,
-                videoDuration: mediaItem.videoDuration
+                videoDuration: mediaItem.videoDuration,
+                isAIGenerated: mediaItem.isAIGenerated
             )
         } else {
             // ✅ OPTIMIZAR IMAGEN ORIGINAL para historias
@@ -447,7 +464,8 @@ class BackgroundStoryUploadService: ObservableObject {
                 hasEdits: mediaItem.hasEdits,
                 thumbnailURL: mediaItem.thumbnailURL,
                 storyVideoMode: mediaItem.storyVideoMode,
-                videoDuration: mediaItem.videoDuration
+                videoDuration: mediaItem.videoDuration,
+                isAIGenerated: mediaItem.isAIGenerated
             )
         }
 
@@ -477,6 +495,8 @@ class BackgroundStoryUploadService: ObservableObject {
             continuationCustomListId: continuationCustomListId, // 🔗 AÑADIDO: Pasar lista específica
             continuationCustomListName: continuationCustomListName, // 🔗 AÑADIDO: Pasar nombre de lista
             interactionSettings: interactionSettings,
+            aiGenerated: aiGenerated,
+            aiLabelSource: aiLabelSource,
             expirationHours: expirationHours,
             storyVideoMode: finalMediaItem.storyVideoMode,
             tempId: recoveryActionId,
@@ -691,6 +711,8 @@ class BackgroundStoryUploadService: ObservableObject {
                 continuationCustomListId: uploadingStory.continuationCustomListId,
                 continuationCustomListName: uploadingStory.continuationCustomListName,
                 interactionSettings: uploadingStory.interactionSettings,
+                aiGenerated: uploadingStory.aiGenerated,
+                aiLabelSource: uploadingStory.aiLabelSource,
                 expirationHours: uploadingStory.expirationHours,
                 storyVideoMode: .normal,
                 plannedStoryId: UUID().uuidString
@@ -1187,6 +1209,8 @@ class BackgroundStoryUploadService: ObservableObject {
                     expirationHours: uploadingStory.expirationHours,
                     duration: duration,
                     interactionSettings: uploadingStory.interactionSettings,
+                    aiGenerated: uploadingStory.aiGenerated,
+                    aiLabelSource: uploadingStory.aiLabelSource,
                     storyId: uploadingStory.plannedStoryId
                 ) { storyId, error in
                     if let error = error {
@@ -1228,6 +1252,8 @@ class BackgroundStoryUploadService: ObservableObject {
                     expirationHours: uploadingStory.expirationHours,
                     duration: duration,
                     interactionSettings: uploadingStory.interactionSettings,
+                    aiGenerated: uploadingStory.aiGenerated,
+                    aiLabelSource: uploadingStory.aiLabelSource,
                     storyId: uploadingStory.plannedStoryId
                 ) { storyId, error in
                     if let error = error {
@@ -1798,7 +1824,9 @@ class BackgroundStoryUploadService: ObservableObject {
                 continuationCustomListId: uploadingStory.continuationCustomListId,
                 continuationCustomListName: uploadingStory.continuationCustomListName,
                 expirationHours: uploadingStory.expirationHours,
-                interactionSettings: uploadingStory.interactionSettings
+                interactionSettings: uploadingStory.interactionSettings,
+                aiGenerated: uploadingStory.aiGenerated,
+                aiLabelSource: uploadingStory.aiLabelSource
             )
 
             let encodedPayload = try JSONEncoder().encode(payload)
@@ -2189,6 +2217,8 @@ class BackgroundStoryUploadService: ObservableObject {
                 continuationCustomListId: payload.continuationCustomListId,
                 continuationCustomListName: payload.continuationCustomListName,
                 interactionSettings: payload.interactionSettings,
+                aiGenerated: payload.aiGenerated ?? false,
+                aiLabelSource: payload.aiLabelSource,
                 expirationHours: payload.expirationHours ?? (payload.chainId != nil ? 48 : 24),
                 recoveryActionId: action.id,
                 shouldPersistAction: false,
@@ -2227,6 +2257,8 @@ extension BackgroundStoryUploadService {
         continuationCustomViewers: [String]? = nil, // 🔗 AÑADIDO: Usuarios específicos que pueden continuar
         continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
         continuationCustomListName: String? = nil, // 🔗 AÑADIDO: Nombre de la lista que puede continuar
+        aiGenerated: Bool = false,
+        aiLabelSource: String? = nil,
         expirationHours: Int = 24
     ) -> Bool {
 
@@ -2250,6 +2282,8 @@ extension BackgroundStoryUploadService {
             continuationCustomViewers: continuationCustomViewers, // 🔗 AÑADIDO: Pasar usuarios específicos
             continuationCustomListId: continuationCustomListId, // 🔗 AÑADIDO: Pasar lista específica
             continuationCustomListName: continuationCustomListName, // 🔗 AÑADIDO: Pasar nombre de lista
+            aiGenerated: aiGenerated,
+            aiLabelSource: aiLabelSource,
             expirationHours: expirationHours
         )
 

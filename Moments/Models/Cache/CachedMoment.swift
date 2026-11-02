@@ -33,6 +33,9 @@ final class CachedMoment {
     var disableComments: Bool?
     var hideLikeCounts: Bool?
     var allowSharing: Bool?
+    // Etiqueta IA (con valor por defecto para la migración ligera)
+    var aiGenerated: Bool = false
+    var aiLabelSource: String? = nil
     var scheduledDate: Date?
     var isPinned: Bool?
     var pinnedAt: Date?
@@ -80,6 +83,8 @@ final class CachedMoment {
         disableComments: Bool? = false,
         hideLikeCounts: Bool? = false,
         allowSharing: Bool? = true,
+        aiGenerated: Bool = false,
+        aiLabelSource: String? = nil,
         scheduledDate: Date? = nil,
         isPinned: Bool? = nil,
         pinnedAt: Date? = nil,
@@ -119,6 +124,8 @@ final class CachedMoment {
         self.disableComments = disableComments
         self.hideLikeCounts = hideLikeCounts
         self.allowSharing = allowSharing
+        self.aiGenerated = aiGenerated
+        self.aiLabelSource = aiLabelSource
         self.scheduledDate = scheduledDate
         self.isPinned = isPinned
         self.pinnedAt = pinnedAt
@@ -179,6 +186,8 @@ extension CachedMoment {
             disableComments: moment.disableComments,
             hideLikeCounts: moment.hideLikeCounts,
             allowSharing: moment.allowSharing,
+            aiGenerated: moment.aiGenerated,
+            aiLabelSource: moment.aiLabelSource,
             scheduledDate: moment.scheduledDate,
             isPinned: moment.isPinned,
             pinnedAt: moment.pinnedAt,
@@ -258,6 +267,8 @@ extension CachedMoment {
             disableComments: disableComments ?? false,
             hideLikeCounts: hideLikeCounts ?? false,
             allowSharing: allowSharing ?? true,
+            aiGenerated: aiGenerated,
+            aiLabelSource: aiLabelSource,
             scheduledDate: scheduledDate,
             isPinned: isPinned,
             pinnedAt: pinnedAt,

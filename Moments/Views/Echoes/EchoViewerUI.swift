@@ -527,6 +527,8 @@ struct EchoViewerUI: View {
             disableComments: base.disableComments,
             hideLikeCounts: base.hideLikeCounts,
             allowSharing: base.allowSharing,
+            aiGenerated: base.aiGenerated,
+            aiLabelSource: base.aiLabelSource,
             scheduledDate: base.scheduledDate,
             isArchived: base.isArchived,
             archivedAt: base.archivedAt,

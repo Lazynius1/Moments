@@ -15,6 +15,8 @@ struct StoryShareSheet: View {
     @Binding var allowMessages: Bool
     @Binding var allowReactions: Bool
     @Binding var allowEphemeralPhotos: Bool
+    @Binding var aiGenerated: Bool
+    var aiAutoDetected = false
     let onAudience: () -> Void
     let onChainSettings: () -> Void
     let onShare: () -> Void
@@ -123,6 +125,14 @@ struct StoryShareSheet: View {
                             .font(.footnote).foregroundStyle(.secondary)
                     }.padding(.vertical, 16)
                 }
+                Divider()
+                // Etiqueta de contenido creado con IA
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("ai.toggle.title", isOn: $aiGenerated)
+                        .tint(SettingsProfileColors.toggleTint)
+                    Text(LocalizedStringKey(aiAutoDetected ? "ai.toggle.detected" : "ai.toggle.subtitle"))
+                        .font(.footnote).foregroundStyle(.secondary)
+                }.padding(.vertical, 16)
                 Text(isChain ? "storyShare.chainAudience" : "storyShare.onlyThisStory")
                     .font(.footnote).foregroundStyle(.secondary)
                     .padding(.top, 12).padding(.bottom, 20)

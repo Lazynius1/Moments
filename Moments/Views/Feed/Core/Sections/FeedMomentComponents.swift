@@ -662,6 +662,14 @@ struct ModernPostCardView: View {
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
+
+                // Etiqueta de contenido creado con IA
+                if moment.aiGenerated {
+                    AIContentBadgeButton(
+                        source: moment.aiLabelSource,
+                        foreground: adaptiveColors.secondary
+                    )
+                }
             }
 
             Spacer()

@@ -737,6 +737,10 @@ service cloud.firestore {
                           request.resource.data.hideLikeCounts is bool)
                       && (!("allowSharing" in request.resource.data) ||
                           request.resource.data.allowSharing is bool)
+                      && (!("aiGenerated" in request.resource.data) ||
+                          request.resource.data.aiGenerated is bool)
+                      && (!("aiLabelSource" in request.resource.data) ||
+                          request.resource.data.aiLabelSource in ['creator', 'metadata'])
                       && (!("hasHiddenLayers" in request.resource.data) ||
                           request.resource.data.hasHiddenLayers is bool)
                       && (!("hiddenLayerCount" in request.resource.data) ||
@@ -984,6 +988,10 @@ service cloud.firestore {
                           request.resource.data.customListName is string)
                       && (!("expirationHours" in request.resource.data) ||
                           request.resource.data.expirationHours in [24, 48])
+                      && (!("aiGenerated" in request.resource.data) ||
+                          request.resource.data.aiGenerated is bool)
+                      && (!("aiLabelSource" in request.resource.data) ||
+                          request.resource.data.aiLabelSource in ['creator', 'metadata'])
                       && request.resource.data.keys().hasAll(['authorId', 'mediaItem'])
                       && request.resource.data.authorId is string
                       && request.resource.data.mediaItem is map

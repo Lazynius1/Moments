@@ -122,6 +122,16 @@ struct ModernExploreDetailHeader: View {
                             }
                             .buttonStyle(.plain)
                         }
+
+                        // Etiqueta de contenido creado con IA
+                        if moment.aiGenerated {
+                            AIContentBadgeButton(
+                                source: moment.aiLabelSource,
+                                foreground: Color.secondary.opacity(0.85),
+                                fontSize: legacyPoppinsSize(10),
+                                iconSize: 9
+                            )
+                        }
                     }
                 }
             }

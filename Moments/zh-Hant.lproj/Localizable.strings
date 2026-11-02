@@ -4818,3 +4818,23 @@
 "appIcon.name.Slime" = "史萊姆";
 "appIcon.name.Flowers" = "花朵";
 "appIcon.name.Planet" = "星球";
+
+/* Etiqueta de contenido creado con IA */
+"ai.toggle.title" = "使用 AI 製作";
+"ai.toggle.subtitle" = "如果圖片、影片或音訊看起來真實，且是用 AI 生成或編輯的，請開啟此選項。";
+"ai.toggle.detected" = "我們偵測到此內容是用 AI 製作的。";
+"ai.badge" = "AI 資訊";
+"ai.info.title" = "使用 AI 製作的內容";
+"ai.info.creator" = "發布者表示此內容是用人工智慧生成或編輯的。";
+"ai.info.metadata" = "此內容包含顯示其由人工智慧生成或編輯的資料。";
+"ai.info.footer" = "標籤能幫助你了解所看到的內容。如果看到未標示的 AI 內容，可以檢舉。";
+"report.category.unlabeledAI.title" = "未標示的 AI 內容";
+"report.category.unlabeledAI.subtitle" = "未加標籤、用 AI 製作的逼真圖片、影片或音訊";
+"appIcon.name.SantaHat" = "聖誕帽";
+"appIcon.name.CandyCane" = "拐杖糖";
+"appIcon.name.Snow" = "雪";
+"appIcon.name.Baubles" = "聖誕球";
+"appIcon.name.Lights" = "燈飾";
+"appIcon.name.Gingerbread" = "薑餅";
+"appIcon.name.ChristmasTree" = "聖誕樹";
+"appIcon.name.Snowman" = "雪人";

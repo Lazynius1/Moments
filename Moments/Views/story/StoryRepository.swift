@@ -383,7 +383,9 @@ final class StoryRepository {
             backgroundBlurredFrameURL: document.backgroundBlurredFrameURL,
             chainId: document.chainId,
             chainPosition: document.chainPosition,
-            chainTitle: document.chainTitle
+            chainTitle: document.chainTitle,
+            aiGenerated: document.aiGenerated ?? false,
+            aiLabelSource: document.aiLabelSource
         )
     }
 

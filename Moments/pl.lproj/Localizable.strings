@@ -4818,3 +4818,23 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "appIcon.name.Slime" = "Glut";
 "appIcon.name.Flowers" = "Kwiaty";
 "appIcon.name.Planet" = "Planeta";
+
+/* Etiqueta de contenido creado con IA */
+"ai.toggle.title" = "Utworzone przez AI";
+"ai.toggle.subtitle" = "Włącz, jeśli obraz, wideo lub dźwięk wyglądają realistycznie i zostały wygenerowane lub zmienione przez AI.";
+"ai.toggle.detected" = "Wykryliśmy, że ta treść została utworzona przez AI.";
+"ai.badge" = "Informacje o AI";
+"ai.info.title" = "Treść utworzona przez AI";
+"ai.info.creator" = "Osoba, która to opublikowała, wskazała, że ta treść została wygenerowana lub zmieniona przez sztuczną inteligencję.";
+"ai.info.metadata" = "Ta treść zawiera dane wskazujące, że została wygenerowana lub zmieniona przez sztuczną inteligencję.";
+"ai.info.footer" = "Etykiety pomagają zrozumieć, co oglądasz. Jeśli zobaczysz treść AI bez etykiety, możesz ją zgłosić.";
+"report.category.unlabeledAI.title" = "Treść AI bez etykiety";
+"report.category.unlabeledAI.subtitle" = "Realistyczne obrazy, wideo lub dźwięk z AI bez etykiety";
+"appIcon.name.SantaHat" = "Czapka";
+"appIcon.name.CandyCane" = "Laska cukrowa";
+"appIcon.name.Snow" = "Śnieg";
+"appIcon.name.Baubles" = "Bombki";
+"appIcon.name.Lights" = "Lampki";
+"appIcon.name.Gingerbread" = "Piernik";
+"appIcon.name.ChristmasTree" = "Choinka";
+"appIcon.name.Snowman" = "Bałwan";

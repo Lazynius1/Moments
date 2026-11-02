@@ -4818,3 +4818,23 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "appIcon.name.Slime" = "Slime";
 "appIcon.name.Flowers" = "Çiçekler";
 "appIcon.name.Planet" = "Gezegen";
+
+/* Etiqueta de contenido creado con IA */
+"ai.toggle.title" = "Yapay zekâyla oluşturuldu";
+"ai.toggle.subtitle" = "Görsel, video veya ses gerçekçiyse ve yapay zekâyla oluşturulduysa ya da düzenlendiyse bunu aç.";
+"ai.toggle.detected" = "Bu içeriğin yapay zekâyla oluşturulduğunu tespit ettik.";
+"ai.badge" = "Yapay zekâ bilgisi";
+"ai.info.title" = "Yapay zekâyla oluşturulan içerik";
+"ai.info.creator" = "Paylaşan kişi bu içeriğin yapay zekâyla oluşturulduğunu veya düzenlendiğini belirtti.";
+"ai.info.metadata" = "Bu içerik, yapay zekâyla oluşturulduğunu veya düzenlendiğini gösteren veriler içeriyor.";
+"ai.info.footer" = "Etiketler ne gördüğünü anlamana yardımcı olur. Etiketsiz yapay zekâ içeriği görürsen bildirebilirsin.";
+"report.category.unlabeledAI.title" = "Etiketsiz yapay zekâ içeriği";
+"report.category.unlabeledAI.subtitle" = "Etiketsiz, yapay zekâyla yapılmış gerçekçi görsel, video veya sesler";
+"appIcon.name.SantaHat" = "Noel şapkası";
+"appIcon.name.CandyCane" = "Şeker baston";
+"appIcon.name.Snow" = "Kar";
+"appIcon.name.Baubles" = "Süs topları";
+"appIcon.name.Lights" = "Işıklar";
+"appIcon.name.Gingerbread" = "Zencefilli kurabiye";
+"appIcon.name.ChristmasTree" = "Çam ağacı";
+"appIcon.name.Snowman" = "Kardan adam";

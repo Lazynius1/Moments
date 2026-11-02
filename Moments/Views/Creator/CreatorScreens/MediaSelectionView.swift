@@ -733,6 +733,7 @@ struct MediaSelectionView: View {
 
                 if asset.mediaType == .image {
                     if let image = await loadFullImage(for: asset) {
+                        let isAIGenerated = await detectAIProvenance(forImageAsset: asset)
                         let session = cropSessions[assetID] ?? AssetCropSession(pixelWidth: asset.pixelWidth, pixelHeight: asset.pixelHeight)
                         processedMedia.append(
                             framedMedia(
@@ -743,7 +744,8 @@ struct MediaSelectionView: View {
                                 cropAspect: cropAspect,
                                 window: window,
                                 sourceWindow: cropWindowSizes[assetID],
-                                lockAspect: lockAspect
+                                lockAspect: lockAspect,
+                                isAIGenerated: isAIGenerated
                             )
                         )
                         if lockAspect == nil {
@@ -754,6 +756,13 @@ struct MediaSelectionView: View {
                     }
                 } else if asset.mediaType == .video {
                     let (thumbnail, videoURL, videoFileSize) = await loadFullVideo(for: asset)
+                    // Metadatos IA leídos del archivo original antes de recomprimir
+                    let isAIGenerated: Bool
+                    if let videoURL {
+                        isAIGenerated = await AIContentProvenance.detect(fileURL: videoURL)
+                    } else {
+                        isAIGenerated = false
+                    }
 
                     let finalImage = thumbnail ?? createVideoPlaceholder()
                     let session = cropSessions[assetID] ?? AssetCropSession(pixelWidth: asset.pixelWidth, pixelHeight: asset.pixelHeight)
@@ -769,7 +778,8 @@ struct MediaSelectionView: View {
                             lockAspect: lockAspect,
                             videoURL: videoURL,
                             videoDuration: asset.duration,
-                            videoFileSize: videoFileSize
+                            videoFileSize: videoFileSize,
+                            isAIGenerated: isAIGenerated
                         )
                     )
                     if lockAspect == nil {
@@ -814,7 +824,8 @@ struct MediaSelectionView: View {
         lockAspect: CGFloat? = nil,
         videoURL: URL? = nil,
         videoDuration: Double? = nil,
-        videoFileSize: Int64? = nil
+        videoFileSize: Int64? = nil,
+        isAIGenerated: Bool = false
     ) -> CreatorMedia {
         let oriented = image.momentsOrientedUp()
         let originalAspect = oriented.size.width / max(oriented.size.height, 1)
@@ -844,7 +855,8 @@ struct MediaSelectionView: View {
             recommendedAspectRatio: cardRatio,
             hasEdits: true,
             videoDuration: videoDuration,
-            videoFileSize: videoFileSize
+            videoFileSize: videoFileSize,
+            isAIGenerated: isAIGenerated
         )
         media.immersiveImage = oriented
         media.immersiveAspectRatio = .custom(originalAspect)
@@ -873,6 +885,23 @@ struct MediaSelectionView: View {
                 continuation.resume(returning: image)
             }
         }
+    }
+
+    /// Lee los bytes originales de la foto para buscar la marca de IA en sus metadatos.
+    private func detectAIProvenance(forImageAsset asset: PHAsset) async -> Bool {
+        let data: Data? = await withCheckedContinuation { continuation in
+            let options = PHImageRequestOptions()
+            options.isNetworkAccessAllowed = true
+            options.version = .current
+            options.deliveryMode = .highQualityFormat
+            options.isSynchronous = false
+
+            PHImageManager.default().requestImageDataAndOrientation(for: asset, options: options) { data, _, _, _ in
+                continuation.resume(returning: data)
+            }
+        }
+        guard let data else { return false }
+        return await AIContentProvenance.detect(data: data)
     }
 
     private func loadFullVideo(for asset: PHAsset) async -> (UIImage?, URL?, Int64?) {

@@ -5081,3 +5081,23 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 "appIcon.name.Slime" = "Slime";
 "appIcon.name.Flowers" = "Fleurs";
 "appIcon.name.Planet" = "Planète";
+
+/* Etiqueta de contenido creado con IA */
+"ai.toggle.title" = "Créé avec l'IA";
+"ai.toggle.subtitle" = "Active cette option si l'image, la vidéo ou l'audio sont réalistes et ont été générés ou modifiés avec l'IA.";
+"ai.toggle.detected" = "Nous avons détecté que ce contenu a été créé avec l'IA.";
+"ai.badge" = "Infos IA";
+"ai.info.title" = "Contenu créé avec l'IA";
+"ai.info.creator" = "La personne qui l'a publié a indiqué que ce contenu a été généré ou modifié par intelligence artificielle.";
+"ai.info.metadata" = "Ce contenu comporte des données indiquant qu'il a été généré ou modifié par intelligence artificielle.";
+"ai.info.footer" = "Les étiquettes t'aident à comprendre ce que tu vois. Si tu vois du contenu IA sans étiquette, tu peux le signaler.";
+"report.category.unlabeledAI.title" = "Contenu IA sans étiquette";
+"report.category.unlabeledAI.subtitle" = "Images, vidéos ou audios réalistes créés avec l'IA sans étiquette";
+"appIcon.name.SantaHat" = "Bonnet";
+"appIcon.name.CandyCane" = "Sucre d'orge";
+"appIcon.name.Snow" = "Neige";
+"appIcon.name.Baubles" = "Boules";
+"appIcon.name.Lights" = "Guirlande";
+"appIcon.name.Gingerbread" = "Pain d'épices";
+"appIcon.name.ChristmasTree" = "Sapin";
+"appIcon.name.Snowman" = "Bonhomme";

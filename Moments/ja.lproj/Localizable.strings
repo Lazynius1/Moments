@@ -4818,3 +4818,23 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "appIcon.name.Slime" = "スライム";
 "appIcon.name.Flowers" = "フラワー";
 "appIcon.name.Planet" = "プラネット";
+
+/* Etiqueta de contenido creado con IA */
+"ai.toggle.title" = "AIで作成";
+"ai.toggle.subtitle" = "画像・動画・音声がリアルで、AIで生成または編集されている場合はオンにしてください。";
+"ai.toggle.detected" = "このコンテンツはAIで作成されたことが検出されました。";
+"ai.badge" = "AI情報";
+"ai.info.title" = "AIで作成されたコンテンツ";
+"ai.info.creator" = "投稿者は、このコンテンツが人工知能で生成または編集されたことを示しています。";
+"ai.info.metadata" = "このコンテンツには、人工知能で生成または編集されたことを示すデータが含まれています。";
+"ai.info.footer" = "ラベルは表示内容を理解するのに役立ちます。ラベルのないAIコンテンツを見つけたら報告できます。";
+"report.category.unlabeledAI.title" = "ラベルのないAIコンテンツ";
+"report.category.unlabeledAI.subtitle" = "ラベルなしでAIで作られたリアルな画像・動画・音声";
+"appIcon.name.SantaHat" = "サンタ帽";
+"appIcon.name.CandyCane" = "キャンディケイン";
+"appIcon.name.Snow" = "スノー";
+"appIcon.name.Baubles" = "オーナメント";
+"appIcon.name.Lights" = "ライト";
+"appIcon.name.Gingerbread" = "ジンジャーブレッド";
+"appIcon.name.ChristmasTree" = "ツリー";
+"appIcon.name.Snowman" = "スノーマン";
