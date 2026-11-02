@@ -24,8 +24,38 @@ enum MomentsAppIcon: String, CaseIterable, Identifiable {
     case slime = "Slime"
     case flowers = "Flowers"
     case planet = "Planet"
+    // Navidad
+    case santaHat = "SantaHat"
+    case candyCane = "CandyCane"
+    case snow = "Snow"
+    case baubles = "Baubles"
+    case lights = "Lights"
+    case gingerbread = "Gingerbread"
+    case christmasTree = "ChristmasTree"
+    case snowman = "Snowman"
 
     var id: String { rawValue }
+
+    /// Iconos de temporada: solo se ofrecen en Navidad (1 de noviembre a 6 de enero).
+    var isChristmas: Bool {
+        switch self {
+        case .santaHat, .candyCane, .snow, .baubles, .lights, .gingerbread, .christmasTree, .snowman: return true
+        default: return false
+        }
+    }
+
+    static func isChristmasSeason(_ date: Date = Date()) -> Bool {
+        let parts = Calendar.current.dateComponents([.month, .day], from: date)
+        return parts.month == 11 || parts.month == 12 || (parts.month == 1 && (parts.day ?? 0) <= 6)
+    }
+
+    /// Lo que ofrece el selector: fuera de temporada, sin los de Navidad salvo el que ya esté puesto.
+    @MainActor
+    static var available: [MomentsAppIcon] {
+        let current = current
+        let inSeason = isChristmasSeason()
+        return allCases.filter { !$0.isChristmas || inSeason || $0 == current }
+    }
 
     /// Nombre del set de iconos alternativo; nil vuelve al principal.
     var alternateIconName: String? {
@@ -69,7 +99,7 @@ private struct AppIconPicker: View {
     @State private var hapticsTrigger = false
     @State private var isApplying = false
 
-    private let icons = MomentsAppIcon.allCases
+    private let icons = MomentsAppIcon.available
     private static let brandPurple = Color(red: 0x5B / 255, green: 0x2C / 255, blue: 0x6F / 255)
 
     var body: some View {
