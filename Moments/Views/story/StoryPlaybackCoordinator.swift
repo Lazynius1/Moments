@@ -1,11 +1,22 @@
 import SwiftUI
 import Kingfisher
 
+/// Progreso de la historia en curso, aparte del coordinador: publicado allí, cada tick
+/// (10 por segundo) redibujaba el visor entero. Solo la barra de progreso lo observa.
+@MainActor
+final class StoryPlaybackProgress: ObservableObject {
+    @Published fileprivate(set) var value: Double = 0.0
+}
+
 @MainActor
 final class StoryPlaybackCoordinator: ObservableObject {
     @Published private(set) var preloadedStories: [String: Story] = [:]
     @Published private(set) var preloadedImages: [String: UIImage] = [:]
-    @Published private(set) var progress: Double = 0.0
+    let progressState = StoryPlaybackProgress()
+    private(set) var progress: Double {
+        get { progressState.value }
+        set { progressState.value = newValue }
+    }
     @Published private(set) var isPaused: Bool = false
 
     private let maxPreloadedStories = 6

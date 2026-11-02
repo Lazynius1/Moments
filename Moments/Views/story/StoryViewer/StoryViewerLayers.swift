@@ -7,8 +7,22 @@ import UIKit
 struct StorySegmentProgressChrome: View {
     let storyCount: Int
     let storyIndex: Int
-    @ObservedObject var playbackCoordinator: StoryPlaybackCoordinator
+    let playbackCoordinator: StoryPlaybackCoordinator
     let audienceForSegment: (Int) -> String?
+    @ObservedObject private var progressState: StoryPlaybackProgress
+
+    init(
+        storyCount: Int,
+        storyIndex: Int,
+        playbackCoordinator: StoryPlaybackCoordinator,
+        audienceForSegment: @escaping (Int) -> String?
+    ) {
+        self.storyCount = storyCount
+        self.storyIndex = storyIndex
+        self.playbackCoordinator = playbackCoordinator
+        self.audienceForSegment = audienceForSegment
+        self.progressState = playbackCoordinator.progressState
+    }
 
     var body: some View {
         HStack(spacing: 4) {
