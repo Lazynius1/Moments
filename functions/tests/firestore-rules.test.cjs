@@ -364,3 +364,29 @@ test('historias: reacciones y respuestas a stickers solo del autor y de cada uno
     { userId: 'carol', stickerId: 'q1', type: 'quiz', selectedIndex: 0, isCorrect: false, timestamp: serverTimestamp() }));
   await assertSucceeds(getDocs(collection(as('alice'), 'users/alice/stories/s1/stickerInteractions')));
 });
+
+test('datos privados: solo el dueño los lee y solo escribe token, bloqueados y mejores amigos', { skip }, async () => {
+  await seed(db => setDoc(doc(db, 'users/priv1/private/account'), {
+    email: 'priv1@example.com', birthDate: Timestamp.fromDate(new Date('1990-01-01')), countryCode: 'ES',
+    blockedUsers: [], bestFriends: []
+  }));
+  const own = doc(as('priv1'), 'users/priv1/private/account');
+  await assertSucceeds(getDoc(own));
+  await assertFails(getDoc(doc(as('other'), 'users/priv1/private/account')));
+  await assertFails(getDocs(collection(as('other'), 'users/priv1/private')));
+  await assertSucceeds(updateDoc(own, { blockedUsers: arrayUnion('x'), bestFriends: arrayUnion('y'), fcmToken: 't', updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(own, { birthDate: Timestamp.fromDate(new Date('2015-01-01')) }));
+  await assertFails(updateDoc(own, { countryCode: 'US' }));
+  await assertFails(updateDoc(own, { email: 'otro@example.com' }));
+  await assertFails(updateDoc(own, { blockedUsers: 'x' }));
+  await assertFails(deleteDoc(own));
+  await assertFails(setDoc(doc(as('other'), 'users/priv1/private/account'), { blockedUsers: [] }, { merge: true }));
+  await assertSucceeds(setDoc(doc(as('priv2'), 'users/priv2/private/account'), { bestFriends: ['a'] }, { merge: true }));
+  await assertFails(setDoc(doc(as('priv3'), 'users/priv3/private/otro'), { bestFriends: [] }));
+  await assertFails(setDoc(doc(as('priv4'), 'users/priv4/private/account'), { email: 'x@example.com' }));
+  // El índice inverso solo lo escribe el servidor; el dueño lo lee y nadie más.
+  await seed(db => setDoc(doc(db, 'users/priv1/private/relations'), { blockedBy: ['z'], bestFriendOf: [] }));
+  await assertSucceeds(getDoc(doc(as('priv1'), 'users/priv1/private/relations')));
+  await assertFails(getDoc(doc(as('z'), 'users/priv1/private/relations')));
+  await assertFails(setDoc(doc(as('priv1'), 'users/priv1/private/relations'), { blockedBy: [] }));
+});

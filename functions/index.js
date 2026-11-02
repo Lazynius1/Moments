@@ -22,7 +22,8 @@ const registers = [
   require('./src/registers/http-auth-cleanup'),
   require('./src/registers/http-auth-lookup'),
   require('./src/registers/http-account-email'),
-  require('./src/registers/triggers-compliance')
+  require('./src/registers/triggers-compliance'),
+  require('./src/registers/triggers-private-account')
 ];
 
 for (const register of registers) {
