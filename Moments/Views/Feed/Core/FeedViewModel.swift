@@ -67,9 +67,14 @@ class FeedViewModel {
 
 
         fetchMoments(userId: userId, feedType: currentFeedType)
+        let generation = feedGeneration
 
-        // ✅ Esperar a que se complete la operación inicial
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 segundos
+        // El indicador de refresco se queda hasta que llegan los datos (máx. 8 s), no un tiempo fijo.
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        let deadline = Date().addingTimeInterval(8)
+        while isLoading, feedGeneration == generation, Date() < deadline, !Task.isCancelled {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
     }
 
     // MARK: - Caching Logic (Offline Support)

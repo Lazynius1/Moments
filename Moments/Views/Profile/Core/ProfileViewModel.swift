@@ -88,7 +88,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 if self.isNetworkError(error) {
                     self.isOffline = true
                 } else {
-                    self.errorMessage = "Error al cargar el perfil: \(error.localizedDescription)"
+                    self.errorMessage = NSLocalizedString("profile.error.loadProfile", comment: "Profile could not be loaded")
                 }
                 self.isLoading = false
             }
@@ -156,7 +156,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
 
         group.notify(queue: .main) {
             if let capturedError {
-                self.errorMessage = "Error al cargar conexiones: \(capturedError.localizedDescription)"
+                self.showActionError("profile.error.loadConnections")
                 self.isLoading = false
                 return
             }
@@ -245,7 +245,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                     // ✅ No pisar los moments ya cacheados si el fetch falla (p. ej. sin red)
                     self.isLoadingMoments = false
                     if !self.isNetworkError(error) {
-                        self.errorMessage = "Error al cargar momentos: \(error.localizedDescription)"
+                        self.showActionError("profile.error.loadMoments")
                     }
                 }
             }
@@ -461,7 +461,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     // ✅ FUNCIÓN CORREGIDA: Refresh con delay para Firestore
     func refreshProfile() {
         guard let userId = Auth.auth().currentUser?.uid else {
-            self.errorMessage = "Usuario no autenticado. Por favor, inicia sesión."
+            self.showActionError("profile.error.signedOut")
             return
         }
 
@@ -496,7 +496,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
             case .failure(let error):
                 hasErrors = true
                 DispatchQueue.main.async {
-                    self?.errorMessage = "Error al actualizar perfil: \(error.localizedDescription)"
+                    self?.showActionError("profile.error.updateProfile")
                 }
             }
             refreshGroup.leave()
@@ -547,7 +547,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     // ✅ FUNCIÓN CORREGIDA: Follow user
     func followUser(userId: String) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
-            self.errorMessage = "Usuario no autenticado. Por favor, inicia sesión."
+            self.showActionError("profile.error.signedOut")
             return
         }
 
@@ -563,7 +563,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
             self.firestoreService.followUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
                 guard let self = self else { return }
                 if let error = error {
-                    self.errorMessage = "Error al seguir usuario: \(error.localizedDescription)"
+                    self.showActionError("profile.error.follow")
                     return
                 }
 
@@ -590,7 +590,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                                     }
                                 }
                             case .failure(let error):
-                                self?.errorMessage = "Error al actualizar conexiones: \(error.localizedDescription)"
+                                self?.showActionError("profile.error.updateConnections")
                             }
                         }
                     }
@@ -602,7 +602,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     // ✅ FUNCIÓN CORREGIDA: Unfollow user
     func unfollowUser(userId: String) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
-            self.errorMessage = "Usuario no autenticado."
+            self.showActionError("profile.error.signedOut")
             return
         }
 
@@ -614,7 +614,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         self.firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
             guard let self = self else { return }
             if let error = error {
-                self.errorMessage = "Error al dejar de seguir usuario: \(error.localizedDescription)"
+                self.showActionError("profile.error.unfollow")
 
                 // Limpiar cache de unfollow si falló
                 self.recentUnfollows.remove(userId)
@@ -642,7 +642,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         firestoreService.cancelFollowRequest(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
             guard let self else { return }
             guard error == nil else {
-                self.errorMessage = "Error al cancelar solicitud: \(error!.localizedDescription)"
+                self.showActionError("profile.error.cancelRequest")
                 return
             }
 
@@ -654,7 +654,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
 
     func removeFollower(userId: String) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
-            self.errorMessage = "Usuario no autenticado."
+            self.showActionError("profile.error.signedOut")
             return
         }
 
@@ -669,7 +669,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         batch.commit { [weak self] error in
             guard let self else { return }
             if let error {
-                self.errorMessage = "Error al suprimir seguidor: \(error.localizedDescription)"
+                self.showActionError("profile.error.removeFollower")
                 return
             }
 
@@ -753,7 +753,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     // ✅ FUNCIÓN CORREGIDA: Upload profile picture (OFFLINE AWARE)
     func uploadProfilePicture(item: PhotosPickerItem) {
         guard let userId = Auth.auth().currentUser?.uid else {
-            self.errorMessage = "Usuario no autenticado. Por favor, inicia sesión."
+            self.showActionError("profile.error.signedOut")
             return
         }
 
@@ -762,7 +762,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 guard let data = try await item.loadTransferable(type: Data.self),
                       let uiImage = UIImage(data: data) else {
                     DispatchQueue.main.async {
-                        self.errorMessage = NSLocalizedString("profile.error.loadingImage", comment: "Error loading image")
+                        self.showActionError("profile.error.loadingImage")
                     }
                     return
                 }
@@ -789,7 +789,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 }
             } catch {
                 DispatchQueue.main.async {
-                    self.errorMessage = "Error al cargar la imagen: \(error.localizedDescription)"
+                    self.showActionError("profile.error.loadingImage")
                 }
             }
         }
@@ -799,7 +799,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     // ✅ FUNCIÓN EXISTENTE: Update bio (OFFLINE AWARE)
     func updateProfileDetails(bio: String?, websiteUrl: String?, interests: [String]? = nil) {
         guard let userId = Auth.auth().currentUser?.uid else {
-            self.errorMessage = "Usuario no autenticado. Por favor, inicia sesión."
+            self.showActionError("profile.error.signedOut")
             return
         }
 
@@ -880,5 +880,15 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 }
             }
         }
+    }
+
+    /// Fallos de acciones (seguir, cargar momentos…): aviso flotante y el perfil sigue a la vista.
+    /// Solo un fallo al cargar el perfil sustituye la pantalla por el error.
+    private func showActionError(_ key: String) {
+        InAppNotificationService.shared.showActionToast(InAppActionToast(
+            systemImage: "exclamationmark.circle.fill",
+            prefix: NSLocalizedString(key, comment: "Profile action error"),
+            isError: true
+        ))
     }
 }

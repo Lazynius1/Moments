@@ -47,6 +47,10 @@ struct ModernCommentsView: View {
     @State private var commentsLoadingTask: Task<Void, Never>?
     @State private var commentsListenerRefreshID = 0
     @State private var loadedMomentID: String?
+    /// Ventana de comentarios escuchados (los más recientes); "ver anteriores" la amplía.
+    @State private var commentsWindow = Self.commentsPageSize
+    @State private var hasEarlierComments = false
+    private static let commentsPageSize = 100
     @EnvironmentObject private var firestoreService: FirestoreService
     @EnvironmentObject private var authService: AuthService
     @Environment(\.dismiss) private var dismiss
@@ -344,6 +348,17 @@ struct ModernCommentsView: View {
                         )
                         .environmentObject(firestoreService)
                     }
+
+                    if hasEarlierComments {
+                        Button(action: loadEarlierComments) {
+                            Text(NSLocalizedString("modernComments.loadEarlier", comment: "Load earlier comments"))
+                                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
+                                .foregroundStyle(.gray)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
             .padding(.vertical, 20)
@@ -509,7 +524,7 @@ struct ModernCommentsView: View {
                             )
                         }
                         
-                        TextField(replyToComment != nil ? "Responder a \(replyToComment?.username ?? "")..." : "Añade un comentario...", text: $newComment, axis: .vertical)
+                        TextField(replyToComment != nil ? String(format: NSLocalizedString("modernComments.replyTo.placeholder", comment: "Reply composer placeholder"), replyToComment?.username ?? "") : NSLocalizedString("comments.add.placeholder", comment: "Comment composer placeholder"), text: $newComment, axis: .vertical)
                             .font(.system(size: legacyPoppinsSize(15)))
                             .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .textFieldStyle(.plain)
@@ -960,6 +975,7 @@ struct ModernCommentsView: View {
             .collection("moments").document(momentId)
             .collection("comments")
             .order(by: "timestamp", descending: false)
+            .limit(toLast: commentsWindow)
             .addSnapshotListener { snapshot, error in
                 
                 if error != nil {
@@ -999,6 +1015,7 @@ struct ModernCommentsView: View {
                           self.moment.id == momentId else { return }
                     self.commentsLoadingTask?.cancel()
                     self.comments = loadedComments
+                    self.hasEarlierComments = documents.count >= self.commentsWindow
                     self.isLoading = false
                 }
             }
@@ -1013,6 +1030,8 @@ struct ModernCommentsView: View {
         stopCommentObservers()
         if clearExistingComments {
             comments = []
+            commentsWindow = Self.commentsPageSize
+            hasEarlierComments = false
         }
 
         guard !moment.disableComments else {
@@ -1021,6 +1040,12 @@ struct ModernCommentsView: View {
         }
 
         setupMuteSettingsListener()
+        setupCommentsListener()
+    }
+
+    private func loadEarlierComments() {
+        hasEarlierComments = false
+        commentsWindow += Self.commentsPageSize
         setupCommentsListener()
     }
 

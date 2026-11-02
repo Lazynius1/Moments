@@ -435,7 +435,7 @@ struct ViewOnceImmersiveViewer: View {
                     }
                     isPaused = showReactions || showReplyComposer
                 } label: {
-                    Label("Reacción", systemImage: showReactions ? "heart.fill" : "heart")
+                    Label("notificationType.like", systemImage: showReactions ? "heart.fill" : "heart")
                 }
 
                 if replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -443,11 +443,11 @@ struct ViewOnceImmersiveViewer: View {
                         onOpenCameraReply?()
                         closeViewer()
                     } label: {
-                        Label("Cámara", systemImage: "camera.fill")
+                        Label("creator.camera", systemImage: "camera.fill")
                     }
                 } else {
                     Button(action: sendReplyText) {
-                        Label("Enviar", systemImage: "paperplane.fill")
+                        Label("camera.preview.send", systemImage: "paperplane.fill")
                     }
                 }
             }
@@ -733,7 +733,7 @@ struct ViewOnceImmersiveViewer: View {
                         .momentsChromeGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(PlainButtonStyle())
-                .accessibilityLabel(Text("Close"))
+                .accessibilityLabel(Text("common.close"))
             }
         }
     }

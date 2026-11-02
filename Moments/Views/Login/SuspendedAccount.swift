@@ -364,7 +364,7 @@ struct EnhancedContactSupportView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancelar") {
+                    Button("common.cancel") {
                         isPresented = false
                     }
                     .foregroundStyle(AuthColors.primary(colorScheme))
@@ -474,7 +474,7 @@ struct EnhancedEmailInputField: View {
                     .foregroundStyle(AuthColors.secondary(colorScheme, opacity: 0.72))
             }
             
-            TextField("correo@ejemplo.com", text: $email)
+            TextField("register.email.placeholder", text: $email)
                 .foregroundStyle(AuthColors.primary(colorScheme))
                 .font(.system(size: 16))
                 .keyboardType(.emailAddress)
