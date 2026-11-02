@@ -1042,6 +1042,12 @@ class BackgroundMomentUploadService: ObservableObject {
                 moment.status = .failed
                 moment.errorMessage = error.localizedDescription
             }
+            // Igual que la subida original: si terminó, fuera de la cola de recuperación
+            // (si no, la siguiente sincronización la volvía a publicar).
+            if moment.status == .completed || moment.status == .moderated {
+                LocalPersistenceService.shared.deleteAction(id: moment.tempId)
+                self.deleteActionFiles(id: moment.tempId)
+            }
             self.runningUploadTasks.removeValue(forKey: moment.tempId)
         }
         runningUploadTasks[moment.tempId] = retryTask
@@ -1053,6 +1059,9 @@ class BackgroundMomentUploadService: ObservableObject {
         runningUploadTasks[moment.tempId]?.cancel()
         runningUploadTasks.removeValue(forKey: moment.tempId)
         MediaUploadService.shared.cancelUploads(withPathPrefix: storagePrefix)
+        // Cancelado: que no lo retome la cola de recuperación al abrir o al reconectar.
+        LocalPersistenceService.shared.deleteAction(id: moment.tempId)
+        self.deleteActionFiles(id: moment.tempId)
         self.removeUploadingMoment(moment)
     }
 
@@ -1401,6 +1410,8 @@ class BackgroundMomentUploadService: ObservableObject {
 
             // 2. ✅ DUPLICATE CHECK: Evitar re-subir si ya está en proceso
             let isAlreadyUploading = uploadingMoments.contains { moment in
+                // La misma subida ya en pantalla (también si falló y espera "Reintentar"): no duplicar.
+                if moment.tempId == action.id { return true }
                 guard moment.status == .compressing || moment.status == .uploading || moment.status == .processing else {
                     return false
                 }

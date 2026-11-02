@@ -43,23 +43,63 @@ const { pickMomentPreviewUrl } = require('./notifications');
 // 🚀 BACKEND-FIRST FEED — getFeedPage
 // =====================================================
 
+// Cada página del feed, la bandeja de historias, el mapa o la búsqueda piden el contexto del
+// mismo usuario en pocos segundos: se reutiliza 60 s por instancia en vez de releerlo.
+const VIEWER_CONTEXT_TTL_MS = 60 * 1000;
+const VIEWER_CONTEXT_CACHE_MAX = 500;
+const viewerContextCache = new Map();
+
+// Cuentas con muchos más seguidores que seguidos: no se leen todos los seguidores.
+const FOLLOWERS_SAMPLE = 200;
+const FOLLOWERS_FULL_READ_MARGIN = 300;
+
 /**
  * Build the viewer's relationship context in parallel.
  * Returns { following, followers, mutuals, bestFriends, blockedUsers, isPrivate }
+ * `followers` contiene todos los mutuos y, en cuentas grandes, una muestra de seguidores recientes.
  */
-async function buildViewerContext(uid) {
+function buildViewerContext(uid) {
+  const now = Date.now();
+  const cached = viewerContextCache.get(uid);
+  if (cached && cached.expiresAt > now) return cached.promise;
+  const promise = loadViewerContext(uid);
+  viewerContextCache.set(uid, { promise, expiresAt: now + VIEWER_CONTEXT_TTL_MS });
+  promise.catch(() => viewerContextCache.delete(uid));
+  if (viewerContextCache.size > VIEWER_CONTEXT_CACHE_MAX) {
+    viewerContextCache.delete(viewerContextCache.keys().next().value);
+  }
+  return promise;
+}
+
+async function loadViewerContext(uid) {
   const db = admin.firestore();
-  const [followingSnap, followersSnap, viewerDoc] = await Promise.all([
+  const [followingSnap, viewerDoc] = await Promise.all([
     db.collection(`users/${uid}/following`).get(),
-    db.collection(`users/${uid}/followers`).get(),
     db.doc(`users/${uid}`).get()
   ]);
 
   const following = new Set(followingSnap.docs.map(d => d.id));
-  const followers = new Set(followersSnap.docs.map(d => d.id));
-  const mutuals = new Set([...following].filter(id => followers.has(id)));
-
   const viewerData = viewerDoc.exists ? viewerDoc.data() : {};
+  const followersCount = Number(viewerData.followersCount);
+  const followers = new Set();
+
+  if (Number.isFinite(followersCount) && followersCount > following.size + FOLLOWERS_FULL_READ_MARGIN) {
+    // Mutuos: basta con mirar si cada seguido nos sigue (tantas lecturas como seguidos).
+    const followingIds = [...following];
+    for (let i = 0; i < followingIds.length; i += 300) {
+      const refs = followingIds.slice(i, i + 300).map(id => db.doc(`users/${uid}/followers/${id}`));
+      const snaps = await db.getAll(...refs);
+      snaps.forEach(snap => { if (snap.exists) followers.add(snap.id); });
+    }
+    const recent = await db.collection(`users/${uid}/followers`)
+      .orderBy('timestamp', 'desc').limit(FOLLOWERS_SAMPLE).get();
+    recent.docs.forEach(d => followers.add(d.id));
+  } else {
+    const followersSnap = await db.collection(`users/${uid}/followers`).get();
+    followersSnap.docs.forEach(d => followers.add(d.id));
+  }
+
+  const mutuals = new Set([...following].filter(id => followers.has(id)));
   const bestFriends = new Set(Array.isArray(viewerData.bestFriends) ? viewerData.bestFriends : []);
   const blockedUsers = new Set(Array.isArray(viewerData.blockedUsers) ? viewerData.blockedUsers : []);
   const muteSettings = viewerData.muteSettings && typeof viewerData.muteSettings === 'object' ? viewerData.muteSettings : {};

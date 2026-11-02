@@ -1085,6 +1085,18 @@ class FirestoreService: ObservableObject {
     }
 
     // MARK: - FETCH METHODS CORREGIDOS
+    /// Solo los IDs de a quién sigue, sin descargar cada perfil (para el feed).
+    func fetchFollowingIds(userId: String) async -> Set<String> {
+        do {
+            let snapshot = try await db.collection("users").document(userId).collection("following")
+                .limit(to: 1000)
+                .getDocuments()
+            return Set(snapshot.documents.map { $0.data()["userId"] as? String ?? $0.documentID })
+        } catch {
+            return []
+        }
+    }
+
     func fetchFollowing(userId: String, completion: @escaping (Result<[AppUser], Error>) -> Void) {
         db.collection("users").document(userId).collection("following")
             .limit(to: 1000) // Cota de seguridad para evitar lecturas masivas en cuentas grandes

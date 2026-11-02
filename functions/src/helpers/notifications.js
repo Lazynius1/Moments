@@ -1119,6 +1119,30 @@ async function getPendingFollowRequestCount(userId) {
 }
 
 // ✅ NUEVO: Función para obtener todos los conteos pendientes de un usuario
+/**
+ * Recuentos de notificaciones pendientes con agregaciones (no descarga los documentos).
+ * Si la notificación que dispara el aviso aún no aparece como pendiente, se suma.
+ */
+async function pendingNotificationCounts(db, userId, triggerContext) {
+  const pending = db.collection(`users/${userId}/notifications`).where('isPending', '==', true);
+  const [totalAgg, echoesAgg, tagsAgg, currentSnap] = await Promise.all([
+    pending.count().get(),
+    pending.where('type', '==', 'echoSuggestion').count().get(),
+    pending.where('type', '==', 'photoTag').count().get(),
+    triggerContext.notificationId
+      ? db.doc(`users/${userId}/notifications/${triggerContext.notificationId}`).get()
+      : Promise.resolve(null)
+  ]);
+  let unreadNotifications = totalAgg.data().count || 0;
+  let unreadEchoes = echoesAgg.data().count || 0;
+  let unreadTags = tagsAgg.data().count || 0;
+  const currentCounted = !!(currentSnap && currentSnap.exists && currentSnap.get('isPending') === true);
+  if (triggerContext.type === 'notification' && !currentCounted) unreadNotifications++;
+  if (!currentCounted && triggerContext.notificationType === 'echoSuggestion') unreadEchoes++;
+  if (!currentCounted && triggerContext.notificationType === 'photoTag') unreadTags++;
+  return { unreadNotifications, unreadEchoes, unreadTags };
+}
+
 async function getUnreadCounts(userId, triggerContext = {}) {
   try {
     const db = admin.firestore();
@@ -1126,14 +1150,13 @@ async function getUnreadCounts(userId, triggerContext = {}) {
     // 1 lectura por cada 1000 coincidencias en vez de leer todas las conversaciones.
     // Equivale al filtro anterior por participants: readStatus solo tiene claves de
     // participantes y en 1:1 los participantes no cambian.
-    const [unreadConversationsAgg, notificationsSnap, groupsSnap] = await Promise.all([
+    const [unreadConversationsAgg, pendingCounts, groupsSnap] = await Promise.all([
       db.collection('conversations')
         .where(new admin.firestore.FieldPath('readStatus', userId), '==', false)
         .count()
         .get(),
-      db.collection(`users/${userId}/notifications`)
-        .where('isPending', '==', true)
-        .get(),
+      // Solo recuentos: antes se descargaban todas las notificaciones pendientes en cada push.
+      pendingNotificationCounts(db, userId, triggerContext),
       // Grupos: pocos por usuario; se mantiene el filtro por participants para no
       // contar grupos de los que salió. select() reduce el payload.
       db.collection('groupConversations')
@@ -1160,29 +1183,7 @@ async function getUnreadCounts(userId, triggerContext = {}) {
       }
     }
 
-    let unreadNotifications = notificationsSnap.size;
-    let foundCurrentNotification = false;
-
-    // Verificar si la notificación actual ya está en el snap (poco probable por la velocidad de Firebase)
-    if (triggerContext.notificationId) {
-      foundCurrentNotification = notificationsSnap.docs.some(d => d.id === triggerContext.notificationId);
-    }
-
-    // ✅ SIEMPRE sumamos 1 si es un trigger de notificación y no la hemos contado
-    if (triggerContext.type === 'notification' && !foundCurrentNotification) {
-      unreadNotifications++;
-    }
-
-    // Conteos específicos de Echoes y Tags
-    let unreadEchoes = notificationsSnap.docs.filter(d => d.data().type === 'echoSuggestion').length;
-    if (triggerContext.notificationType === 'echoSuggestion' && !notificationsSnap.docs.some(d => d.data().type === 'echoSuggestion' && d.id === triggerContext.notificationId)) {
-      unreadEchoes++;
-    }
-
-    let unreadTags = notificationsSnap.docs.filter(d => d.data().type === 'photoTag').length;
-    if (triggerContext.notificationType === 'photoTag' && !notificationsSnap.docs.some(d => d.data().type === 'photoTag' && d.id === triggerContext.notificationId)) {
-      unreadTags++;
-    }
+    let { unreadNotifications, unreadEchoes, unreadTags } = pendingCounts;
 
     return {
       unreadMessages,

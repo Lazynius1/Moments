@@ -485,12 +485,13 @@ const onNotificationCreated = onDocumentCreated('users/{userId}/notifications/{n
 async function handleBadgeUpdate(userId, userData) {
   if (!userData.fcmToken || isDoNotDisturbActive(userData)) return;
 
-  const notifications = await admin.firestore()
+  const pendingAgg = await admin.firestore()
     .collection(`users/${userId}/notifications`)
     .where('isPending', '==', true)
+    .count()
     .get();
 
-  const badgeCount = notifications.size;
+  const badgeCount = pendingAgg.data().count || 0;
   const message = {
     token: userData.fcmToken,
     data: { silent: true },

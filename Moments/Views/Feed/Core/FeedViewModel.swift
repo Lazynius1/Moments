@@ -383,16 +383,22 @@ class FeedViewModel {
 
     // MARK: - Private Functions
 
+    /// Momento y dueño de `cachedFollowingIds`: se reutilizan 2 min en recargas y cambios de feed.
+    private var followingIdsFetchedAt: Date?
+    private var followingIdsViewerId: String?
+
+    /// Solo los IDs (sin perfiles) y cacheados: antes cada carga del feed descargaba
+    /// hasta 1000 perfiles completos que no se usaban.
     private func resolveFollowingIdsAsync(viewerId: String) async -> Set<String> {
-        await withCheckedContinuation { continuation in
-            firestoreService.fetchFollowing(userId: viewerId) { result in
-                if case .success(let users) = result {
-                    continuation.resume(returning: Set(users.map(\.id)))
-                } else {
-                    continuation.resume(returning: [])
-                }
-            }
+        if followingIdsViewerId == viewerId,
+           let fetchedAt = followingIdsFetchedAt,
+           Date().timeIntervalSince(fetchedAt) < 120 {
+            return cachedFollowingIds
         }
+        let ids = await firestoreService.fetchFollowingIds(userId: viewerId)
+        followingIdsViewerId = viewerId
+        followingIdsFetchedAt = Date()
+        return ids
     }
 
     private func sortMomentsChronologically(_ moments: [Moment], limit: Int? = nil) -> [Moment] {

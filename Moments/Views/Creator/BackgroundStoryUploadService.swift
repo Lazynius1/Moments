@@ -1743,6 +1743,15 @@ class BackgroundStoryUploadService: ObservableObject {
         Task.detached(priority: .userInitiated) {
             await self.processStoryUpload(story)
 
+            // Igual que la subida original: si terminó, fuera de la cola de recuperación
+            // (si no, la siguiente sincronización la reescribía y ponía a cero las encuestas).
+            if story.status == .completed || story.status == .moderated {
+                await MainActor.run {
+                    LocalPersistenceService.shared.deleteAction(id: story.tempId)
+                    self.deleteActionFiles(id: story.tempId)
+                }
+            }
+
             // ✅ Terminar background task
             DispatchQueue.main.async {
                 if backgroundTaskID != .invalid {
@@ -1755,6 +1764,9 @@ class BackgroundStoryUploadService: ObservableObject {
 
     // MARK: - 🗑️ CANCELAR UPLOAD
     func cancelUpload(_ story: UploadingStory) {
+        // Cancelada: que no la retome la cola de recuperación al abrir o al reconectar.
+        LocalPersistenceService.shared.deleteAction(id: story.tempId)
+        deleteActionFiles(id: story.tempId)
         if let currentStory = self.uploadingStory, currentStory.id == story.id {
             self.removeUploadingStory()
         }
