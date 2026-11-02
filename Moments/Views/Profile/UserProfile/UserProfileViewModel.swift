@@ -577,7 +577,8 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 guard !excludingIds.contains(user.id) else { return false }
                 guard !excludedNetworkIds.contains(user.id) else { return false }
                 guard !self.viewerBlockedUserIds.contains(user.id) else { return false }
-                guard !user.blockedUsers.contains(viewerId) else { return false }
+                guard !user.blockedUsers.contains(viewerId),
+                      !PrivateAccountStore.shared.hasBlockedMe(user.id) else { return false }
                 return true
             }
             .sorted { lhs, rhs in

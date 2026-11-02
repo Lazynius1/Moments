@@ -66,7 +66,16 @@ class FCMTokenService {
             ]
         ]
         
-        Firestore.firestore().collection("users").document(userId).updateData(userData) { error in
+        let db = Firestore.firestore()
+        let userRef = db.collection("users").document(userId)
+        let batch = db.batch()
+        batch.updateData(userData, forDocument: userRef)
+        // Copia del token en el documento privado
+        batch.setData([
+            "fcmToken": token,
+            "updatedAt": FieldValue.serverTimestamp()
+        ], forDocument: userRef.collection("private").document("account"), merge: true)
+        batch.commit { error in
             if error != nil {
                 // ✅ RETRY: Intentar de nuevo en 30 segundos
                 DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
@@ -80,10 +89,18 @@ class FCMTokenService {
     func clearFCMToken() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
-        Firestore.firestore().collection("users").document(userId).updateData([
+        let db = Firestore.firestore()
+        let userRef = db.collection("users").document(userId)
+        let batch = db.batch()
+        batch.updateData([
             "fcmToken": FieldValue.delete(),
             "fcmTokenUpdatedAt": FieldValue.serverTimestamp()
-        ]) { error in
+        ], forDocument: userRef)
+        batch.setData([
+            "fcmToken": FieldValue.delete(),
+            "updatedAt": FieldValue.serverTimestamp()
+        ], forDocument: userRef.collection("private").document("account"), merge: true)
+        batch.commit { error in
             if error == nil {
                 // ✅ NUEVO: Notificar al backend para evitar enviar notificaciones
                 self.notifyBackendTokenCleared(userId: userId)

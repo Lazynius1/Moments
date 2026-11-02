@@ -162,8 +162,14 @@ struct DeactivationContent: View {
         DeactivatedProfileCard(
             profileImagePath: userData?.profileImagePath,
             username: userData?.username ?? NSLocalizedString("profile.defaultUsername", value: "Usuario", comment: "Default username"),
-            email: userData?.email
+            email: displayEmail
         )
+    }
+
+    // Sin email en la ficha pública se usa el de la sesión
+    private var displayEmail: String? {
+        let docEmail = userData?.email.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return docEmail.isEmpty ? Auth.auth().currentUser?.email : docEmail
     }
 }
 

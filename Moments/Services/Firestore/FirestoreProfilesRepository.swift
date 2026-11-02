@@ -234,6 +234,7 @@ extension FirestoreService {
         }
 
         let source: FirestoreSource = NetworkMonitor.shared.isConnected ? .default : .cache
+        let completion = overlayingOwnPrivateAccount(userId: userId, source: source, completion: completion)
 
         db.collection("users").document(userId).getDocument(source: source) { snapshot, error in
             if let error = error {
@@ -291,8 +292,8 @@ extension FirestoreService {
     ) {
         let rawId = (data["id"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let id = rawId.isEmpty ? (documentId ?? "") : rawId
-        guard !id.isEmpty,
-              let email = data["email"] as? String else {
+        let email = (data["email"] as? String) ?? ""
+        guard !id.isEmpty else {
             completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Campos obligatorios faltantes"])))
             return
         }
@@ -337,6 +338,7 @@ extension FirestoreService {
     }
 
     func fetchUserProfile(userId: String, completion: @escaping (Result<AppUser, Error>) -> Void) {
+        let completion = overlayingOwnPrivateAccount(userId: userId, completion: completion)
         self.db.collection("users").document(userId).getDocument(source: .default, completion: { snapshot, error in
             if let error = error {
                 completion(.failure(error))
@@ -368,6 +370,15 @@ extension FirestoreService {
         userId: String,
         completion: @escaping (Result<AppUser, Error>, PublicProfileAvailability) -> Void
     ) {
+        let deliver = completion
+        let merge = ownPrivateAccountMerger(userId: userId)
+        let completion: (Result<AppUser, Error>, PublicProfileAvailability) -> Void = { result, availability in
+            guard let merge else {
+                deliver(result, availability)
+                return
+            }
+            merge(result) { deliver($0, availability) }
+        }
         db.collection("users").document(userId).getDocument(source: .default) { snapshot, error in
             if let error {
                 completion(.failure(error), .available)
@@ -391,6 +402,44 @@ extension FirestoreService {
                 self.attemptManualDecoding(data: data, documentId: document.documentID) { result in
                     completion(result, availability)
                 }
+            }
+        }
+    }
+
+    /// Si `userId` es la sesión actual, superpone `private/account` al resultado.
+    private func overlayingOwnPrivateAccount(
+        userId: String,
+        source: FirestoreSource = .default,
+        completion: @escaping (Result<AppUser, Error>) -> Void
+    ) -> (Result<AppUser, Error>) -> Void {
+        guard let merge = ownPrivateAccountMerger(userId: userId, source: source) else { return completion }
+        return { result in merge(result, completion) }
+    }
+
+    /// Lee `private/account` en paralelo a la ficha pública (solo para la cuenta propia).
+    /// Bloqueados y mejores amigos se unen con los públicos; si la lectura falla se mantiene lo público.
+    private func ownPrivateAccountMerger(
+        userId: String,
+        source: FirestoreSource = .default
+    ) -> ((Result<AppUser, Error>, @escaping (Result<AppUser, Error>) -> Void) -> Void)? {
+        guard !userId.isEmpty, userId == Auth.auth().currentUser?.uid else { return nil }
+
+        let group = DispatchGroup()
+        var privateData: [String: Any]?
+        group.enter()
+        db.collection("users").document(userId).collection("private").document("account")
+            .getDocument(source: source) { snapshot, _ in
+                privateData = snapshot?.data()
+                group.leave()
+            }
+
+        return { result, completion in
+            group.notify(queue: .main) {
+                guard case .success(let user) = result, let privateData else {
+                    completion(result)
+                    return
+                }
+                completion(.success(user.overlayingPrivateAccount(privateData)))
             }
         }
     }
@@ -524,5 +573,61 @@ extension FirestoreService {
         ]) { error in
             completion(error)
         }
+    }
+}
+
+private extension AppUser {
+    /// Copia con bloqueados, mejores amigos y email de `private/account` (listas en unión con las públicas).
+    func overlayingPrivateAccount(_ data: [String: Any]) -> AppUser {
+        let privateBlocked = ((data["blockedUsers"] as? [String]) ?? []).filter { !$0.isEmpty }
+        let privateBestFriends = ((data["bestFriends"] as? [String]) ?? []).filter { !$0.isEmpty }
+        let privateEmail = (data["email"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        func union(_ base: [String], _ extra: [String]) -> [String] {
+            var seen = Set(base)
+            return base + extra.filter { seen.insert($0).inserted }
+        }
+
+        return AppUser(
+            id: id,
+            username: username,
+            email: privateEmail.isEmpty ? email : privateEmail,
+            interests: interests,
+            isPlusSubscriber: isPlusSubscriber,
+            profileImagePath: profileImagePath,
+            bio: bio,
+            blockedUsers: union(blockedUsers, privateBlocked),
+            isPrivate: isPrivate,
+            showMutuals: showMutuals,
+            showFollowing: showFollowing,
+            showFollowers: showFollowers,
+            activeHoursStart: activeHoursStart,
+            activeHoursEnd: activeHoursEnd,
+            notificationPreferences: notificationPreferences,
+            bestFriends: union(bestFriends, privateBestFriends),
+            websiteUrl: websiteUrl,
+            profileNote: profileNote,
+            followersCount: followersCount,
+            followingCount: followingCount,
+            momentsCount: momentsCount,
+            mutualsCount: mutualsCount,
+            profileVisitorsCount: profileVisitorsCount,
+            isActive: isActive,
+            deactivatedAt: deactivatedAt,
+            deactivatedBy: deactivatedBy,
+            ownedBadges: ownedBadges,
+            plusSubscription: plusSubscription,
+            primaryBadgeId: primaryBadgeId,
+            showBadge: showBadge,
+            showPlusBadge: showPlusBadge,
+            selectedProfileTheme: selectedProfileTheme,
+            isVerified: isVerified,
+            onlineStatus: onlineStatus,
+            lastSeen: lastSeen,
+            isOnline: isOnline,
+            showReadReceipts: showReadReceipts,
+            messageRequestPolicy: messageRequestPolicy,
+            lastUsernameChange: lastUsernameChange
+        )
     }
 }

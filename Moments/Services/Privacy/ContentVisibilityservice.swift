@@ -113,15 +113,31 @@ class ContentVisibilityService {
     
     private func checkBestFriendsVisibility(contentOwnerId: String, viewerId: String, completion: @escaping (Bool) -> Void) {
         // Verificar si está en la lista de mejores amigos
+        // Si la sesión es una de las dos partes, también cuenta private/account o private/relations
+        let currentUid = Auth.auth().currentUser?.uid
+        let ownerIsMe = currentUid != nil && contentOwnerId == currentUid
+        let viewerIsMe = currentUid != nil && viewerId == currentUid
+
         firestoreService.db.collection("users").document(contentOwnerId).getDocument { snapshot, error in
-            guard let data = snapshot?.data(),
-                  let bestFriends = data["bestFriends"] as? [String] else {
-                completion(false)
+            var publicResult = false
+            if let data = snapshot?.data(),
+               let bestFriends = data["bestFriends"] as? [String] {
+                publicResult = bestFriends.contains(viewerId)
+            }
+
+            guard ownerIsMe || viewerIsMe else {
+                completion(publicResult)
                 return
             }
-            
-            let isBestFriend = bestFriends.contains(viewerId)
-            completion(isBestFriend)
+
+            Task { @MainActor in
+                let store = PrivateAccountStore.shared
+                await store.waitUntilLoaded()
+                let privateResult = ownerIsMe
+                    ? store.bestFriends.contains(viewerId)
+                    : store.isBestFriendOf(contentOwnerId)
+                completion(privateResult || publicResult)
+            }
         }
     }
     

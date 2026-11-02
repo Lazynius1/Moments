@@ -454,6 +454,7 @@ class SuggestedUsersViewModel: ObservableObject {
     private let firestoreService = FirestoreService()
     private var currentUserId: String?
     private var blockedUsers: Set<String> = []
+    private var blockedMeIds: Set<String> = [] // Quien me bloqueó (private/relations)
     private var followedUserIds: Set<String> = [] // Usuarios ya seguidos
     private var lastDocument: DocumentSnapshot?
     private let pageSize = 10
@@ -501,9 +502,14 @@ class SuggestedUsersViewModel: ObservableObject {
         
         firestoreService.db.collection("users").document(userId).getDocument { [weak self] document, error in
             let data = document?.data()
-            DispatchQueue.main.async {
-                self?.currentUserInterests = data?["interests"] as? [String] ?? []
-                self?.blockedUsers = Set(data?["blockedUsers"] as? [String] ?? [])
+            let interests = data?["interests"] as? [String] ?? []
+            let publicBlocked = Set(data?["blockedUsers"] as? [String] ?? [])
+            Task { @MainActor in
+                let store = PrivateAccountStore.shared
+                await store.waitUntilLoaded()
+                self?.currentUserInterests = interests
+                self?.blockedUsers = publicBlocked.union(store.blockedUsers)
+                self?.blockedMeIds = store.blockedBy
                 completion()
             }
         }
@@ -562,6 +568,7 @@ class SuggestedUsersViewModel: ObservableObject {
                 let filteredUsers = newUsers.filter { user in
                     !(self?.blockedUsers.contains(user.id) ?? false) &&
                     !user.blockedUsers.contains(userId) &&
+                    !(self?.blockedMeIds.contains(user.id) ?? false) &&
                     !(self?.followedUserIds.contains(user.id) ?? false) // Excluir usuarios ya seguidos
                 }
                 
@@ -619,6 +626,7 @@ class SuggestedUsersViewModel: ObservableObject {
                     !existingIds.contains(user.id) &&
                     !(self?.blockedUsers.contains(user.id) ?? false) &&
                     !user.blockedUsers.contains(self?.currentUserId ?? "") &&
+                    !(self?.blockedMeIds.contains(user.id) ?? false) &&
                     !(self?.followedUserIds.contains(user.id) ?? false) // Excluir usuarios ya seguidos
                 }
                 

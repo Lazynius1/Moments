@@ -16,9 +16,15 @@ class BestFriendsService {
     // Agregar un mejor amigo
     func addBestFriend(currentUserId: String, friendId: String, completion: @escaping (Error?) -> Void) {
         let userRef = db.collection("users").document(currentUserId)
-        userRef.updateData([
+        let batch = db.batch()
+        batch.updateData([
             "bestFriends": FieldValue.arrayUnion([friendId])
-        ]) { error in
+        ], forDocument: userRef)
+        batch.setData([
+            "bestFriends": FieldValue.arrayUnion([friendId]),
+            "updatedAt": FieldValue.serverTimestamp()
+        ], forDocument: userRef.collection("private").document("account"), merge: true)
+        batch.commit { error in
             if let error = error {
                 completion(error)
             } else {
@@ -30,9 +36,15 @@ class BestFriendsService {
     // Eliminar un mejor amigo
     func removeBestFriend(currentUserId: String, friendId: String, completion: @escaping (Error?) -> Void) {
         let userRef = db.collection("users").document(currentUserId)
-        userRef.updateData([
+        let batch = db.batch()
+        batch.updateData([
             "bestFriends": FieldValue.arrayRemove([friendId])
-        ]) { error in
+        ], forDocument: userRef)
+        batch.setData([
+            "bestFriends": FieldValue.arrayRemove([friendId]),
+            "updatedAt": FieldValue.serverTimestamp()
+        ], forDocument: userRef.collection("private").document("account"), merge: true)
+        batch.commit { error in
             if let error = error {
                 completion(error)
             } else {
@@ -109,14 +121,17 @@ class BestFriendsService {
 
     // Obtener lista de mejores amigos
     func fetchBestFriends(userId: String, completion: @escaping (Result<[AppUser], Error>) -> Void) {
-        db.collection("users").document(userId).getDocument { (document, error) in
-            if let error = error {
+        // fetchUserProfile une la lista con private/account cuando es la cuenta propia
+        firestoreService.fetchUserProfile(userId: userId) { result in
+            let user: AppUser
+            switch result {
+            case .success(let fetched):
+                user = fetched
+            case .failure(let error):
                 completion(.failure(error))
                 return
             }
-            guard let document = document, document.exists,
-                  let user = try? document.data(as: AppUser.self),
-                  !user.bestFriends.isEmpty else {
+            guard !user.bestFriends.isEmpty else {
                 completion(.success([]))
                 return
             }

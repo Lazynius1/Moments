@@ -105,11 +105,16 @@ class ExploreViewModel: ObservableObject {
                 self.currentUserInterests = currentUserProfile.interests
                 self.blockedUsers = Set(currentUserProfile.blockedUsers)
 
-                // 2. Cargar conexiones (usuarios seguidos) primero
-                self.loadConnectionsFirst { [weak self] in
+                Task { @MainActor [weak self] in
+                    // Los filtros de bloqueo usan private/relations: esperar su primera carga
+                    await PrivateAccountStore.shared.waitUntilLoaded()
                     guard let self = self else { return }
-                    // 3. PASO PRINCIPAL: Cargar usuarios y momentos (ya con conexiones cargadas)
-                    self.loadUsersAndMoments()
+                    // 2. Cargar conexiones (usuarios seguidos) primero
+                    self.loadConnectionsFirst { [weak self] in
+                        guard let self = self else { return }
+                        // 3. PASO PRINCIPAL: Cargar usuarios y momentos (ya con conexiones cargadas)
+                        self.loadUsersAndMoments()
+                    }
                 }
 
             case .failure(let error):
@@ -184,6 +189,7 @@ class ExploreViewModel: ObservableObject {
             let filteredUsers = Array(finalUsers).filter { user in
                 !self.blockedUsers.contains(user.id) &&
                 !user.blockedUsers.contains(userId) &&
+                !PrivateAccountStore.shared.hasBlockedMe(user.id) &&
                 !currentFollowedUserIds.contains(user.id) // ✅ Usar la copia capturada
             }
 
@@ -751,7 +757,13 @@ extension ExploreViewModel {
                 case .failure:
                     self.searchFailed = true
                 case .success(let users):
-                    self.searchedUsers = users.filter { $0.id != uid && !self.blockedUsers.contains($0.id) && !$0.blockedUsers.contains(uid ?? "") }
+                    let store = PrivateAccountStore.shared
+                    self.searchedUsers = users.filter {
+                        $0.id != uid
+                            && !self.blockedUsers.contains($0.id)
+                            && !$0.blockedUsers.contains(uid ?? "")
+                            && !store.hasBlockedMe($0.id)
+                    }
                 }
             }
         }

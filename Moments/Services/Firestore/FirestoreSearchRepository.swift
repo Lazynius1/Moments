@@ -304,16 +304,24 @@ extension FirestoreService {
 
         db.collection("users").document(currentUserId).getDocument { snapshot, _ in
             let data = snapshot?.data() ?? [:]
-            let blockedUsers = Set((data["blockedUsers"] as? [String] ?? []).filter { !$0.isEmpty })
+            let publicBlockedUsers = Set((data["blockedUsers"] as? [String] ?? []).filter { !$0.isEmpty })
             let muteSettings = data["muteSettings"] as? [String: Any]
             let hideFromSearch = muteSettings?["hideFromSearch"] as? Bool ?? false
-            let mutedUsers = hideFromSearch
+            let mutedUsers: Set<String> = hideFromSearch
                 ? Set((muteSettings?["mutedUsers"] as? [String] ?? []).filter { !$0.isEmpty })
                 : []
 
-            completion(candidates.filter {
-                !blockedUsers.contains($0.id) && !mutedUsers.contains($0.id)
-            })
+            // Bloqueos en ambos sentidos también desde los documentos privados
+            Task { @MainActor in
+                let store = PrivateAccountStore.shared
+                await store.waitUntilLoaded()
+                let blockedUsers = publicBlockedUsers.union(store.blockedUsers)
+                completion(candidates.filter {
+                    !blockedUsers.contains($0.id)
+                        && !mutedUsers.contains($0.id)
+                        && !store.hasBlockedMe($0.id)
+                })
+            }
         }
     }
 }

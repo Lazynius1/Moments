@@ -349,8 +349,13 @@ class MessagingViewModel: ObservableObject {
                 UserCacheService.shared.getUser(userId: currentUserId) { [weak self] currentUser in
                     Task { @MainActor in
                         guard let self else { return }
+                        // Unión con private/account y private/relations (el usuario en caché puede no traerlos)
+                        let store = PrivateAccountStore.shared
+                        await store.waitUntilLoaded()
                         let blockedByCurrentUser = currentUser?.blockedUsers.contains(userId) == true
+                            || store.blockedUsers.contains(userId)
                         let blockedCurrentUser = fetchedUser?.blockedUsers.contains(currentUserId) == true
+                            || store.hasBlockedMe(userId)
                         self.finishParticipantState(
                             userId: userId,
                             user: fetchedUser,

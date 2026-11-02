@@ -473,8 +473,11 @@ class BestFriendsViewModel: ObservableObject {
 
         firestoreService.db.collection("users").document(userId).getDocument { [weak self] document, _ in
             let blocked = document?.data()?["blockedUsers"] as? [String] ?? []
-            DispatchQueue.main.async {
-                self?.blockedUserIds = Set(blocked)
+            Task { @MainActor in
+                // Unión con los bloqueados de private/account
+                let store = PrivateAccountStore.shared
+                await store.waitUntilLoaded()
+                self?.blockedUserIds = Set(blocked).union(store.blockedUsers)
             }
         }
         
@@ -591,10 +594,11 @@ class BestFriendsViewModel: ObservableObject {
 
                     switch result {
                     case .success(let users):
+                        let blockedMe = MainActor.assumeIsolated { PrivateAccountStore.shared.blockedBy }
                         let filtered = users.filter { user in
                             guard user.id != self.currentUserId else { return false }
                             if self.blockedUserIds.contains(user.id) { return false }
-                            if user.blockedUsers.contains(self.currentUserId ?? "") { return false }
+                            if user.blockedUsers.contains(self.currentUserId ?? "") || blockedMe.contains(user.id) { return false }
                             return true
                         }
                         self.remoteSearchResults = filtered

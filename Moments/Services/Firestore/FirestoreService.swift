@@ -1411,9 +1411,17 @@ class FirestoreService: ObservableObject {
 
 
     func blockUser(currentUserId: String, targetUserId: String, completion: @escaping (Error?) -> Void) {
-        self.db.collection("users").document(currentUserId).updateData([
+        let userRef = self.db.collection("users").document(currentUserId)
+        let batch = self.db.batch()
+        batch.updateData([
             "blockedUsers": FieldValue.arrayUnion([targetUserId])
-        ]) { error in
+        ], forDocument: userRef)
+        // Copia en el documento privado (solo legible por el dueño)
+        batch.setData([
+            "blockedUsers": FieldValue.arrayUnion([targetUserId]),
+            "updatedAt": FieldValue.serverTimestamp()
+        ], forDocument: userRef.collection("private").document("account"), merge: true)
+        batch.commit { error in
             if let error = error {
                 completion(error)
                 return
@@ -1448,9 +1456,16 @@ class FirestoreService: ObservableObject {
         invalidateFollowingCache(currentUserId: currentUserId, targetUserId: targetUserId)
         invalidateFollowingCache(currentUserId: targetUserId, targetUserId: currentUserId)
 
-        self.db.collection("users").document(currentUserId).updateData([
+        let userRef = self.db.collection("users").document(currentUserId)
+        let batch = self.db.batch()
+        batch.updateData([
             "blockedUsers": FieldValue.arrayRemove([targetUserId])
-        ]) { error in
+        ], forDocument: userRef)
+        batch.setData([
+            "blockedUsers": FieldValue.arrayRemove([targetUserId]),
+            "updatedAt": FieldValue.serverTimestamp()
+        ], forDocument: userRef.collection("private").document("account"), merge: true)
+        batch.commit { error in
             if let error = error {
                 completion(error)
             } else {
@@ -1485,8 +1500,23 @@ class FirestoreService: ObservableObject {
             group.leave()
         }
 
+        // Con la sesión propia se añaden los campos de private/account y private/relations
+        let isSignedInViewer = currentUserId == Auth.auth().currentUser?.uid
         group.notify(queue: .main) {
-            completion(isBlockedByCurrentUser, isCurrentUserBlocked, fetchError)
+            guard isSignedInViewer else {
+                completion(isBlockedByCurrentUser, isCurrentUserBlocked, fetchError)
+                return
+            }
+            let publicBlockedByMe = isBlockedByCurrentUser
+            let publicBlockedMe = isCurrentUserBlocked
+            let publicError = fetchError
+            Task { @MainActor in
+                let store = PrivateAccountStore.shared
+                await store.waitUntilLoaded()
+                let blockedByMe = publicBlockedByMe || store.blockedUsers.contains(targetUserId)
+                let blockedMe = publicBlockedMe || store.hasBlockedMe(targetUserId)
+                completion(blockedByMe, blockedMe, (blockedByMe || blockedMe) ? nil : publicError)
+            }
         }
     }
 
@@ -1764,21 +1794,30 @@ class FirestoreService: ObservableObject {
                 }
 
                 group.notify(queue: .main) {
-                    let filteredUsers = allUsers.filter { user in
-                        guard user.id != excludingUserId else { return false }
-                        if blockedUsers.contains(user.id) { return false }
-                        if user.blockedUsers.contains(excludingUserId) { return false }
-                        return true
-                    }
-
-                    var uniqueUsers: [AppUser] = []
-                    var seenIds = Set<String>()
-                    for user in filteredUsers {
-                        if seenIds.insert(user.id).inserted {
-                            uniqueUsers.append(user)
+                    let candidates = allUsers
+                    let isSignedInViewer = excludingUserId == Auth.auth().currentUser?.uid
+                    Task { @MainActor in
+                        // Quien me bloqueó según private/relations (solo para la sesión propia)
+                        var blockedMe: Set<String> = []
+                        if isSignedInViewer {
+                            blockedMe = await PrivateAccountStore.shared.loadedSnapshot().blockedBy
                         }
+                        let filteredUsers = candidates.filter { user in
+                            guard user.id != excludingUserId else { return false }
+                            if blockedUsers.contains(user.id) { return false }
+                            if user.blockedUsers.contains(excludingUserId) || blockedMe.contains(user.id) { return false }
+                            return true
+                        }
+
+                        var uniqueUsers: [AppUser] = []
+                        var seenIds = Set<String>()
+                        for user in filteredUsers {
+                            if seenIds.insert(user.id).inserted {
+                                uniqueUsers.append(user)
+                            }
+                        }
+                        completion(.success(uniqueUsers))
                     }
-                    completion(.success(uniqueUsers))
                 }
 
             case .failure(let error):

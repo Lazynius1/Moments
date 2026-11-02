@@ -548,6 +548,7 @@ class AuthService: ObservableObject {
 
                     // ✅ NUEVO: Detener listener al limpiar estado
                     self.stopSuspensionListener()
+                    PrivateAccountStore.shared.stop()
 
                     self.isLoggedIn = false
                     self.currentUser = nil
@@ -1094,6 +1095,7 @@ class AuthService: ObservableObject {
                 }
 
             cleanupHolder.suspensionRegistration = registration
+            PrivateAccountStore.shared.start(userId: userId)
         }
 
         nonisolated func stopSuspensionListener() {
@@ -2170,6 +2172,7 @@ class AuthService: ObservableObject {
 
             // ✅ Detener listener antes de cerrar sesión
             stopSuspensionListener()
+            PrivateAccountStore.shared.stop()
 
             // ✅ Marcar live location como detenida en servidor mientras las
             // credenciales son válidas; luego completar el cierre de sesión.
@@ -2190,6 +2193,7 @@ class AuthService: ObservableObject {
 
                 // ✅ Forzar limpieza inmediata del estado
                 DispatchQueue.main.async {
+                    PrivateAccountStore.shared.stop()
                     self.currentFirebaseUser = nil
                     self.isLoggedIn = false
                     self.currentUser = nil

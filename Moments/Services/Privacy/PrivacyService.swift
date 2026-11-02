@@ -657,19 +657,32 @@ extension PrivacyService {
         let shouldStart = registerInFlightBestFriendCheck(key: key, completion: completion)
         guard shouldStart else { return }
 
+        // Si la sesión es una de las dos partes, también cuenta private/account o private/relations
+        let currentUid = Auth.auth().currentUser?.uid
+        let ownerIsMe = currentUid != nil && userId == currentUid
+        let viewerIsMe = currentUid != nil && friendId == currentUid
+
         db.collection("users").document(userId).getDocument { snapshot, error in
-            if error != nil {
-                self.resolveInFlightBestFriendCheck(key: key, result: false)
+            var publicResult = false
+            if error == nil,
+               let data = snapshot?.data(),
+               let bestFriends = data["bestFriends"] as? [String] {
+                publicResult = bestFriends.contains(friendId)
+            }
+
+            guard ownerIsMe || viewerIsMe else {
+                self.resolveInFlightBestFriendCheck(key: key, result: publicResult)
                 return
             }
-            
-            guard let data = snapshot?.data(),
-                  let bestFriends = data["bestFriends"] as? [String] else {
-                self.resolveInFlightBestFriendCheck(key: key, result: false)
-                return
+
+            Task { @MainActor in
+                let store = PrivateAccountStore.shared
+                await store.waitUntilLoaded()
+                let privateResult = ownerIsMe
+                    ? store.bestFriends.contains(friendId)
+                    : store.isBestFriendOf(userId)
+                self.resolveInFlightBestFriendCheck(key: key, result: privateResult || publicResult)
             }
-            
-            self.resolveInFlightBestFriendCheck(key: key, result: bestFriends.contains(friendId))
         }
     }
     
