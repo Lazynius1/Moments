@@ -139,8 +139,15 @@ struct MomentsTabSwipeContainer<Content: View, Creator: View>: View {
                 // barra de estado, así el contenido no se corta.
                 .mask { movingLayerShape(isMoving: contentIsOnTop).ignoresSafeArea() }
                 .shadow(color: .black.opacity(contentIsOnTop ? 0.22 : 0), radius: contentIsOnTop ? 14 : 0, x: contentIsOnTop ? -4 : 0)
+                // Oscurecer con una capa encima: `.brightness` sobre las pestañas les quitaba
+                // el margen superior al volver hacia atrás.
+                .overlay {
+                    Color.black
+                        .opacity(contentDimming)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
+                }
                 .offset(x: contentOffset)
-                .brightness(contentDimming)
                 .allowsHitTesting(state.kind == .none && !state.isCreatorOpen)
 
             if state.kind == .previous, let snapshot = state.snapshot {
@@ -200,7 +207,7 @@ struct MomentsTabSwipeContainer<Content: View, Creator: View>: View {
 
     private var contentDimming: Double {
         guard state.kind == .previous, state.snapshot != nil else { return 0 }
-        return -Self.dimming * Double(1 - progress)
+        return Self.dimming * Double(1 - progress)
     }
 
     /// La capa que se mueve por encima lleva las esquinas del dispositivo (como al navegar en iOS):
