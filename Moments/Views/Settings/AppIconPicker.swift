@@ -76,7 +76,7 @@ private struct AppIconPicker: View {
         VStack(spacing: 0) {
             GeometryReader { proxy in
                 let size = proxy.size
-                let iconSize = size.height * 0.62
+                let iconSize = size.height * 0.86
 
                 ScrollView(.horizontal) {
                     LazyHStack(spacing: 0) {
@@ -88,25 +88,28 @@ private struct AppIconPicker: View {
                     .scrollTargetLayout()
                 }
                 .scrollIndicators(.hidden)
+                // Los de los lados giran: sin recorte no se cortan en recto.
+                .scrollClipDisabled()
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .alwaysByOne))
                 .scrollPosition(id: $activeIcon)
                 .safeAreaPadding(.horizontal, (size.width - iconSize) / 2)
-                .overlay(alignment: .top) { indicator }
-                .overlay(alignment: .bottom) { titles(iconSize) }
                 .onScrollGeometryChange(for: CGFloat.self) {
                     $0.contentOffset.x + $0.contentInsets.leading
                 } action: { _, newValue in
                     scrollOffset = newValue / iconSize
                 }
             }
-            .padding(.top, 8)
+
+            titles
+                .padding(.top, 14)
+            indicator
+                .padding(.top, 4)
 
             bottomBar
         }
-        .overlay(alignment: .topLeading) { closeButton }
-        .padding(.top, 15)
-        .presentationDetents([.height(440)])
-        .presentationDragIndicator(.hidden)
+        .padding(.top, 28)
+        .presentationDetents([.height(470)])
+        .presentationDragIndicator(.visible)
         .sensoryFeedback(.selection, trigger: activeIcon) { oldValue, _ in oldValue != nil }
         .sensoryFeedback(.success, trigger: hapticsTrigger)
         .onAppear {
@@ -135,25 +138,21 @@ private struct AppIconPicker: View {
 
     private var indicator: some View {
         let index = icons.firstIndex(of: activeIcon ?? .classic) ?? 0
-        return HStack(alignment: .bottom, spacing: 2) {
+        return HStack(spacing: 3) {
             Text(String(format: "%02d", index + 1))
-                .font(.title3.bold())
                 .foregroundStyle(Self.brandPurple)
                 .contentTransition(.numericText(value: Double(index)))
-            Group {
-                Text("/")
-                Text(String(format: "%02d", icons.count))
-            }
-            .font(.caption2.bold())
-            .foregroundStyle(.secondary)
+            Text("/")
+            Text(String(format: "%02d", icons.count))
         }
+        .font(.footnote.bold())
+        .foregroundStyle(.secondary)
         .monospaced()
         .animation(.easeInOut(duration: 0.25), value: activeIcon)
-        .offset(y: -6)
         .accessibilityHidden(true)
     }
 
-    private func titles(_ iconSize: CGFloat) -> some View {
+    private var titles: some View {
         ZStack {
             ForEach(Array(icons.enumerated()), id: \.element) { index, icon in
                 let progress = scrollOffset - CGFloat(index)
@@ -164,7 +163,6 @@ private struct AppIconPicker: View {
                     .opacity(1 - abs(progress) * 2)
             }
         }
-        .offset(y: 6)
         .accessibilityHidden(true)
     }
 
@@ -183,7 +181,7 @@ private struct AppIconPicker: View {
                 .animation(.easeInOut(duration: 0.2), value: isActive)
         }
         .padding(.horizontal, 20)
-        .padding(.top, 18)
+        .padding(.top, 14)
         .padding(.bottom, 12)
     }
 
@@ -202,23 +200,6 @@ private struct AppIconPicker: View {
             button.buttonStyle(.glassProminent)
         } else {
             button.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
-        }
-    }
-
-    @ViewBuilder
-    private var closeButton: some View {
-        let button = Button { dismiss() } label: {
-            Image(systemName: "xmark")
-                .font(.system(size: 15, weight: .semibold))
-                .frame(width: 30, height: 30)
-        }
-        .accessibilityLabel(Text("common.close"))
-        .padding(.leading, 16)
-
-        if #available(iOS 26.0, *) {
-            button.buttonStyle(.glass).buttonBorderShape(.circle)
-        } else {
-            button.buttonStyle(.bordered).buttonBorderShape(.circle).tint(.secondary)
         }
     }
 
