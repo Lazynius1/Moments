@@ -4821,7 +4821,7 @@
 
 /* Etiqueta de contenido creado con IA */
 "ai.toggle.title" = "AI로 생성됨";
-"ai.toggle.subtitle" = "이미지, 동영상 또는 오디오가 실제처럼 보이고 AI로 생성되거나 편집된 경우 켜 주세요.";
+"ai.toggle.subtitle" = "AI로 이 콘텐츠를 만들거나 편집했다면 켜 주세요.";
 "ai.toggle.detected" = "이 콘텐츠가 AI로 생성된 것으로 감지되었어요.";
 "ai.badge" = "AI 정보";
 "ai.info.title" = "AI로 생성된 콘텐츠";

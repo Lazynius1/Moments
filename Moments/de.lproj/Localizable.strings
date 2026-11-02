@@ -5084,7 +5084,7 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 
 /* Etiqueta de contenido creado con IA */
 "ai.toggle.title" = "Mit KI erstellt";
-"ai.toggle.subtitle" = "Aktiviere das, wenn Bild, Video oder Audio realistisch sind und mit KI erstellt oder bearbeitet wurden.";
+"ai.toggle.subtitle" = "Aktiviere das, wenn du diesen Inhalt mit KI erstellt oder bearbeitet hast.";
 "ai.toggle.detected" = "Wir haben erkannt, dass dieser Inhalt mit KI erstellt wurde.";
 "ai.badge" = "KI-Info";
 "ai.info.title" = "Mit KI erstellter Inhalt";

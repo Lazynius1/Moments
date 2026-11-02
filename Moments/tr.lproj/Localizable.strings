@@ -4821,7 +4821,7 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 
 /* Etiqueta de contenido creado con IA */
 "ai.toggle.title" = "Yapay zekâyla oluşturuldu";
-"ai.toggle.subtitle" = "Görsel, video veya ses gerçekçiyse ve yapay zekâyla oluşturulduysa ya da düzenlendiyse bunu aç.";
+"ai.toggle.subtitle" = "Bu içeriği yapay zekâyla oluşturduysan veya düzenlediysen bunu aç.";
 "ai.toggle.detected" = "Bu içeriğin yapay zekâyla oluşturulduğunu tespit ettik.";
 "ai.badge" = "Yapay zekâ bilgisi";
 "ai.info.title" = "Yapay zekâyla oluşturulan içerik";

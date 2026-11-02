@@ -4821,7 +4821,7 @@
 
 /* Etiqueta de contenido creado con IA */
 "ai.toggle.title" = "使用 AI 製作";
-"ai.toggle.subtitle" = "如果圖片、影片或音訊看起來真實，且是用 AI 生成或編輯的，請開啟此選項。";
+"ai.toggle.subtitle" = "如果你用 AI 製作或編輯了此內容，請開啟此選項。";
 "ai.toggle.detected" = "我們偵測到此內容是用 AI 製作的。";
 "ai.badge" = "AI 資訊";
 "ai.info.title" = "使用 AI 製作的內容";

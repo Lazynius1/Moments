@@ -5084,7 +5084,7 @@ Pour toute question ou demande relative à la confidentialité, contactez-nous �
 
 /* Etiqueta de contenido creado con IA */
 "ai.toggle.title" = "Créé avec l'IA";
-"ai.toggle.subtitle" = "Active cette option si l'image, la vidéo ou l'audio sont réalistes et ont été générés ou modifiés avec l'IA.";
+"ai.toggle.subtitle" = "Active cette option si tu as créé ou retouché ce contenu avec l'IA.";
 "ai.toggle.detected" = "Nous avons détecté que ce contenu a été créé avec l'IA.";
 "ai.badge" = "Infos IA";
 "ai.info.title" = "Contenu créé avec l'IA";

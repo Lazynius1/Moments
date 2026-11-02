@@ -4821,7 +4821,7 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 
 /* Etiqueta de contenido creado con IA */
 "ai.toggle.title" = "AIで作成";
-"ai.toggle.subtitle" = "画像・動画・音声がリアルで、AIで生成または編集されている場合はオンにしてください。";
+"ai.toggle.subtitle" = "このコンテンツをAIで作成または編集した場合はオンにしてください。";
 "ai.toggle.detected" = "このコンテンツはAIで作成されたことが検出されました。";
 "ai.badge" = "AI情報";
 "ai.info.title" = "AIで作成されたコンテンツ";

@@ -4821,7 +4821,7 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 
 /* Etiqueta de contenido creado con IA */
 "ai.toggle.title" = "Utworzone przez AI";
-"ai.toggle.subtitle" = "Włącz, jeśli obraz, wideo lub dźwięk wyglądają realistycznie i zostały wygenerowane lub zmienione przez AI.";
+"ai.toggle.subtitle" = "Włącz, jeśli ta treść została utworzona lub zmieniona przez Ciebie za pomocą AI.";
 "ai.toggle.detected" = "Wykryliśmy, że ta treść została utworzona przez AI.";
 "ai.badge" = "Informacje o AI";
 "ai.info.title" = "Treść utworzona przez AI";

@@ -5107,7 +5107,7 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 
 /* Etiqueta de contenido creado con IA */
 "ai.toggle.title" = "Creat amb IA";
-"ai.toggle.subtitle" = "Activa-ho si la imatge, el vídeo o l'àudio són realistes i s'han generat o modificat amb IA.";
+"ai.toggle.subtitle" = "Activa-ho si has creat o retocat aquest contingut amb IA.";
 "ai.toggle.detected" = "Hem detectat que aquest contingut s'ha creat amb IA.";
 "ai.badge" = "Info d'IA";
 "ai.info.title" = "Contingut creat amb IA";

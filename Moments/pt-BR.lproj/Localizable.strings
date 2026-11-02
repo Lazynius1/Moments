@@ -5084,7 +5084,7 @@ Para dúvidas ou solicitações sobre privacidade, entre em contato pelo e-mail 
 
 /* Etiqueta de contenido creado con IA */
 "ai.toggle.title" = "Criado com IA";
-"ai.toggle.subtitle" = "Ative se a imagem, o vídeo ou o áudio forem realistas e tiverem sido gerados ou modificados com IA.";
+"ai.toggle.subtitle" = "Ative se você criou ou editou este conteúdo com IA.";
 "ai.toggle.detected" = "Detectamos que este conteúdo foi criado com IA.";
 "ai.badge" = "Info de IA";
 "ai.info.title" = "Conteúdo criado com IA";

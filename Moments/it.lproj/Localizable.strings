@@ -5084,7 +5084,7 @@ Per domande o richieste sulla privacy, contattaci a soporte@momentsapp.app o vis
 
 /* Etiqueta de contenido creado con IA */
 "ai.toggle.title" = "Creato con l'IA";
-"ai.toggle.subtitle" = "Attivalo se l'immagine, il video o l'audio sono realistici e sono stati generati o modificati con l'IA.";
+"ai.toggle.subtitle" = "Attivalo se hai creato o ritoccato questo contenuto con l'IA.";
 "ai.toggle.detected" = "Abbiamo rilevato che questo contenuto è stato creato con l'IA.";
 "ai.badge" = "Info IA";
 "ai.info.title" = "Contenuto creato con l'IA";

@@ -4821,7 +4821,7 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 
 /* Etiqueta de contenido creado con IA */
 "ai.toggle.title" = "Gemaakt met AI";
-"ai.toggle.subtitle" = "Zet dit aan als de afbeelding, video of audio realistisch is en met AI is gemaakt of bewerkt.";
+"ai.toggle.subtitle" = "Zet dit aan als je deze content met AI hebt gemaakt of bewerkt.";
 "ai.toggle.detected" = "We hebben gedetecteerd dat deze content met AI is gemaakt.";
 "ai.badge" = "AI-info";
 "ai.info.title" = "Met AI gemaakte content";

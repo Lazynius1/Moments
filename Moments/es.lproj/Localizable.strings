@@ -5059,7 +5059,7 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 
 /* Etiqueta de contenido creado con IA */
 "ai.toggle.title" = "Creado con IA";
-"ai.toggle.subtitle" = "Actívalo si la imagen, el vídeo o el audio son realistas y se han generado o modificado con IA.";
+"ai.toggle.subtitle" = "Actívalo si has creado o retocado este contenido con IA.";
 "ai.toggle.detected" = "Hemos detectado que este contenido se ha creado con IA.";
 "ai.badge" = "Info de IA";
 "ai.info.title" = "Contenido creado con IA";

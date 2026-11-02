@@ -4821,7 +4821,7 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 
 /* Etiqueta de contenido creado con IA */
 "ai.toggle.title" = "Dibuat dengan AI";
-"ai.toggle.subtitle" = "Aktifkan jika gambar, video, atau audio terlihat nyata dan dibuat atau diubah dengan AI.";
+"ai.toggle.subtitle" = "Aktifkan jika kamu membuat atau mengedit konten ini dengan AI.";
 "ai.toggle.detected" = "Kami mendeteksi bahwa konten ini dibuat dengan AI.";
 "ai.badge" = "Info AI";
 "ai.info.title" = "Konten dibuat dengan AI";

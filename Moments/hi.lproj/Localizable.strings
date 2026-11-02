@@ -4821,7 +4821,7 @@
 
 /* Etiqueta de contenido creado con IA */
 "ai.toggle.title" = "AI से बनाया गया";
-"ai.toggle.subtitle" = "अगर इमेज, वीडियो या ऑडियो असली जैसा है और AI से बनाया या बदला गया है, तो इसे चालू करें।";
+"ai.toggle.subtitle" = "अगर आपने यह कंटेंट AI से बनाया या एडिट किया है, तो इसे चालू करें।";
 "ai.toggle.detected" = "हमें पता चला है कि यह कंटेंट AI से बनाया गया है।";
 "ai.badge" = "AI जानकारी";
 "ai.info.title" = "AI से बनाया गया कंटेंट";
