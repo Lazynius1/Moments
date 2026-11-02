@@ -218,45 +218,28 @@ struct EpicReactionButton: View {
         )
     }
     
-    // ✅ NUEVO: Setup con listener en tiempo real
+    /// Solo la reacción propia en directo y el total con un recuento: escuchar todas las
+    /// reacciones de cada tarjeta costaba tantas lecturas como reacciones tuviera el post.
     private func setupReactionListener() {
-        guard let momentId = moment.id else { return }
-        
-        // ✅ Listener en tiempo real para reacciones usando el método correcto
-        reactionListener = firestoreService.listenToReactions(
+        guard let momentId = moment.id,
+              let currentUserId = Auth.auth().currentUser?.uid else { return }
+
+        reactionListener?.remove()
+        reactionListener = firestoreService.listenToOwnReaction(
             for: momentId,
-            authorId: moment.authorId
-        ) { reactions in
+            authorId: moment.authorId,
+            userId: currentUserId
+        ) { reactionType in
             DispatchQueue.main.async {
-                self.updateReactionState(with: reactions)
+                let reaction = reactionType.flatMap(ReactionType.init(rawValue:))
+                self.hasReacted = reaction != nil
+                self.currentReaction = reaction
             }
         }
-    }
-    
-    // ✅ NUEVO: Actualizar estado basado en reacciones de Firebase
-    private func updateReactionState(with reactions: [String: [String]]) {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
-        // Verificar si el usuario actual tiene una reacción
-        var userReaction: ReactionType?
-        for (reactionTypeString, userIds) in reactions {
-            if userIds.contains(currentUserId),
-               let reactionType = ReactionType(rawValue: reactionTypeString) {
-                userReaction = reactionType
-                break
-            }
-        }
-        
-        // Calcular total de reacciones
-        let totalCount = reactions.values.reduce(0) { total, userIds in
-            total + userIds.count
-        }
-        
-        // Actualizar UI con animación
-        MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toast) {
-            self.hasReacted = userReaction != nil
-            self.currentReaction = userReaction
-            self.reactionCount = totalCount
+
+        Task {
+            guard let count = await firestoreService.fetchReactionCount(for: momentId, authorId: moment.authorId) else { return }
+            await MainActor.run { self.reactionCount = count }
         }
     }
     
@@ -290,10 +273,12 @@ struct EpicReactionButton: View {
         }
         
         // ✅ OPTIMISTIC UPDATE: Update local state immediately (No delay)
+        // Cambiar de reacción no suma: el usuario sigue contando una vez.
+        let wasReacted = hasReacted
         MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
             self.hasReacted = true
             self.currentReaction = reactionType
-            self.reactionCount += 1
+            if !wasReacted { self.reactionCount += 1 }
         }
         
         // Track the reaction locally

@@ -483,6 +483,26 @@ extension FirestoreService {
             }
     }
     
+    /// Escucha solo la reacción del usuario (un documento), no todas las del momento.
+    func listenToOwnReaction(for momentId: String, authorId: String, userId: String, completion: @escaping (String?) -> Void) -> ListenerRegistration {
+        db.collection("users").document(authorId)
+            .collection("moments").document(momentId)
+            .collection("reactions").document(userId)
+            .addSnapshotListener { snapshot, error in
+                guard error == nil else { return }
+                completion(snapshot?.data()?["reactionType"] as? String)
+            }
+    }
+
+    /// Número de reacciones con un recuento del servidor (1 lectura), sin descargarlas.
+    func fetchReactionCount(for momentId: String, authorId: String) async -> Int? {
+        let query = db.collection("users").document(authorId)
+            .collection("moments").document(momentId)
+            .collection("reactions")
+        guard let snapshot = try? await query.count.getAggregation(source: .server) else { return nil }
+        return Int(truncating: snapshot.count)
+    }
+
     // ✅ Listener para reacciones en tiempo real
     func listenToReactions(for momentId: String, authorId: String, completion: @escaping ([String: [String]]) -> Void) -> ListenerRegistration {
         
