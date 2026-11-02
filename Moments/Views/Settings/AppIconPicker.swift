@@ -36,7 +36,7 @@ enum MomentsAppIcon: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// Iconos de temporada: solo se ofrecen en Navidad (1 de noviembre a 6 de enero).
+    /// Iconos de temporada: solo se ofrecen en Navidad (ver `ChristmasSeason`).
     var isChristmas: Bool {
         switch self {
         case .santaHat, .candyCane, .snow, .baubles, .lights, .gingerbread, .christmasTree, .snowman: return true
@@ -44,9 +44,15 @@ enum MomentsAppIcon: String, CaseIterable, Identifiable {
         }
     }
 
-    static func isChristmasSeason(_ date: Date = Date()) -> Bool {
-        let parts = Calendar.current.dateComponents([.month, .day], from: date)
-        return parts.month == 11 || parts.month == 12 || (parts.month == 1 && (parts.day ?? 0) <= 6)
+    /// Temporada de Navidad según la región del dispositivo (la app es global):
+    /// por defecto del 1 de noviembre al 6 de enero; en Filipinas empieza en septiembre
+    /// y donde se sigue el calendario ortodoxo dura hasta el 19 de enero.
+    static func isChristmasSeason(_ date: Date = Date(), region: String? = Locale.current.region?.identifier) -> Bool {
+        let parts = Calendar(identifier: .gregorian).dateComponents([.month, .day], from: date)
+        guard let month = parts.month, let day = parts.day else { return false }
+        let window = ChristmasSeason.window(for: region)
+        if month >= window.startMonth { return true }
+        return month == 1 && day <= window.endDayOfJanuary
     }
 
     /// Lo que ofrece el selector: fuera de temporada, sin los de Navidad salvo el que ya esté puesto.
@@ -243,6 +249,19 @@ private struct AppIconPicker: View {
                 hapticsTrigger.toggle()
                 dismiss()
             }
+        }
+    }
+}
+
+/// Ventana de Navidad por región: mes de inicio (hasta diciembre) y último día de enero.
+enum ChristmasSeason {
+    private static let orthodoxRegions: Set<String> = ["RU", "UA", "BY", "RS", "ME", "MK", "GE", "MD", "ET", "ER", "EG", "AM"]
+
+    static func window(for region: String?) -> (startMonth: Int, endDayOfJanuary: Int) {
+        switch region?.uppercased() {
+        case "PH": return (9, 6)
+        case let code? where orthodoxRegions.contains(code): return (11, 19)
+        default: return (11, 6)
         }
     }
 }
