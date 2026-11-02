@@ -18,22 +18,37 @@ enum AILabelSource {
 
 // MARK: - Detección en metadatos (C2PA / IPTC)
 
-/// Busca la marca IPTC `trainedAlgorithmicMedia` / `compositeWithTrainedAlgorithmicMedia`
-/// en los bytes originales del archivo (XMP o manifiesto C2PA).
+/// Busca huellas de IA en los bytes originales del archivo:
+/// - marca IPTC `trainedAlgorithmicMedia` / `compositeWithTrainedAlgorithmicMedia` (XMP o C2PA);
+/// - parámetros que guardan las herramientas de difusión (Stable Diffusion, ComfyUI, InvokeAI, NovelAI);
+/// - manifiesto C2PA firmado por un generador de imágenes conocido.
 enum AIContentProvenance {
-    private static let marker = Data("rainedAlgorithmicMedia".utf8)
     private static let windowSize = 8 * 1024 * 1024
+
+    /// Basta con encontrar una de estas.
+    private static let markers: [Data] = [
+        "rainedAlgorithmicMedia", "\"class_type\"", "invokeai_metadata", "sd-metadata", "NovelAI",
+    ].map { Data($0.utf8) }
+
+    /// Tienen que aparecer las dos.
+    private static let markerPairs: [(Data, Data)] = [
+        ("Steps: ", "Sampler: "),
+        ("c2pa", "OpenAI"),
+        ("c2pa", "Adobe Firefly"),
+        ("c2pa", "Google AI"),
+    ].map { (Data($0.0.utf8), Data($0.1.utf8)) }
+
+    private static func containsMarker(_ data: Data) -> Bool {
+        if markers.contains(where: { data.range(of: $0) != nil }) { return true }
+        return markerPairs.contains { data.range(of: $0.0) != nil && data.range(of: $0.1) != nil }
+    }
 
     /// Escanea los primeros y últimos 8 MB. Nunca lanza; ante error devuelve false.
     static func isAIGenerated(data: Data) -> Bool {
         guard !data.isEmpty else { return false }
-        if data.count <= windowSize * 2 {
-            return data.range(of: marker) != nil
-        }
-        let head = data.startIndex..<(data.startIndex + windowSize)
-        if data.range(of: marker, in: head) != nil { return true }
-        let tail = (data.endIndex - windowSize)..<data.endIndex
-        return data.range(of: marker, in: tail) != nil
+        if data.count <= windowSize * 2 { return containsMarker(data) }
+        if containsMarker(data.prefix(windowSize)) { return true }
+        return containsMarker(data.suffix(windowSize))
     }
 
     /// Variante para archivos en disco: lee solo la cabecera y la cola.
@@ -43,19 +58,14 @@ enum AIContentProvenance {
             defer { try? handle.close() }
             let size = try handle.seekToEnd()
             guard size > 0 else { return false }
-            if size <= UInt64(windowSize * 2) {
-                try handle.seek(toOffset: 0)
-                guard let data = try handle.readToEnd() else { return false }
-                return data.range(of: marker) != nil
-            }
             try handle.seek(toOffset: 0)
-            if let head = try handle.read(upToCount: windowSize), head.range(of: marker) != nil {
-                return true
+            if size <= UInt64(windowSize * 2) {
+                guard let data = try handle.readToEnd() else { return false }
+                return containsMarker(data)
             }
+            if let head = try handle.read(upToCount: windowSize), containsMarker(head) { return true }
             try handle.seek(toOffset: size - UInt64(windowSize))
-            if let tail = try handle.read(upToCount: windowSize), tail.range(of: marker) != nil {
-                return true
-            }
+            if let tail = try handle.read(upToCount: windowSize), containsMarker(tail) { return true }
             return false
         } catch {
             return false
