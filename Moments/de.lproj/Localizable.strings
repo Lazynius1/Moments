@@ -2859,8 +2859,8 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Neu in Moments!";
-"whatsNew.subtitle" = "Moments ist jetzt auf dem iPhone Duo! Wir haben Moments neu gestaltet, damit du das Beste aus beiden Bildschirmen herausholst.";
-"whatsNew.button" = "Moments 2.31 entdecken";
+"whatsNew.subtitle" = "Wähle dein Icon, kennzeichne, was du mit KI erstellst, und wische zwischen Tabs.";
+"whatsNew.button" = "Moments 2.32 entdecken";
 /* Best Friends */
 "bestFriends.title" = "Enge Freunde";
 "bestFriends.empty.title" = "Keine engen Freunde";
@@ -5162,3 +5162,23 @@ Bei Fragen oder Anfragen zum Datenschutz kontaktiere uns unter soporte@momentsap
 "userActivity.simple.empty.visits.subtitle" = "Sieh, wer kürzlich dein Profil besucht hat.";
 "modernComments.replyTo.placeholder" = "Antworte %@…";
 "modernComments.loadEarlier" = "Frühere Kommentare ansehen";
+
+"whatsNew.sectionPersonalize232" = "Personalisieren";
+"whatsNew.sectionCreate232" = "Erstellen";
+"whatsNew.sectionMore232" = "Und außerdem";
+"whatsNew.appIcons232.title" = "Wähle dein Icon";
+"whatsNew.appIcons232.description" = "21 neue Icons für deinen Home-Bildschirm, in den Einstellungen.";
+"whatsNew.seasonalIcons232.title" = "Saisonale Icons";
+"whatsNew.seasonalIcons232.description" = "Jetzt 8 zu Weihnachten, passend zum Kalender deines Landes.";
+"whatsNew.aiLabel232.title" = "Mit KI erstellte Inhalte";
+"whatsNew.aiLabel232.description" = "Kennzeichne, was du mit KI erstellst oder bearbeitest. Viele Bilder erkennen wir für dich.";
+"whatsNew.tabSwipe232.title" = "Zwischen Tabs wischen";
+"whatsNew.tabSwipe232.description" = "Wechsle per Wischgeste, und von Start aus direkt zum Erstellen.";
+"whatsNew.voiceNotes232.title" = "Sprachnachrichten ohne Limit";
+"whatsNew.voiceNotes232.description" = "Nimm so lange auf, wie du willst, und hör sie, während du die App nutzt.";
+"whatsNew.comments232.title" = "Schnellere Kommentare";
+"whatsNew.comments232.description" = "Beiträge mit vielen Kommentaren laden schneller.";
+"whatsNew.privacy232.title" = "Mehr Datenschutz";
+"whatsNew.privacy232.description" = "Wir haben den Schutz deiner Daten und deines Kontos verstärkt.";
+"whatsNew.fluid232.title" = "Schneller und flüssiger";
+"whatsNew.fluid232.description" = "Bessere Leistung in Feed, Stories und Chats.";

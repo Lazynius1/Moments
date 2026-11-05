@@ -24,7 +24,7 @@ final class WhatsNewPresentationCoordinator {
     private init() {}
 
     var currentMarketingVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.31"
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.32"
     }
 
     private var lastPromptedVersion: String {

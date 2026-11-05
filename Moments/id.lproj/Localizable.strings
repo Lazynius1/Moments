@@ -2712,8 +2712,8 @@
 "banner.verb.message" = "mengirimi Anda pesan";
 /* Whats New v2.16 */
 "whatsNew.title" = "Baru di Moments!";
-"whatsNew.subtitle" = "Moments hadir di iPhone Duo! Kami mendesain ulang Moments agar kedua layarnya bisa dimanfaatkan sepenuhnya.";
-"whatsNew.button" = "Jelajahi Moments 2.31";
+"whatsNew.subtitle" = "Pilih ikonmu, beri label pada yang kamu buat dengan AI, dan geser antar-tab.";
+"whatsNew.button" = "Jelajahi Moments 2.32";
 /* Best Friends */
 "bestFriends.title" = "Teman Dekat";
 "bestFriends.empty.title" = "Belum ada Teman Dekat";
@@ -4899,3 +4899,23 @@ Anda dapat mengubah izin ini di Pengaturan iOS. Jika izin dinonaktifkan, beberap
 "userActivity.simple.empty.visits.subtitle" = "Lihat siapa yang baru-baru ini mengunjungi profilmu.";
 "modernComments.replyTo.placeholder" = "Balas %@…";
 "modernComments.loadEarlier" = "Lihat komentar sebelumnya";
+
+"whatsNew.sectionPersonalize232" = "Personalisasi";
+"whatsNew.sectionCreate232" = "Buat";
+"whatsNew.sectionMore232" = "Dan lainnya";
+"whatsNew.appIcons232.title" = "Pilih ikonmu";
+"whatsNew.appIcons232.description" = "21 ikon baru untuk layar utama, di Pengaturan.";
+"whatsNew.seasonalIcons232.title" = "Ikon musiman";
+"whatsNew.seasonalIcons232.description" = "Untuk saat ini, 8 ikon Natal sesuai kalender negaramu.";
+"whatsNew.aiLabel232.title" = "Konten yang dibuat dengan AI";
+"whatsNew.aiLabel232.description" = "Beri label pada yang kamu buat atau edit dengan AI. Banyak gambar kami deteksi untukmu.";
+"whatsNew.tabSwipe232.title" = "Geser antar-tab";
+"whatsNew.tabSwipe232.description" = "Pindah dengan sekali geser, dan dari Beranda ke pembuat konten.";
+"whatsNew.voiceNotes232.title" = "Pesan suara tanpa batas";
+"whatsNew.voiceNotes232.description" = "Rekam sepuasnya dan dengarkan sambil memakai aplikasi.";
+"whatsNew.comments232.title" = "Komentar lebih cepat";
+"whatsNew.comments232.description" = "Postingan dengan banyak komentar dimuat lebih cepat.";
+"whatsNew.privacy232.title" = "Privasi lebih terjaga";
+"whatsNew.privacy232.description" = "Kami memperkuat perlindungan data dan akunmu.";
+"whatsNew.fluid232.title" = "Lebih cepat dan lancar";
+"whatsNew.fluid232.description" = "Peningkatan performa di feed, story, dan chat.";

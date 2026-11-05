@@ -2712,8 +2712,8 @@
 "banner.verb.message" = "메시지를 보냈어요";
 /* Whats New v2.16 */
 "whatsNew.title" = "Moments 새로운 소식!";
-"whatsNew.subtitle" = "Moments가 iPhone Duo에 찾아왔어요! 두 화면을 최대한 활용할 수 있도록 Moments를 새롭게 디자인했어요.";
-"whatsNew.button" = "Moments 2.31 살펴보기";
+"whatsNew.subtitle" = "아이콘을 고르고, AI로 만든 콘텐츠에 라벨을 달고, 탭 사이를 스와이프해 보세요.";
+"whatsNew.button" = "Moments 2.32 둘러보기";
 /* Best Friends */
 "bestFriends.title" = "친한 친구";
 "bestFriends.empty.title" = "친한 친구가 없어요";
@@ -4899,3 +4899,23 @@
 "userActivity.simple.empty.visits.subtitle" = "최근에 내 프로필을 방문한 사람을 확인하세요.";
 "modernComments.replyTo.placeholder" = "%@님에게 답글…";
 "modernComments.loadEarlier" = "이전 댓글 보기";
+
+"whatsNew.sectionPersonalize232" = "맞춤 설정";
+"whatsNew.sectionCreate232" = "만들기";
+"whatsNew.sectionMore232" = "그 밖에";
+"whatsNew.appIcons232.title" = "아이콘 선택";
+"whatsNew.appIcons232.description" = "설정에서 홈 화면용 새 아이콘 21개를 골라 보세요.";
+"whatsNew.seasonalIcons232.title" = "시즌 아이콘";
+"whatsNew.seasonalIcons232.description" = "지금은 국가별 달력에 맞춰 크리스마스 아이콘 8개가 제공돼요.";
+"whatsNew.aiLabel232.title" = "AI로 생성한 콘텐츠";
+"whatsNew.aiLabel232.description" = "AI로 만들거나 편집한 콘텐츠에 라벨을 달아 보세요. 많은 이미지는 자동으로 감지해요.";
+"whatsNew.tabSwipe232.title" = "탭 사이 스와이프";
+"whatsNew.tabSwipe232.description" = "손가락으로 탭을 넘기고, 홈에서는 만들기 화면으로 이동해요.";
+"whatsNew.voiceNotes232.title" = "무제한 음성 메시지";
+"whatsNew.voiceNotes232.description" = "원하는 만큼 녹음하고 앱을 쓰면서 들어 보세요.";
+"whatsNew.comments232.title" = "더 빨라진 댓글";
+"whatsNew.comments232.description" = "댓글이 많은 게시물도 더 빨리 로드돼요.";
+"whatsNew.privacy232.title" = "강화된 개인정보 보호";
+"whatsNew.privacy232.description" = "데이터와 계정 보호를 강화했어요.";
+"whatsNew.fluid232.title" = "더 빠르고 부드럽게";
+"whatsNew.fluid232.description" = "피드, 스토리, 채팅 성능을 개선했어요.";

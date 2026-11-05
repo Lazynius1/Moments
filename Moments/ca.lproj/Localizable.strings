@@ -2882,8 +2882,8 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novetats de Moments!";
-"whatsNew.subtitle" = "Moments arriba a l’iPhone Duo! Hem redissenyat Moments per treure tot el partit de les seves dues pantalles.";
-"whatsNew.button" = "Explora Moments 2.31";
+"whatsNew.subtitle" = "Tria la teva icona, etiqueta el que crees amb IA i llisca entre pestanyes.";
+"whatsNew.button" = "Explora Moments 2.32";
 /* Best Friends */
 "bestFriends.title" = "Millors Amics";
 "bestFriends.empty.title" = "Sense millors amics";
@@ -5185,3 +5185,23 @@ Per a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@
 "userActivity.simple.empty.visits.subtitle" = "Mira qui ha visitat el teu perfil recentment.";
 "modernComments.replyTo.placeholder" = "Respon a %@…";
 "modernComments.loadEarlier" = "Mostra comentaris anteriors";
+
+"whatsNew.sectionPersonalize232" = "Personalitza";
+"whatsNew.sectionCreate232" = "Crea";
+"whatsNew.sectionMore232" = "I a més";
+"whatsNew.appIcons232.title" = "Tria la teva icona";
+"whatsNew.appIcons232.description" = "21 icones noves per a la pantalla d'inici, des de Configuració.";
+"whatsNew.seasonalIcons232.title" = "Icones de temporada";
+"whatsNew.seasonalIcons232.description" = "Ara, 8 de Nadal, segons el calendari del teu país.";
+"whatsNew.aiLabel232.title" = "Contingut creat amb IA";
+"whatsNew.aiLabel232.description" = "Etiqueta el que crees o retoques amb IA. Detectem moltes imatges per tu.";
+"whatsNew.tabSwipe232.title" = "Llisca entre pestanyes";
+"whatsNew.tabSwipe232.description" = "Passa d'una a l'altra amb el dit, i des d'Inici, al creador.";
+"whatsNew.voiceNotes232.title" = "Notes de veu sense límit";
+"whatsNew.voiceNotes232.description" = "Grava el que vulguis i escolta-les mentre fas servir l'app.";
+"whatsNew.comments232.title" = "Comentaris més ràpids";
+"whatsNew.comments232.description" = "Les publicacions amb molts comentaris carreguen abans.";
+"whatsNew.privacy232.title" = "Més privadesa";
+"whatsNew.privacy232.description" = "Hem reforçat la protecció de les teves dades i del teu compte.";
+"whatsNew.fluid232.title" = "Més ràpid i fluid";
+"whatsNew.fluid232.description" = "Millores de rendiment al feed, les històries i els xats.";

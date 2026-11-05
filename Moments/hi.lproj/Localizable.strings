@@ -2712,8 +2712,8 @@
 "banner.verb.message" = "आपको मैसेज भेजा";
 /* Whats New v2.16 */
 "whatsNew.title" = "Moments में नया!";
-"whatsNew.subtitle" = "Moments अब iPhone Duo पर! हमने Moments को नए सिरे से डिज़ाइन किया है, ताकि आप इसकी दोनों स्क्रीन का पूरा फ़ायदा उठा सकें।";
-"whatsNew.button" = "Moments 2.31 देखें";
+"whatsNew.subtitle" = "अपना आइकन चुनें, AI से बनाए कंटेंट पर लेबल लगाएँ और टैब के बीच स्वाइप करें।";
+"whatsNew.button" = "Moments 2.32 देखें";
 /* Best Friends */
 "bestFriends.title" = "करीबी दोस्त";
 "bestFriends.empty.title" = "कोई करीबी दोस्त नहीं";
@@ -4899,3 +4899,23 @@
 "userActivity.simple.empty.visits.subtitle" = "देखें कि हाल ही में आपकी प्रोफ़ाइल किसने देखी।";
 "modernComments.replyTo.placeholder" = "%@ को जवाब दें…";
 "modernComments.loadEarlier" = "पिछली टिप्पणियाँ देखें";
+
+"whatsNew.sectionPersonalize232" = "पर्सनलाइज़ करें";
+"whatsNew.sectionCreate232" = "बनाएँ";
+"whatsNew.sectionMore232" = "और भी";
+"whatsNew.appIcons232.title" = "अपना आइकन चुनें";
+"whatsNew.appIcons232.description" = "सेटिंग्स में होम स्क्रीन के लिए 21 नए आइकन।";
+"whatsNew.seasonalIcons232.title" = "सीज़नल आइकन";
+"whatsNew.seasonalIcons232.description" = "फ़िलहाल क्रिसमस के 8 आइकन, आपके देश के कैलेंडर के हिसाब से।";
+"whatsNew.aiLabel232.title" = "AI से बनाया गया कंटेंट";
+"whatsNew.aiLabel232.description" = "AI से बनाए या एडिट किए कंटेंट पर लेबल लगाएँ। कई इमेज हम खुद पहचान लेते हैं।";
+"whatsNew.tabSwipe232.title" = "टैब के बीच स्वाइप करें";
+"whatsNew.tabSwipe232.description" = "उंगली से एक टैब से दूसरे पर जाएँ, और होम से क्रिएटर तक।";
+"whatsNew.voiceNotes232.title" = "बिना सीमा के वॉइस मैसेज";
+"whatsNew.voiceNotes232.description" = "जितना चाहें रिकॉर्ड करें और ऐप इस्तेमाल करते हुए सुनें।";
+"whatsNew.comments232.title" = "तेज़ कमेंट";
+"whatsNew.comments232.description" = "ज़्यादा कमेंट वाली पोस्ट जल्दी लोड होती हैं।";
+"whatsNew.privacy232.title" = "ज़्यादा प्राइवेसी";
+"whatsNew.privacy232.description" = "हमने आपके डेटा और अकाउंट की सुरक्षा मज़बूत की है।";
+"whatsNew.fluid232.title" = "ज़्यादा तेज़ और सहज";
+"whatsNew.fluid232.description" = "फ़ीड, स्टोरी और चैट में बेहतर परफ़ॉर्मेंस।";

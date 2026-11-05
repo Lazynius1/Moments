@@ -2856,8 +2856,8 @@
 
 /* Whats New v2.16 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Moments is here on iPhone Duo! We’ve redesigned Moments to make the most of both screens.";
-"whatsNew.button" = "Explore Moments 2.31";
+"whatsNew.subtitle" = "Choose your icon, label what you make with AI and swipe between tabs.";
+"whatsNew.button" = "Explore Moments 2.32";
 /* Best Friends */
 "bestFriends.title" = "Best Friends";
 "bestFriends.empty.title" = "No best friends";
@@ -5116,3 +5116,23 @@ For privacy questions or requests, contact us at soporte@momentsapp.app or visit
 "userActivity.simple.empty.visits.subtitle" = "See who visited your profile recently.";
 "modernComments.replyTo.placeholder" = "Reply to %@…";
 "modernComments.loadEarlier" = "View earlier comments";
+
+"whatsNew.sectionPersonalize232" = "Personalize";
+"whatsNew.sectionCreate232" = "Create";
+"whatsNew.sectionMore232" = "And more";
+"whatsNew.appIcons232.title" = "Choose your icon";
+"whatsNew.appIcons232.description" = "21 new icons for your home screen, in Settings.";
+"whatsNew.seasonalIcons232.title" = "Seasonal icons";
+"whatsNew.seasonalIcons232.description" = "For now, 8 Christmas icons, based on your country's calendar.";
+"whatsNew.aiLabel232.title" = "Content made with AI";
+"whatsNew.aiLabel232.description" = "Label what you create or edit with AI. We detect many images for you.";
+"whatsNew.tabSwipe232.title" = "Swipe between tabs";
+"whatsNew.tabSwipe232.description" = "Move between them with a swipe, and from Home into the creator.";
+"whatsNew.voiceNotes232.title" = "Unlimited voice messages";
+"whatsNew.voiceNotes232.description" = "Record as long as you like and listen while you use the app.";
+"whatsNew.comments232.title" = "Faster comments";
+"whatsNew.comments232.description" = "Posts with lots of comments load sooner.";
+"whatsNew.privacy232.title" = "More privacy";
+"whatsNew.privacy232.description" = "We've strengthened the protection of your data and account.";
+"whatsNew.fluid232.title" = "Faster and smoother";
+"whatsNew.fluid232.description" = "Performance improvements in the feed, stories and chats.";

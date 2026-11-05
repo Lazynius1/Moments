@@ -2712,8 +2712,8 @@
 "banner.verb.message" = "あなたにメッセージを送信しました";
 /* Whats New v2.16 */
 "whatsNew.title" = "Momentsの新着！";
-"whatsNew.subtitle" = "MomentsがiPhone Duoに対応しました！2つの画面を最大限に活かせるよう、Momentsをデザインし直しました。";
-"whatsNew.button" = "Moments 2.31を見る";
+"whatsNew.subtitle" = "アイコンを選んだり、AIで作ったものにラベルを付けたり、スワイプでタブを切り替えたりできます。";
+"whatsNew.button" = "Moments 2.32を見てみる";
 /* Best Friends */
 "bestFriends.title" = "親しい友達";
 "bestFriends.empty.title" = "親しい友達はいません";
@@ -4899,3 +4899,23 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "userActivity.simple.empty.visits.subtitle" = "最近プロフィールを訪問した人を確認できます。";
 "modernComments.replyTo.placeholder" = "%@さんに返信…";
 "modernComments.loadEarlier" = "以前のコメントを見る";
+
+"whatsNew.sectionPersonalize232" = "カスタマイズ";
+"whatsNew.sectionCreate232" = "作成";
+"whatsNew.sectionMore232" = "その他";
+"whatsNew.appIcons232.title" = "アイコンを選べる";
+"whatsNew.appIcons232.description" = "「設定」から、ホーム画面用の新しいアイコン21種類を選べます。";
+"whatsNew.seasonalIcons232.title" = "シーズン限定アイコン";
+"whatsNew.seasonalIcons232.description" = "現在は、お住まいの国のカレンダーに合わせてクリスマスアイコン8種類が登場します。";
+"whatsNew.aiLabel232.title" = "AIで作成したコンテンツ";
+"whatsNew.aiLabel232.description" = "AIで作成・編集したものにラベルを付けられます。多くの画像は自動で検出します。";
+"whatsNew.tabSwipe232.title" = "スワイプでタブ切り替え";
+"whatsNew.tabSwipe232.description" = "指でタブを移動でき、ホームからは作成画面に進めます。";
+"whatsNew.voiceNotes232.title" = "音声メッセージが無制限に";
+"whatsNew.voiceNotes232.description" = "好きなだけ録音でき、アプリを使いながら聴けます。";
+"whatsNew.comments232.title" = "コメントの表示が高速に";
+"whatsNew.comments232.description" = "コメントの多い投稿もすばやく読み込まれます。";
+"whatsNew.privacy232.title" = "プライバシーを強化";
+"whatsNew.privacy232.description" = "データとアカウントの保護を強化しました。";
+"whatsNew.fluid232.title" = "より速く、なめらかに";
+"whatsNew.fluid232.description" = "フィード、ストーリー、チャットのパフォーマンスを改善しました。";

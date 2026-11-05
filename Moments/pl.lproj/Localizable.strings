@@ -2712,8 +2712,8 @@
 "banner.verb.message" = "wysłał(a) Ci wiadomość";
 /* Whats New v2.16 */
 "whatsNew.title" = "Nowości w Moments!";
-"whatsNew.subtitle" = "Moments trafia na iPhone Duo! Zaprojektowaliśmy Moments na nowo, żeby w pełni wykorzystać oba ekrany.";
-"whatsNew.button" = "Odkryj Moments 2.31";
+"whatsNew.subtitle" = "Wybierz ikonę, oznaczaj treści tworzone z AI i przesuwaj między kartami.";
+"whatsNew.button" = "Odkryj Moments 2.32";
 /* Best Friends */
 "bestFriends.title" = "Najlepsi znajomi";
 "bestFriends.empty.title" = "Brak najlepszych znajomych";
@@ -4899,3 +4899,23 @@ Możesz zmienić te uprawnienia w ustawieniach iOS. Jeśli je wyłączysz, niekt
 "userActivity.simple.empty.visits.subtitle" = "Zobacz, kto ostatnio odwiedził Twój profil.";
 "modernComments.replyTo.placeholder" = "Odpowiedz %@…";
 "modernComments.loadEarlier" = "Zobacz wcześniejsze komentarze";
+
+"whatsNew.sectionPersonalize232" = "Personalizuj";
+"whatsNew.sectionCreate232" = "Twórz";
+"whatsNew.sectionMore232" = "A także";
+"whatsNew.appIcons232.title" = "Wybierz ikonę";
+"whatsNew.appIcons232.description" = "21 nowych ikon na ekran główny, w Ustawieniach.";
+"whatsNew.seasonalIcons232.title" = "Ikony sezonowe";
+"whatsNew.seasonalIcons232.description" = "Na razie 8 bożonarodzeniowych, zgodnie z kalendarzem Twojego kraju.";
+"whatsNew.aiLabel232.title" = "Treści utworzone przez AI";
+"whatsNew.aiLabel232.description" = "Oznaczaj to, co tworzysz lub zmieniasz za pomocą AI. Wiele obrazów wykrywamy za Ciebie.";
+"whatsNew.tabSwipe232.title" = "Przesuwaj między kartami";
+"whatsNew.tabSwipe232.description" = "Zmieniaj je palcem, a ze strony głównej przejdź do kreatora.";
+"whatsNew.voiceNotes232.title" = "Wiadomości głosowe bez limitu";
+"whatsNew.voiceNotes232.description" = "Nagrywaj, ile chcesz, i słuchaj ich podczas korzystania z aplikacji.";
+"whatsNew.comments232.title" = "Szybsze komentarze";
+"whatsNew.comments232.description" = "Posty z wieloma komentarzami ładują się szybciej.";
+"whatsNew.privacy232.title" = "Więcej prywatności";
+"whatsNew.privacy232.description" = "Wzmocniliśmy ochronę Twoich danych i konta.";
+"whatsNew.fluid232.title" = "Szybciej i płynniej";
+"whatsNew.fluid232.description" = "Lepsza wydajność kanału, relacji i czatów.";

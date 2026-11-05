@@ -2712,8 +2712,8 @@
 "banner.verb.message" = "stuurde je een bericht";
 /* Whats New v2.16 */
 "whatsNew.title" = "Nieuw in Moments!";
-"whatsNew.subtitle" = "Moments is er voor iPhone Duo! We hebben Moments opnieuw ontworpen om alles uit de twee schermen te halen.";
-"whatsNew.button" = "Ontdek Moments 2.31";
+"whatsNew.subtitle" = "Kies je icoon, label wat je met AI maakt en swipe tussen tabbladen.";
+"whatsNew.button" = "Ontdek Moments 2.32";
 /* Best Friends */
 "bestFriends.title" = "Beste vrienden";
 "bestFriends.empty.title" = "Geen beste vrienden";
@@ -4899,3 +4899,23 @@ Je kunt deze toestemmingen wijzigen in de iOS-instellingen. Als je ze uitschakel
 "userActivity.simple.empty.visits.subtitle" = "Bekijk wie je profiel onlangs heeft bezocht.";
 "modernComments.replyTo.placeholder" = "Reageer op %@…";
 "modernComments.loadEarlier" = "Eerdere reacties bekijken";
+
+"whatsNew.sectionPersonalize232" = "Personaliseren";
+"whatsNew.sectionCreate232" = "Maken";
+"whatsNew.sectionMore232" = "En verder";
+"whatsNew.appIcons232.title" = "Kies je icoon";
+"whatsNew.appIcons232.description" = "21 nieuwe iconen voor je beginscherm, via Instellingen.";
+"whatsNew.seasonalIcons232.title" = "Seizoensiconen";
+"whatsNew.seasonalIcons232.description" = "Nu 8 kersticonen, afgestemd op de kalender van je land.";
+"whatsNew.aiLabel232.title" = "Content gemaakt met AI";
+"whatsNew.aiLabel232.description" = "Label wat je met AI maakt of bewerkt. Veel afbeeldingen herkennen we voor je.";
+"whatsNew.tabSwipe232.title" = "Swipe tussen tabbladen";
+"whatsNew.tabSwipe232.description" = "Wissel met één veeg, en ga vanaf Start meteen iets maken.";
+"whatsNew.voiceNotes232.title" = "Spraakberichten zonder limiet";
+"whatsNew.voiceNotes232.description" = "Neem zo lang op als je wilt en luister terwijl je de app gebruikt.";
+"whatsNew.comments232.title" = "Snellere reacties";
+"whatsNew.comments232.description" = "Posts met veel reacties laden sneller.";
+"whatsNew.privacy232.title" = "Meer privacy";
+"whatsNew.privacy232.description" = "We hebben de bescherming van je gegevens en account versterkt.";
+"whatsNew.fluid232.title" = "Sneller en soepeler";
+"whatsNew.fluid232.description" = "Betere prestaties in de feed, verhalen en chats.";

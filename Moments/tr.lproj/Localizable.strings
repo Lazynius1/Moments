@@ -2712,8 +2712,8 @@
 "banner.verb.message" = "sana mesaj gönderdi";
 /* Whats New v2.16 */
 "whatsNew.title" = "Moments'ta yenilikler!";
-"whatsNew.subtitle" = "Moments iPhone Duo’ya geldi! Moments’ı iki ekrandan da en iyi şekilde yararlanman için yeniden tasarladık.";
-"whatsNew.button" = "Moments 2.31’i keşfet";
+"whatsNew.subtitle" = "Simgeni seç, yapay zekâyla oluşturduklarını etiketle ve sekmeler arasında kaydır.";
+"whatsNew.button" = "Moments 2.32'yi keşfet";
 /* Best Friends */
 "bestFriends.title" = "Yakın Arkadaşlar";
 "bestFriends.empty.title" = "Yakın arkadaş yok";
@@ -4899,3 +4899,23 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "userActivity.simple.empty.visits.subtitle" = "Profilini son zamanlarda kimin ziyaret ettiğini gör.";
 "modernComments.replyTo.placeholder" = "%@ kişisine yanıt ver…";
 "modernComments.loadEarlier" = "Önceki yorumları gör";
+
+"whatsNew.sectionPersonalize232" = "Kişiselleştir";
+"whatsNew.sectionCreate232" = "Oluştur";
+"whatsNew.sectionMore232" = "Ve dahası";
+"whatsNew.appIcons232.title" = "Simgeni seç";
+"whatsNew.appIcons232.description" = "Ana ekranın için 21 yeni simge, Ayarlar'da.";
+"whatsNew.seasonalIcons232.title" = "Sezonluk simgeler";
+"whatsNew.seasonalIcons232.description" = "Şimdilik ülkenin takvimine göre 8 Noel simgesi.";
+"whatsNew.aiLabel232.title" = "Yapay zekâyla oluşturulan içerik";
+"whatsNew.aiLabel232.description" = "Yapay zekâyla oluşturduğun veya düzenlediğin içeriği etiketle. Birçok görseli senin için algılıyoruz.";
+"whatsNew.tabSwipe232.title" = "Sekmeler arasında kaydır";
+"whatsNew.tabSwipe232.description" = "Parmağınla geçiş yap, Ana sayfadan da oluşturma ekranına git.";
+"whatsNew.voiceNotes232.title" = "Sınırsız sesli mesajlar";
+"whatsNew.voiceNotes232.description" = "İstediğin kadar kaydet ve uygulamayı kullanırken dinle.";
+"whatsNew.comments232.title" = "Daha hızlı yorumlar";
+"whatsNew.comments232.description" = "Çok yorum alan gönderiler daha çabuk yüklenir.";
+"whatsNew.privacy232.title" = "Daha fazla gizlilik";
+"whatsNew.privacy232.description" = "Verilerinin ve hesabının korumasını güçlendirdik.";
+"whatsNew.fluid232.title" = "Daha hızlı ve akıcı";
+"whatsNew.fluid232.description" = "Akış, hikâyeler ve sohbetlerde performans iyileştirmeleri.";

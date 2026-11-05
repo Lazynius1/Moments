@@ -1,0 +1,607 @@
+<es-ES>
+Novedades de Moments (v2.32)
+
+Elige tu icono, etiqueta lo que creas con IA y muévete por la app deslizando.
+
+En esta versión:
+
+ICONOS DE LA APP
+- 29 iconos nuevos para tu pantalla de inicio desde Configuración > Apariencia: 21 para todo el año (colores, estilos, materiales y Orgullo) y 8 de temporada.
+- Iconos de temporada: ahora, 8 de Navidad, según el calendario de tu país. Si eliges uno, se queda aunque terminen las fiestas.
+
+CONTENIDO CREADO CON IA
+- Marca tus momentos e historias si los has creado o retocado con IA.
+- Detectamos automáticamente muchas imágenes generadas con IA y activamos la etiqueta por ti.
+- El contenido creado con IA muestra una etiqueta visible; tócala para saber más.
+- Nuevo motivo para denunciar contenido de IA sin etiquetar.
+
+NAVEGACIÓN
+- Desliza entre Inicio, Mensajes, Explorar y Perfil.
+- Desde Inicio, desliza hacia la derecha para abrir el creador.
+
+NOTAS DE VOZ
+- Graba sin límite de duración.
+- Siguen sonando al hacer scroll o salir del chat, con una barra en la lista de chats para controlarlas.
+- Al terminar una, empieza la siguiente.
+
+COMENTARIOS
+- Los posts con muchos comentarios cargan más rápido, y puedes ver los anteriores cuando quieras.
+
+PRIVACIDAD Y SEGURIDAD
+- Reforzamos la protección de tus datos personales y de tu cuenta.
+
+Y ADEMÁS
+- La app, completamente traducida a todos sus idiomas.
+- Mejoras de rendimiento en el feed, las historias y los chats para que todo vaya más fluido.
+- Corrección de errores y mejoras de estabilidad.
+</es-ES>
+
+<ca>
+Novetats de Moments (v2.32)
+
+Tria la teva icona, etiqueta el que crees amb IA i mou-te per l’app lliscant.
+
+En aquesta versió:
+
+ICONES DE L’APP
+- 29 icones noves per a la pantalla d’inici des de Configuració > Aparença: 21 per a tot l’any (colors, estils, materials i Orgull) i 8 de temporada.
+- Icones de temporada: ara, 8 de Nadal, segons el calendari del teu país. Si en tries una, es manté encara que acabin les festes.
+
+CONTINGUT CREAT AMB IA
+- Marca els teus moments i històries si els has creat o retocat amb IA.
+- Detectem automàticament moltes imatges generades amb IA i activem l’etiqueta per tu.
+- El contingut creat amb IA mostra una etiqueta visible; toca-la per saber-ne més.
+- Nou motiu per denunciar contingut d’IA sense etiquetar.
+
+NAVEGACIÓ
+- Llisca entre Inici, Missatges, Explorar i Perfil.
+- Des d’Inici, llisca cap a la dreta per obrir el creador.
+
+NOTES DE VEU
+- Grava sense límit de durada.
+- Continuen sonant quan fas scroll o surts del xat, amb una barra a la llista de xats per controlar-les.
+- Quan n’acaba una, comença la següent.
+
+COMENTARIS
+- Les publicacions amb molts comentaris carreguen més ràpid, i pots veure els anteriors quan vulguis.
+
+PRIVADESA I SEGURETAT
+- Hem reforçat la protecció de les teves dades personals i del teu compte.
+
+I A MÉS
+- L’app, completament traduïda a tots els seus idiomes.
+- Millores de rendiment al feed, les històries i els xats perquè tot vagi més fluid.
+- Correcció d’errors i millores d’estabilitat.
+</ca>
+
+<en-US>
+What’s new in Moments (v2.32)
+
+Choose your icon, label what you create with AI and swipe your way around the app.
+
+In this update:
+
+APP ICONS
+- 29 new icons for your Home Screen in Settings > Appearance: 21 year-round (colors, styles, materials and Pride) and 8 seasonal.
+- Seasonal icons: for now, 8 Christmas icons, based on your country’s calendar. If you pick one, it stays even after the holidays end.
+
+CONTENT MADE WITH AI
+- Label your moments and stories if you created or edited them with AI.
+- We automatically detect many AI-generated images and turn on the label for you.
+- Content made with AI shows a visible label; tap it to learn more.
+- A new reason to report unlabeled AI content.
+
+NAVIGATION
+- Swipe between Home, Messages, Explore and Profile.
+- From Home, swipe right to open the creator.
+
+VOICE MESSAGES
+- Record with no time limit.
+- They keep playing when you scroll or leave the chat, with a bar in your chat list to control them.
+- When one ends, the next one starts.
+
+COMMENTS
+- Posts with lots of comments load faster, and you can view earlier ones whenever you like.
+
+PRIVACY AND SECURITY
+- We’ve strengthened the protection of your personal data and your account.
+
+AND MORE
+- The app is now fully translated into all its languages.
+- Performance improvements in the feed, stories and chats so everything runs more smoothly.
+- Bug fixes and stability improvements.
+</en-US>
+
+<de-DE>
+Neu in Moments (v2.32)
+
+Wähle dein Icon, kennzeichne, was du mit KI erstellst, und wische dich durch die App.
+
+In diesem Update:
+
+APP-ICONS
+- 29 neue Icons für deinen Home-Bildschirm unter Einstellungen > Darstellung: 21 fürs ganze Jahr (Farben, Stile, Materialien und Pride) und 8 saisonale.
+- Saisonale Icons: Jetzt 8 zu Weihnachten, passend zum Kalender deines Landes. Wenn du eines auswählst, bleibt es auch nach den Feiertagen.
+
+MIT KI ERSTELLTE INHALTE
+- Kennzeichne deine Moments und Stories, wenn du sie mit KI erstellt oder bearbeitet hast.
+- Viele KI-generierte Bilder erkennen wir automatisch und aktivieren das Label für dich.
+- Mit KI erstellte Inhalte zeigen ein sichtbares Label; tippe darauf, um mehr zu erfahren.
+- Neuer Meldegrund für KI-Inhalte ohne Label.
+
+NAVIGATION
+- Wische zwischen Start, Nachrichten, Entdecken und Profil.
+- Wische auf Start nach rechts, um direkt etwas zu erstellen.
+
+SPRACHNACHRICHTEN
+- Nimm ohne Zeitlimit auf.
+- Sie laufen weiter, wenn du scrollst oder den Chat verlässt – mit einer Leiste in der Chatliste zur Steuerung.
+- Ist eine zu Ende, startet die nächste.
+
+KOMMENTARE
+- Beiträge mit vielen Kommentaren laden schneller, und ältere kannst du jederzeit ansehen.
+
+DATENSCHUTZ UND SICHERHEIT
+- Wir haben den Schutz deiner persönlichen Daten und deines Kontos verstärkt.
+
+UND AUSSERDEM
+- Die App ist jetzt vollständig in alle ihre Sprachen übersetzt.
+- Bessere Leistung in Feed, Stories und Chats, damit alles flüssiger läuft.
+- Fehlerbehebungen und Stabilitätsverbesserungen.
+</de-DE>
+
+<fr-FR>
+Moments : nouveautés (v2.32)
+
+Choisissez votre icône, signalez ce que vous créez avec l’IA et naviguez dans l’app d’un simple balayage.
+
+Dans cette version :
+
+ICÔNES DE L’APP
+- 29 nouvelles icônes pour votre écran d’accueil dans Réglages > Apparence : 21 pour toute l’année (couleurs, styles, matières et Fierté) et 8 saisonnières.
+- Icônes saisonnières : pour l’instant, 8 icônes de Noël, selon le calendrier de votre pays. Si vous en choisissez une, elle reste même après les fêtes.
+
+CONTENU CRÉÉ AVEC L’IA
+- Indiquez si vos moments et stories ont été créés ou retouchés avec l’IA.
+- Nous détectons automatiquement de nombreuses images générées par IA et activons l’étiquette pour vous.
+- Le contenu créé avec l’IA affiche une étiquette visible ; touchez-la pour en savoir plus.
+- Nouveau motif pour signaler un contenu IA sans étiquette.
+
+NAVIGATION
+- Balayez entre Accueil, Messages, Explorer et Profil.
+- Depuis l’Accueil, balayez vers la droite pour ouvrir l’outil de création.
+
+MESSAGES VOCAUX
+- Enregistrez sans limite de durée.
+- Ils continuent de jouer quand vous faites défiler ou quittez le chat, avec une barre dans la liste des chats pour les contrôler.
+- Quand l’un se termine, le suivant démarre.
+
+COMMENTAIRES
+- Les posts avec beaucoup de commentaires se chargent plus vite, et vous pouvez afficher les plus anciens quand vous voulez.
+
+CONFIDENTIALITÉ ET SÉCURITÉ
+- Nous avons renforcé la protection de vos données personnelles et de votre compte.
+
+ET AUSSI
+- L’app est désormais entièrement traduite dans toutes ses langues.
+- Meilleures performances dans le fil, les stories et les chats pour plus de fluidité.
+- Corrections de bugs et améliorations de la stabilité.
+</fr-FR>
+
+<it>
+Novità di Moments (v2.32)
+
+Scegli la tua icona, etichetta ciò che crei con l’IA e muoviti nell’app con uno swipe.
+
+In questa versione:
+
+ICONE DELL’APP
+- 29 nuove icone per la schermata Home da Impostazioni > Aspetto: 21 per tutto l’anno (colori, stili, materiali e Pride) e 8 stagionali.
+- Icone stagionali: per ora, 8 di Natale, in base al calendario del tuo Paese. Se ne scegli una, resta anche dopo la fine delle feste.
+
+CONTENUTI CREATI CON L’IA
+- Contrassegna i tuoi momenti e le tue storie se li hai creati o ritoccati con l’IA.
+- Rileviamo automaticamente molte immagini generate con l’IA e attiviamo l’etichetta per te.
+- I contenuti creati con l’IA mostrano un’etichetta visibile; toccala per saperne di più.
+- Nuovo motivo per segnalare contenuti IA senza etichetta.
+
+NAVIGAZIONE
+- Scorri tra Home, Messaggi, Esplora e Profilo.
+- Dalla Home, scorri verso destra per aprire la creazione.
+
+MESSAGGI VOCALI
+- Registra senza limiti di durata.
+- Continuano a suonare mentre scorri o esci dalla chat, con una barra nell’elenco chat per controllarli.
+- Quando ne finisce uno, parte il successivo.
+
+COMMENTI
+- I post con molti commenti si caricano più velocemente, e puoi vedere quelli precedenti quando vuoi.
+
+PRIVACY E SICUREZZA
+- Abbiamo rafforzato la protezione dei tuoi dati personali e del tuo account.
+
+E INOLTRE
+- L’app è ora completamente tradotta in tutte le sue lingue.
+- Prestazioni migliori nel feed, nelle storie e nelle chat, per un’esperienza più fluida.
+- Correzioni di bug e miglioramenti della stabilità.
+</it>
+
+<pt-BR>
+Novidades do Moments (v2.32)
+
+Escolha seu ícone, identifique o que você cria com IA e navegue pelo app deslizando.
+
+Nesta versão:
+
+ÍCONES DO APP
+- 29 ícones novos para a tela de início em Configurações > Aparência: 21 para o ano todo (cores, estilos, materiais e Orgulho) e 8 sazonais.
+- Ícones sazonais: por enquanto, 8 de Natal, de acordo com o calendário do seu país. Se você escolher um, ele continua mesmo depois que as festas acabarem.
+
+CONTEÚDO CRIADO COM IA
+- Marque seus momentos e stories se você os criou ou editou com IA.
+- Detectamos automaticamente muitas imagens geradas por IA e ativamos o rótulo para você.
+- O conteúdo criado com IA mostra um rótulo visível; toque nele para saber mais.
+- Novo motivo para denunciar conteúdo de IA sem rótulo.
+
+NAVEGAÇÃO
+- Deslize entre Início, Mensagens, Explorar e Perfil.
+- No Início, deslize para a direita para abrir o criador.
+
+MENSAGENS DE VOZ
+- Grave sem limite de duração.
+- Elas continuam tocando ao rolar a tela ou sair do chat, com uma barra na lista de chats para controlá-las.
+- Quando uma termina, a próxima começa.
+
+COMENTÁRIOS
+- Posts com muitos comentários carregam mais rápido, e você pode ver os anteriores quando quiser.
+
+PRIVACIDADE E SEGURANÇA
+- Reforçamos a proteção dos seus dados pessoais e da sua conta.
+
+E MAIS
+- O app agora está totalmente traduzido para todos os seus idiomas.
+- Melhorias de desempenho no feed, nos stories e nos chats para tudo ficar mais fluido.
+- Correções de bugs e melhorias de estabilidade.
+</pt-BR>
+
+<pt-PT>
+Novidades do Moments (v2.32)
+
+Escolhe o teu ícone, identifica o que crias com IA e navega pela app a deslizar.
+
+Nesta versão:
+
+ÍCONES DA APP
+- 29 ícones novos para o ecrã principal em Definições > Aparência: 21 para todo o ano (cores, estilos, materiais e Orgulho) e 8 sazonais.
+- Ícones sazonais: para já, 8 de Natal, de acordo com o calendário do teu país. Se escolheres um, mantém-se mesmo depois de as festas acabarem.
+
+CONTEÚDO CRIADO COM IA
+- Marca os teus momentos e histórias se os criaste ou editaste com IA.
+- Detetamos automaticamente muitas imagens geradas com IA e ativamos a etiqueta por ti.
+- O conteúdo criado com IA mostra uma etiqueta visível; toca nela para saberes mais.
+- Novo motivo para denunciar conteúdo de IA sem etiqueta.
+
+NAVEGAÇÃO
+- Desliza entre Início, Mensagens, Explorar e Perfil.
+- No Início, desliza para a direita para abrir o criador.
+
+MENSAGENS DE VOZ
+- Grava sem limite de duração.
+- Continuam a tocar quando fazes scroll ou sais da conversa, com uma barra na lista de conversas para as controlares.
+- Quando uma termina, começa a seguinte.
+
+COMENTÁRIOS
+- As publicações com muitos comentários carregam mais depressa, e podes ver os anteriores quando quiseres.
+
+PRIVACIDADE E SEGURANÇA
+- Reforçámos a proteção dos teus dados pessoais e da tua conta.
+
+E AINDA
+- A app está agora totalmente traduzida para todos os seus idiomas.
+- Melhorias de desempenho no feed, nas histórias e nas conversas para que tudo seja mais fluido.
+- Correções de erros e melhorias de estabilidade.
+</pt-PT>
+
+<nl-NL>
+Nieuw in Moments (v2.32)
+
+Kies je icoon, label wat je met AI maakt en swipe door de app.
+
+In deze update:
+
+APP-ICONEN
+- 29 nieuwe iconen voor je beginscherm via Instellingen > Weergave: 21 voor het hele jaar (kleuren, stijlen, materialen en Pride) en 8 seizoensiconen.
+- Seizoensiconen: nu 8 kersticonen, afgestemd op de kalender van je land. Kies je er een, dan blijft die ook na de feestdagen.
+
+CONTENT GEMAAKT MET AI
+- Markeer je momenten en verhalen als je ze met AI hebt gemaakt of bewerkt.
+- We herkennen veel AI-afbeeldingen automatisch en zetten het label voor je aan.
+- Content gemaakt met AI toont een zichtbaar label; tik erop voor meer info.
+- Nieuwe reden om AI-content zonder label te melden.
+
+NAVIGATIE
+- Swipe tussen Start, Berichten, Ontdekken en Profiel.
+- Swipe vanaf Start naar rechts om meteen iets te maken.
+
+SPRAAKBERICHTEN
+- Neem op zonder tijdslimiet.
+- Ze blijven spelen als je scrolt of de chat verlaat, met een balk in je chatlijst om ze te bedienen.
+- Is er een afgelopen, dan start de volgende.
+
+REACTIES
+- Posts met veel reacties laden sneller, en je kunt eerdere reacties bekijken wanneer je wilt.
+
+PRIVACY EN BEVEILIGING
+- We hebben de bescherming van je persoonsgegevens en je account versterkt.
+
+EN VERDER
+- De app is nu volledig vertaald in al zijn talen.
+- Betere prestaties in de feed, verhalen en chats, zodat alles soepeler loopt.
+- Bugfixes en verbeterde stabiliteit.
+</nl-NL>
+
+<pl>
+Nowości w Moments (v2.32)
+
+Wybierz ikonę, oznaczaj treści tworzone z AI i poruszaj się po aplikacji przesunięciem palca.
+
+W tej wersji:
+
+IKONY APLIKACJI
+- 29 nowych ikon na ekran główny w Ustawienia > Wygląd: 21 na cały rok (kolory, style, materiały i Duma) oraz 8 sezonowych.
+- Ikony sezonowe: na razie 8 bożonarodzeniowych, zgodnie z kalendarzem Twojego kraju. Jeśli wybierzesz jedną z nich, zostanie także po świętach.
+
+TREŚCI UTWORZONE PRZEZ AI
+- Oznaczaj swoje momenty i relacje, jeśli powstały lub zostały zmienione za pomocą AI.
+- Automatycznie wykrywamy wiele obrazów wygenerowanych przez AI i włączamy etykietę za Ciebie.
+- Treści utworzone przez AI mają widoczną etykietę; dotknij jej, aby dowiedzieć się więcej.
+- Nowy powód zgłoszenia treści AI bez etykiety.
+
+NAWIGACJA
+- Przesuwaj między kartami Strona główna, Wiadomości, Odkrywaj i Profil.
+- Na stronie głównej przesuń w prawo, aby otworzyć kreator.
+
+WIADOMOŚCI GŁOSOWE
+- Nagrywaj bez limitu czasu.
+- Odtwarzają się dalej, gdy przewijasz lub wychodzisz z czatu, a pasek na liście czatów pozwala nimi sterować.
+- Gdy jedna się skończy, zaczyna się następna.
+
+KOMENTARZE
+- Posty z wieloma komentarzami ładują się szybciej, a wcześniejsze możesz zobaczyć, kiedy chcesz.
+
+PRYWATNOŚĆ I BEZPIECZEŃSTWO
+- Wzmocniliśmy ochronę Twoich danych osobowych i konta.
+
+A TAKŻE
+- Aplikacja w pełni przetłumaczona na wszystkie dostępne języki.
+- Lepsza wydajność kanału, relacji i czatów, aby wszystko działało płynniej.
+- Poprawki błędów i większa stabilność.
+</pl>
+
+<tr>
+Moments’ta yenilikler (v2.32)
+
+Simgeni seç, yapay zekâyla oluşturduklarını etiketle ve uygulamada kaydırarak gezin.
+
+Bu sürümde:
+
+UYGULAMA SİMGELERİ
+- Ayarlar > Görünüm’de ana ekranın için 29 yeni simge: yıl boyu kullanabileceğin 21 simge (renkler, stiller, malzemeler ve Onur) ve 8 sezonluk simge.
+- Sezonluk simgeler: şimdilik ülkenin takvimine göre 8 Noel simgesi. Birini seçersen tatil bittikten sonra da kalır.
+
+YAPAY ZEKÂYLA OLUŞTURULAN İÇERİK
+- Anlarını ve hikâyelerini yapay zekâyla oluşturduysan veya düzenlediysen işaretle.
+- Yapay zekâyla üretilmiş birçok görseli otomatik olarak algılıyor ve etiketi senin için açıyoruz.
+- Yapay zekâyla oluşturulan içerikte görünür bir etiket yer alır; daha fazla bilgi için ona dokun.
+- Etiketsiz yapay zekâ içeriğini bildirmek için yeni bir neden.
+
+GEZİNME
+- Ana sayfa, Mesajlar, Keşfet ve Profil arasında kaydır.
+- Ana sayfada sağa kaydırarak oluşturma ekranını aç.
+
+SESLİ MESAJLAR
+- Süre sınırı olmadan kaydet.
+- Kaydırırken veya sohbetten çıktığında da çalmaya devam eder; sohbet listesindeki bir çubukla kontrol edebilirsin.
+- Biri bittiğinde sıradaki başlar.
+
+YORUMLAR
+- Çok yorum alan gönderiler daha hızlı yüklenir ve önceki yorumları istediğin zaman görebilirsin.
+
+GİZLİLİK VE GÜVENLİK
+- Kişisel verilerinin ve hesabının korumasını güçlendirdik.
+
+VE DAHASI
+- Uygulama artık tüm dillerine eksiksiz çevrildi.
+- Akış, hikâyeler ve sohbetlerde performans iyileştirmeleri; her şey daha akıcı.
+- Hata düzeltmeleri ve kararlılık iyileştirmeleri.
+</tr>
+
+<hi>
+Moments में नया (v2.32)
+
+अपना आइकन चुनें, AI से बनाए कंटेंट पर लेबल लगाएँ और स्वाइप करके ऐप में घूमें।
+
+इस संस्करण में:
+
+ऐप आइकन
+- सेटिंग्स > रूप-रंग में होम स्क्रीन के लिए 29 नए आइकन: पूरे साल के लिए 21 (रंग, स्टाइल, मटीरियल और प्राइड) और 8 सीज़नल।
+- सीज़नल आइकन: फ़िलहाल आपके देश के कैलेंडर के हिसाब से क्रिसमस के 8 आइकन। अगर आप कोई चुनते हैं, तो त्योहार खत्म होने के बाद भी वही रहता है।
+
+AI से बनाया गया कंटेंट
+- अगर आपने अपने मोमेंट और स्टोरी AI से बनाए या एडिट किए हैं, तो उन पर निशान लगाएँ।
+- AI से बनी कई इमेज हम अपने-आप पहचान लेते हैं और आपके लिए लेबल चालू कर देते हैं।
+- AI से बने कंटेंट पर साफ़ दिखने वाला लेबल होता है; ज़्यादा जानने के लिए उस पर टैप करें।
+- बिना लेबल वाले AI कंटेंट की रिपोर्ट करने के लिए नई वजह।
+
+नेविगेशन
+- होम, मैसेज, एक्सप्लोर और प्रोफ़ाइल के बीच स्वाइप करें।
+- होम से दाईं ओर स्वाइप करके क्रिएटर खोलें।
+
+वॉइस मैसेज
+- बिना समय सीमा के रिकॉर्ड करें।
+- स्क्रॉल करने या चैट से बाहर जाने पर भी चलते रहते हैं; चैट लिस्ट में मौजूद प्लेयर बार से इन्हें कंट्रोल करें।
+- एक खत्म होते ही अगला शुरू हो जाता है।
+
+कमेंट
+- ज़्यादा कमेंट वाली पोस्ट तेज़ी से लोड होती हैं, और पुराने कमेंट आप जब चाहें देख सकते हैं।
+
+प्राइवेसी और सुरक्षा
+- हमने आपके निजी डेटा और अकाउंट की सुरक्षा और मज़बूत की है।
+
+और भी
+- ऐप अब अपनी सभी भाषाओं में पूरी तरह अनुवादित है।
+- फ़ीड, स्टोरी और चैट में बेहतर परफ़ॉर्मेंस, ताकि सब कुछ ज़्यादा सहज चले।
+- बग फ़िक्स और स्थिरता में सुधार।
+</hi>
+
+<id>
+Yang baru di Moments (v2.32)
+
+Pilih ikonmu, beri label pada yang kamu buat dengan AI, dan jelajahi aplikasi dengan menggeser.
+
+Di versi ini:
+
+IKON APLIKASI
+- 29 ikon baru untuk layar utama di Pengaturan > Tampilan: 21 untuk sepanjang tahun (warna, gaya, material, dan Pride) dan 8 ikon musiman.
+- Ikon musiman: untuk saat ini, 8 ikon Natal sesuai kalender negaramu. Kalau kamu memilih salah satunya, ikon itu tetap terpasang meski liburan sudah usai.
+
+KONTEN YANG DIBUAT DENGAN AI
+- Tandai momen dan story-mu jika dibuat atau diedit dengan AI.
+- Kami otomatis mendeteksi banyak gambar buatan AI dan mengaktifkan labelnya untukmu.
+- Konten yang dibuat dengan AI menampilkan label yang terlihat; ketuk untuk info lebih lanjut.
+- Alasan baru untuk melaporkan konten AI tanpa label.
+
+NAVIGASI
+- Geser di antara Beranda, Pesan, Jelajahi, dan Profil.
+- Dari Beranda, geser ke kanan untuk membuka pembuat konten.
+
+PESAN SUARA
+- Rekam tanpa batas durasi.
+- Tetap diputar saat kamu menggulir atau keluar dari chat, dengan bilah di daftar chat untuk mengontrolnya.
+- Setelah satu selesai, yang berikutnya langsung diputar.
+
+KOMENTAR
+- Postingan dengan banyak komentar dimuat lebih cepat, dan kamu bisa melihat komentar sebelumnya kapan saja.
+
+PRIVASI DAN KEAMANAN
+- Kami memperkuat perlindungan data pribadi dan akunmu.
+
+DAN LAINNYA
+- Aplikasi kini sepenuhnya diterjemahkan ke semua bahasanya.
+- Peningkatan performa di feed, story, dan chat agar semuanya lebih lancar.
+- Perbaikan bug dan peningkatan stabilitas.
+</id>
+
+<ja>
+Momentsの新機能（v2.32）
+
+アイコンを選んだり、AIで作成したコンテンツにラベルを付けたり、スワイプでアプリ内を移動したりできるようになりました。
+
+今回のアップデート：
+
+アプリアイコン
+- 「設定」>「外観」から、ホーム画面用の新しいアイコン29種類を選べます。通年の21種類（カラー、スタイル、素材、プライド）と、シーズン限定の8種類です。
+- シーズン限定アイコン：現在は、お住まいの国のカレンダーに合わせてクリスマスアイコン8種類が登場します。選んだアイコンは、シーズンが終わってもそのまま使えます。
+
+AIで作成したコンテンツ
+- AIで作成・編集したモーメントやストーリーにラベルを付けられます。
+- AIで生成された画像の多くを自動で検出し、ラベルをオンにします。
+- AIで作成したコンテンツにはラベルが表示されます。タップすると詳細を確認できます。
+- ラベルのないAIコンテンツを報告するための項目を追加しました。
+
+ナビゲーション
+- ホーム、メッセージ、見つける、プロフィールをスワイプで切り替えられます。
+- ホームで右にスワイプすると作成画面が開きます。
+
+音声メッセージ
+- 録音時間の制限がなくなりました。
+- スクロール中やチャットを離れても再生が続き、チャット一覧のバーから操作できます。
+- 1件の再生が終わると、次のメッセージが自動で再生されます。
+
+コメント
+- コメントの多い投稿がより速く読み込まれ、以前のコメントもいつでも表示できます。
+
+プライバシーとセキュリティ
+- 個人データとアカウントの保護を強化しました。
+
+その他
+- すべての対応言語で、アプリの翻訳が完全になりました。
+- フィード、ストーリー、チャットのパフォーマンスを改善し、より快適に動作するようになりました。
+- バグを修正し、安定性を向上しました。
+</ja>
+
+<ko>
+Moments의 새로운 기능 (v2.32)
+
+아이콘을 고르고, AI로 만든 콘텐츠에 라벨을 달고, 스와이프로 앱을 둘러보세요.
+
+이번 업데이트:
+
+앱 아이콘
+- 설정 > 모양에서 홈 화면용 새 아이콘 29개를 고를 수 있어요: 연중 아이콘 21개(색상, 스타일, 소재, 프라이드)와 시즌 아이콘 8개.
+- 시즌 아이콘: 지금은 국가별 달력에 맞춰 크리스마스 아이콘 8개가 제공돼요. 하나를 선택하면 시즌이 끝나도 그대로 유지돼요.
+
+AI로 생성한 콘텐츠
+- AI로 만들거나 편집한 모먼트와 스토리에 표시할 수 있어요.
+- AI로 생성된 많은 이미지를 자동으로 감지해 라벨을 대신 켜 드려요.
+- AI로 생성된 콘텐츠에는 라벨이 표시돼요. 탭하면 자세한 내용을 볼 수 있어요.
+- 라벨 없는 AI 콘텐츠를 신고하는 새로운 사유가 추가됐어요.
+
+내비게이션
+- 홈, 메시지, 탐색, 프로필 사이를 스와이프로 이동하세요.
+- 홈에서 오른쪽으로 스와이프하면 만들기 화면이 열려요.
+
+음성 메시지
+- 시간 제한 없이 녹음할 수 있어요.
+- 스크롤하거나 채팅을 나가도 계속 재생되고, 채팅 목록의 바에서 조작할 수 있어요.
+- 하나가 끝나면 다음 메시지가 이어서 재생돼요.
+
+댓글
+- 댓글이 많은 게시물도 더 빨리 로드되고, 이전 댓글은 언제든 볼 수 있어요.
+
+개인정보 보호 및 보안
+- 개인 데이터와 계정 보호를 강화했어요.
+
+그 밖에
+- 앱이 지원하는 모든 언어로 완전히 번역됐어요.
+- 피드, 스토리, 채팅의 성능을 개선해 모든 것이 더 부드러워졌어요.
+- 버그 수정 및 안정성 개선.
+</ko>
+
+<zh-Hant>
+Moments 最新功能（v2.32）
+
+選擇專屬圖示、為使用 AI 製作的內容加上標示，還能用滑動在 App 中自在切換。
+
+本次更新：
+
+APP 圖示
+- 前往「設定」>「外觀」，挑選 29 款全新主畫面圖示：21 款全年可用（色彩、風格、材質與驕傲系列），另有 8 款季節限定。
+- 季節限定圖示：目前推出 8 款聖誕圖示，依你所在國家的日曆提供。選用後，即使節慶結束也會保留。
+
+使用 AI 製作的內容
+- 若你的 Moment 或限時動態是用 AI 製作或修飾，可以為它加上標示。
+- 我們會自動偵測許多 AI 生成的圖片，並為你開啟標示。
+- 使用 AI 製作的內容會顯示明顯標示，點一下即可了解詳情。
+- 新增檢舉理由：未標示的 AI 內容。
+
+導覽
+- 在首頁、訊息、探索和個人檔案之間滑動切換。
+- 在首頁向右滑，即可開啟建立畫面。
+
+語音訊息
+- 錄音不再有時間限制。
+- 捲動畫面或離開聊天時仍會繼續播放，並可透過聊天列表中的播放列控制。
+- 一則播放完畢，就會接著播放下一則。
+
+留言
+- 留言很多的貼文載入更快，也能隨時查看先前的留言。
+
+隱私與安全
+- 加強保護你的個人資料與帳號。
+
+其他更新
+- App 已完整翻譯為所有支援語言。
+- 提升動態消息、限時動態和聊天的效能，使用起來更流暢。
+- 錯誤修正與穩定性改善。
+</zh-Hant>

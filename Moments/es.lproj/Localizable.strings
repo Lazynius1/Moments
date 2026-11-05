@@ -2881,8 +2881,8 @@
 /* Whats New v2.14 */
 /* Whats New v2.16 */
 "whatsNew.title" = "¡Novedades en Moments!";
-"whatsNew.subtitle" = "¡Moments llega al iPhone Duo! Hemos rediseñado Moments para sacarle todo el partido a sus dos pantallas.";
-"whatsNew.button" = "Explorar Moments 2.31";
+"whatsNew.subtitle" = "Elige tu icono, etiqueta lo que creas con IA y desliza entre pestañas.";
+"whatsNew.button" = "Explorar Moments 2.32";
 /* Best Friends */
 "bestFriends.title" = "Mejores Amigos";
 "bestFriends.empty.title" = "Sin mejores amigos";
@@ -5137,3 +5137,23 @@ Para preguntas o solicitudes de privacidad, contacta con nosotros en soporte@mom
 "userActivity.simple.empty.visits.subtitle" = "Mira quién ha visitado tu perfil recientemente.";
 "modernComments.replyTo.placeholder" = "Responder a %@…";
 "modernComments.loadEarlier" = "Ver comentarios anteriores";
+
+"whatsNew.sectionPersonalize232" = "Personaliza";
+"whatsNew.sectionCreate232" = "Crea";
+"whatsNew.sectionMore232" = "Y más";
+"whatsNew.appIcons232.title" = "Elige tu icono";
+"whatsNew.appIcons232.description" = "21 iconos nuevos para tu pantalla de inicio, desde Configuración.";
+"whatsNew.seasonalIcons232.title" = "Iconos de temporada";
+"whatsNew.seasonalIcons232.description" = "Ahora, 8 de Navidad, según el calendario de tu país.";
+"whatsNew.aiLabel232.title" = "Contenido creado con IA";
+"whatsNew.aiLabel232.description" = "Etiqueta lo que creas o retocas con IA. Detectamos muchas imágenes por ti.";
+"whatsNew.tabSwipe232.title" = "Desliza entre pestañas";
+"whatsNew.tabSwipe232.description" = "Pasa de una a otra con el dedo, y desde Inicio, al creador.";
+"whatsNew.voiceNotes232.title" = "Notas de voz sin límite";
+"whatsNew.voiceNotes232.description" = "Graba lo que quieras y escúchalas mientras usas la app.";
+"whatsNew.comments232.title" = "Comentarios más rápidos";
+"whatsNew.comments232.description" = "Los posts con muchos comentarios cargan antes.";
+"whatsNew.privacy232.title" = "Más privacidad";
+"whatsNew.privacy232.description" = "Reforzamos la protección de tus datos y de tu cuenta.";
+"whatsNew.fluid232.title" = "Más rápido y fluido";
+"whatsNew.fluid232.description" = "Mejoras de rendimiento en el feed, las historias y los chats.";

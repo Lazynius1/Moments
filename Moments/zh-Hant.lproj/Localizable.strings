@@ -2712,8 +2712,8 @@
 "banner.verb.message" = "傳送訊息給你";
 /* Whats New v2.16 */
 "whatsNew.title" = "Moments 新功能！";
-"whatsNew.subtitle" = "Moments 登上 iPhone Duo！我們重新設計了 Moments，讓你充分運用兩個螢幕。";
-"whatsNew.button" = "探索 Moments 2.31";
+"whatsNew.subtitle" = "選擇專屬圖示、為 AI 製作的內容加上標示，還能滑動切換分頁。";
+"whatsNew.button" = "探索 Moments 2.32";
 /* Best Friends */
 "bestFriends.title" = "摯友";
 "bestFriends.empty.title" = "尚無摯友";
@@ -4899,3 +4899,23 @@
 "userActivity.simple.empty.visits.subtitle" = "查看最近有誰造訪過你的個人檔案。";
 "modernComments.replyTo.placeholder" = "回覆 %@…";
 "modernComments.loadEarlier" = "查看較早的留言";
+
+"whatsNew.sectionPersonalize232" = "個人化";
+"whatsNew.sectionCreate232" = "建立";
+"whatsNew.sectionMore232" = "其他更新";
+"whatsNew.appIcons232.title" = "選擇專屬圖示";
+"whatsNew.appIcons232.description" = "在「設定」中挑選 21 款全新主畫面圖示。";
+"whatsNew.seasonalIcons232.title" = "季節限定圖示";
+"whatsNew.seasonalIcons232.description" = "目前推出 8 款聖誕圖示，依你所在國家的日曆提供。";
+"whatsNew.aiLabel232.title" = "使用 AI 製作的內容";
+"whatsNew.aiLabel232.description" = "為使用 AI 製作或修飾的內容加上標示，許多圖片我們會自動偵測。";
+"whatsNew.tabSwipe232.title" = "滑動切換分頁";
+"whatsNew.tabSwipe232.description" = "用手指在分頁間切換，從首頁還能滑到建立畫面。";
+"whatsNew.voiceNotes232.title" = "語音訊息不限長度";
+"whatsNew.voiceNotes232.description" = "想錄多久就錄多久，使用 App 時也能繼續聆聽。";
+"whatsNew.comments232.title" = "留言載入更快";
+"whatsNew.comments232.description" = "留言很多的貼文也能更快載入。";
+"whatsNew.privacy232.title" = "隱私更有保障";
+"whatsNew.privacy232.description" = "加強保護你的資料與帳號。";
+"whatsNew.fluid232.title" = "更快、更流暢";
+"whatsNew.fluid232.description" = "提升動態消息、限時動態和聊天的效能。";
