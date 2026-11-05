@@ -22,6 +22,20 @@ const IMAGE_DOWNLOAD_TIMEOUT_MS = 30 * 1000;
 const PUBLISHABLE_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif']);
 // maxInstances 10: la cuota regional de CPU de Cloud Run cuenta maxInstances × CPU de todos los servicios.
 setGlobalOptions({ region: 'europe-southwest1', memory: '256MiB', concurrency: 80, maxInstances: 10, retry: true });
+
+// Funciones en segundo plano (triggers de Firestore y programadas): nadie espera su respuesta.
+// Con 1/6 de vCPU por instancia caben muchas más en la cuota regional de Cloud Run, que es de
+// 20 vCPU para todos los servicios. Las que declaran su propia CPU, memoria o concurrencia
+// (vídeo, moderación, exportaciones) se quedan como están.
+const BACKGROUND_OPTIONS = { cpu: 'gcf_gen1', concurrency: 1 };
+
+function withBackgroundOptions(builder, key) {
+  return (optsOrPath, handler) => {
+    const opts = typeof optsOrPath === 'string' ? { [key]: optsOrPath } : optsOrPath;
+    const custom = ['cpu', 'memory', 'concurrency'].some(option => option in opts);
+    return builder(custom ? opts : { ...BACKGROUND_OPTIONS, ...opts }, handler);
+  };
+}
 const admin = require('firebase-admin');
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -58,10 +72,10 @@ const GENTLE_REMINDER_LIMITS = {
 };
 
 module.exports = {
-  onDocumentCreated,
-  onDocumentDeleted,
-  onDocumentWritten,
-  onSchedule,
+  onDocumentCreated: withBackgroundOptions(onDocumentCreated, 'document'),
+  onDocumentDeleted: withBackgroundOptions(onDocumentDeleted, 'document'),
+  onDocumentWritten: withBackgroundOptions(onDocumentWritten, 'document'),
+  onSchedule: withBackgroundOptions(onSchedule, 'schedule'),
   HttpsError,
   onCall,
   onRequest,
