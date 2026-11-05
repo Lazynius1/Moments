@@ -119,7 +119,8 @@ async function deleteVisitsBetween(db, ownerId, otherId) {
   return refs.length;
 }
 
-const purgeVisitsOnBlock = onDocumentWritten('users/{userId}', async (event) => {
+// Salta con cada escritura de la ficha: fracción de CPU para no agotar la cuota regional.
+const purgeVisitsOnBlock = onDocumentWritten({ document: 'users/{userId}', cpu: 'gcf_gen1', concurrency: 1, maxInstances: 3 }, async (event) => {
   const before = event.data && event.data.before && event.data.before.exists ? event.data.before.data() : null;
   const after = event.data && event.data.after && event.data.after.exists ? event.data.after.data() : null;
   if (!after) return;

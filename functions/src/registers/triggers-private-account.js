@@ -6,7 +6,11 @@ const { changedPrivateFields, relationChanges } = require('../helpers/private-ac
  * Fase 1 de la migración: lo que cualquier versión de la app escriba en la ficha pública
  * se copia al documento privado, que así está siempre al día. Al borrar la ficha se borra.
  */
-const mirrorPrivateAccountFields = onDocumentWritten('users/{userId}', async (event) => {
+// Salta con cada escritura de la ficha (también el «en línea»): fracción de CPU para no
+// agotar la cuota regional de Cloud Run, que comparten todas las funciones.
+const LIGHT_TRIGGER = { cpu: 'gcf_gen1', concurrency: 1, maxInstances: 3 };
+
+const mirrorPrivateAccountFields = onDocumentWritten({ ...LIGHT_TRIGGER, document: 'users/{userId}' }, async (event) => {
   const privateRef = admin.firestore().doc(`users/${event.params.userId}/private/account`);
   const after = event.data && event.data.after && event.data.after.exists ? event.data.after.data() : null;
   if (!after) {
@@ -28,7 +32,7 @@ const mirrorPrivateAccountFields = onDocumentWritten('users/{userId}', async (ev
  * recibe en su `private/relations` quién le ha bloqueado (`blockedBy`) o de quién es
  * mejor amigo (`bestFriendOf`).
  */
-const syncPrivateRelations = onDocumentWritten('users/{userId}/private/account', async (event) => {
+const syncPrivateRelations = onDocumentWritten({ ...LIGHT_TRIGGER, document: 'users/{userId}/private/account' }, async (event) => {
   const ownerId = event.params.userId;
   const before = event.data && event.data.before && event.data.before.exists ? event.data.before.data() : null;
   const after = event.data && event.data.after && event.data.after.exists ? event.data.after.data() : null;
