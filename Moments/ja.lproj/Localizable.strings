@@ -4904,7 +4904,7 @@ iOSの設定から、これらのアクセス許可を変更できます。オ�
 "whatsNew.sectionCreate232" = "作成";
 "whatsNew.sectionMore232" = "その他";
 "whatsNew.appIcons232.title" = "アイコンを選べる";
-"whatsNew.appIcons232.description" = "「設定」から、ホーム画面用の新しいアイコン21種類を選べます。";
+"whatsNew.appIcons232.description" = "ホーム画面用の新しいアイコン21種類。「設定」→「アプリアイコン」から。";
 "whatsNew.seasonalIcons232.title" = "シーズン限定アイコン";
 "whatsNew.seasonalIcons232.description" = "現在は、お住まいの国のカレンダーに合わせてクリスマスアイコン8種類が登場します。";
 "whatsNew.aiLabel232.title" = "AIで作成したコンテンツ";

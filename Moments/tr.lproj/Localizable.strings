@@ -4904,7 +4904,7 @@ Bu izinleri iOS Ayarları’ndan değiştirebilirsiniz. İzinleri kapatırsanız
 "whatsNew.sectionCreate232" = "Oluştur";
 "whatsNew.sectionMore232" = "Ve dahası";
 "whatsNew.appIcons232.title" = "Simgeni seç";
-"whatsNew.appIcons232.description" = "Ana ekranın için 21 yeni simge, Ayarlar'da.";
+"whatsNew.appIcons232.description" = "Ana ekranın için 21 yeni simge. Ayarlar → Uygulama simgesi'nde.";
 "whatsNew.seasonalIcons232.title" = "Sezonluk simgeler";
 "whatsNew.seasonalIcons232.description" = "Şimdilik ülkenin takvimine göre 8 Noel simgesi.";
 "whatsNew.aiLabel232.title" = "Yapay zekâyla oluşturulan içerik";
