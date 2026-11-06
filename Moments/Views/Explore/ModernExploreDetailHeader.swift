@@ -175,6 +175,13 @@ struct ModernExploreDetailHeader: View {
     }
 
     private func refreshFollowState() {
+        #if DEBUG
+        // Modo captura: los amigos de prueba son mutuos.
+        if ScreenshotMode.isActive {
+            followButtonState = .mutuals
+            return
+        }
+        #endif
         guard let moment,
               let currentUserId = Auth.auth().currentUser?.uid,
               moment.authorId != currentUserId else {

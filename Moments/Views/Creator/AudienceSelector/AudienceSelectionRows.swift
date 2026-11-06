@@ -245,7 +245,7 @@ struct CustomListCard: View {
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
                     
-                    Text("\(list.members.count) personas")
+                    Text(String(format: NSLocalizedString("audience.people.count.short", comment: "Number of people in a list"), list.members.count))
                         .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundStyle(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
                 }
