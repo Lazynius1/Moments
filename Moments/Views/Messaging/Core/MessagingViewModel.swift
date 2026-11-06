@@ -44,6 +44,14 @@ class MessagingViewModel: ObservableObject {
     private let participantStateTTL: TimeInterval = 300
 
     init() {
+        #if DEBUG
+        // Modo captura: bandeja de demostración.
+        if ScreenshotMode.isActive {
+            conversations = ScreenshotFixtures.conversations
+            hasLoadedConversations = true
+            hasUnreadMessages = true
+        }
+        #endif
         if let userId = Auth.auth().currentUser?.uid {
             restoreCachedConversations(for: userId)
         }

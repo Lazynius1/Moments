@@ -270,7 +270,14 @@ class EnhancedChatViewModel: ObservableObject {
 
     init(conversation: Conversation) {
         self.conversation = conversation
+        #if DEBUG
+        // Modo captura: el usuario propio es el de la demo.
+        self.currentUserId = ScreenshotMode.isActive
+            ? ScreenshotMode.meId
+            : (Auth.auth().currentUser?.uid ?? "")
+        #else
         self.currentUserId = Auth.auth().currentUser?.uid ?? ""
+        #endif
         self.forwardingPreferences = conversation.forwardingPreferences ?? [:]
         self.buzzPreferences = conversation.buzzPreferences ?? [:]
         self.vanishModeActive = conversation.isGroup ? false : (conversation.vanishModeActive ?? false)
@@ -1647,6 +1654,12 @@ class EnhancedChatViewModel: ObservableObject {
             limit: scanLimit,
             cutoffDate: cutoff
         )
+        #if DEBUG
+        // Modo captura: mensajes de demostración en lugar de la caché local.
+        if ScreenshotMode.isActive {
+            recentMessages = ScreenshotFixtures.messages(for: conversationId)
+        }
+        #endif
 
         if conversation.readStatus[currentUserId] == true {
             let hasUnreadIncoming = recentMessages.contains {
@@ -1930,6 +1943,10 @@ class EnhancedChatViewModel: ObservableObject {
     }
 
     func attachChatListenersIfNeeded() {
+        #if DEBUG
+        // Modo captura: sin listeners de Firestore.
+        if ScreenshotMode.isActive { return }
+        #endif
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             // Borrador sin materializar: aún no hay nada que escuchar. No es un error.
             return

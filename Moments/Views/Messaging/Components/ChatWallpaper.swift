@@ -38,6 +38,18 @@ final class ChatWallpaperStore: ObservableObject {
     private var loadedPath = ""
 
     func start(conversationId: String) {
+        #if DEBUG
+        // Modo captura: fondo de foto local, sin Firestore ni Storage.
+        if ScreenshotMode.isActive {
+            var demo = ChatWallpaper()
+            demo.kind = "photo"
+            demo.dimming = 0.15
+            demo.bubbleColorHex = "5B2C6F"
+            wallpaper = demo
+            image = UIImage(named: "ss_wallpaper")
+            return
+        }
+        #endif
         guard let uid = Auth.auth().currentUser?.uid, !conversationId.isEmpty else { return }
         let nextKey = "chatWallpaper.\(uid).\(conversationId)"
         guard nextKey != key else { return }

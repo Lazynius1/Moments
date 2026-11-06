@@ -17,6 +17,10 @@ class FirestoreService: ObservableObject {
 
     init() {
         db = Firestore.firestore()
+        #if DEBUG
+        // Modo captura: la red de Firestore se queda apagada.
+        if ScreenshotMode.isActive { return }
+        #endif
         self.db.enableNetwork()
     }
 

@@ -24,6 +24,10 @@ final class PermissionPrimerGate: ObservableObject {
     }
 
     func requestAccess(onGranted: @escaping () -> Void) {
+        #if DEBUG
+        // Modo captura: sin primers de permisos.
+        if ScreenshotMode.isActive { return }
+        #endif
         switch currentState {
         case .authorized:
             onGranted()

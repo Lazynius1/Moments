@@ -420,6 +420,13 @@ struct AudienceSelectionView: View {
         }
     }
     private func loadCustomLists() {
+        #if DEBUG
+        // Modo captura: listas de demostración.
+        if ScreenshotMode.isActive {
+            customLists = ScreenshotFixtures.customLists
+            return
+        }
+        #endif
         guard let userId = Auth.auth().currentUser?.uid else { return }
         isLoadingLists = true
         FirestoreService().fetchCustomLists(for: userId) { result in

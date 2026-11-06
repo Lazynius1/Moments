@@ -27,6 +27,16 @@ struct MomentsApp: App {
     @State private var didPostLaunchInit = false
 
     init() {
+        #if DEBUG
+        // Modo captura: Firebase aislado, sin App Check ni caché persistente ni splash.
+        if ScreenshotMode.isActive {
+            FirebaseApp.configure()
+            ScreenshotSandbox.configure()
+            ScreenshotMode.bootstrap()
+            _showSplash = State(initialValue: false)
+            return
+        }
+        #endif
         AppCheck.setAppCheckProviderFactory(MomentsAppCheckProviderFactory())
         FirebaseApp.configure()
 
@@ -44,10 +54,17 @@ struct MomentsApp: App {
         WindowGroup {
             ZStack {
                 TabBarView()
+                    #if DEBUG
+                    .modifier(ScreenshotPresentationModifier())
+                    #endif
                     .environment(AppRouter.shared)
                     .environmentObject(ephemeralCleanupManager)
                     .environmentObject(messageRequestService)
                     .onAppear {
+                        #if DEBUG
+                        // Modo captura: sin servicios de arranque ni listeners de sesión.
+                        if ScreenshotMode.isActive { return }
+                        #endif
 
                         // Post-launch initializations (una sola vez)
                         if !didPostLaunchInit {
@@ -124,6 +141,9 @@ struct MomentsApp: App {
                         }
                     }
                     .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                        #if DEBUG
+                        if ScreenshotMode.isActive { return }
+                        #endif
                         // ✅ NUEVO: Marcar mensajes pendientes como entregados (respaldo si notificación no llegó)
                         ChatService.shared.markAllPendingMessagesAsDelivered()
 

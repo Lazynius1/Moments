@@ -1,0 +1,1075 @@
+{
+  "_comment": "Textos de demostración del modo captura (solo Debug). Claves por idioma igual que las carpetas .lproj (ca, de, en, es, fr, hi, id, it, ja, ko, nl, pl, pt-BR, pt-PT, tr, zh-Hant). Cualquier clave que falte cae a 'en'.",
+  "en": {
+    "captions": {
+      "beach_sunset": "Golden hour never misses at Barceloneta 🌅",
+      "picnic": "Found the perfect picnic spot. Tap around, there's more 👀",
+      "mountain_lake": "Dreamed this one up: mountains at sunrise ✨",
+      "rooftop_dinner": "Rooftop dinner with the people who get me",
+      "latte": "Monday fuel ☕️",
+      "concert": "Front row. No notes. 🎶",
+      "night_market": "Dumplings first, questions later 🥟",
+      "dog_park": "Biscuit made three new friends today 🐶",
+      "road_trip": "Windows down, playlist on 🚗",
+      "ski": "First run of the season ❄️",
+      "birthday": "26 and grateful 🎂",
+      "lisbon_tram": "Lisbon in yellow 💛",
+      "festival": "Last night was unreal ✨"
+    },
+    "comments": [
+      "This is so beautiful 😍",
+      "Save me a spot next time!",
+      "Okay, this view is unreal",
+      "Wait, where is this?? 👀"
+    ],
+    "hiddenLayers": {
+      "note": "the spot we found by accident ☀️",
+      "imageCaption": "the day before",
+      "audioCaption": "listen 🎧"
+    },
+    "story": {
+      "frameCaption": "Lisbon ☀️",
+      "pollQuestion": "Sunrise or sunset?",
+      "pollOptionA": "Sunrise 🌅",
+      "pollOptionB": "Sunset 🌇",
+      "question": "What should I cook tonight?"
+    },
+    "chat": [
+      { "from": "them", "text": "Are you still coming tonight? 🎉" },
+      { "from": "me", "text": "Wouldn't miss it! What time?" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "This is the view from the terrace 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "Haha yes! See you at 9 💜" },
+      { "from": "me", "text": "Bringing dessert 🍰" }
+    ],
+    "inbox": {
+      "theo": "Sent you the playlist 🎧",
+      "aiko": "That photo is going on my wall",
+      "mateo": "Climbing on Saturday?",
+      "nora": "You have to try this place",
+      "sam": "Trail was muddy but worth it 🥾",
+      "ines": "I finished the sketch!",
+      "kai": "Surf check tomorrow at 7? 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "Plan a chill Saturday in Barcelona for me and Lucía" },
+      { "from": "nova", "text": "Love that! Here's an easy plan:\n\n☕️ Brunch in Gràcia around 11\n🌿 Walk up to the Bunkers for the views\n🌅 Sunset at Barceloneta\n\nWant me to turn it into a Moment for your friends?" },
+      { "from": "me", "text": "Yes! And write a caption" },
+      { "from": "nova", "text": "“Slow Saturday, good company ✨” — ready to post whenever you are." }
+    ],
+    "lists": {
+      "climbing": "Climbing crew",
+      "family": "Family",
+      "studio": "Studio team"
+    },
+    "echo": {
+      "vibe": "A night of music and good company"
+    }
+  },
+  "es": {
+    "captions": {
+      "beach_sunset": "La hora dorada en la Barceloneta nunca falla 🌅",
+      "picnic": "Encontramos el sitio perfecto para un picnic. Toca la foto, hay más 👀",
+      "mountain_lake": "Esta la soñé: montañas al amanecer ✨",
+      "rooftop_dinner": "Cena en la azotea con quien me entiende",
+      "latte": "Gasolina de lunes ☕️",
+      "concert": "Primera fila. Sin palabras. 🎶",
+      "night_market": "Primero los dumplings, luego las preguntas 🥟",
+      "dog_park": "Galleta ha hecho tres amigos nuevos hoy 🐶",
+      "road_trip": "Ventanillas bajadas y la playlist a tope 🚗",
+      "ski": "Primera bajada de la temporada ❄️",
+      "birthday": "26 y muy agradecida 🎂",
+      "lisbon_tram": "Lisboa en amarillo 💛",
+      "festival": "Lo de anoche fue increíble ✨"
+    },
+    "comments": [
+      "Qué bonito 😍",
+      "¡La próxima me guardas sitio!",
+      "Vale, estas vistas son una locura",
+      "Espera, ¿¿dónde es esto?? 👀"
+    ],
+    "hiddenLayers": {
+      "note": "el sitio que encontramos sin querer ☀️",
+      "imageCaption": "el día antes",
+      "audioCaption": "escucha 🎧"
+    },
+    "story": {
+      "frameCaption": "Lisboa ☀️",
+      "pollQuestion": "¿Amanecer o atardecer?",
+      "pollOptionA": "Amanecer 🌅",
+      "pollOptionB": "Atardecer 🌇",
+      "question": "¿Qué cocino esta noche?"
+    },
+    "chat": [
+      { "from": "them", "text": "¿Sigues viniendo esta noche? 🎉" },
+      { "from": "me", "text": "¡No me lo pierdo! ¿A qué hora?" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "Estas son las vistas desde la terraza 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "¡Jaja sí! Nos vemos a las 9 💜" },
+      { "from": "me", "text": "Yo llevo el postre 🍰" }
+    ],
+    "inbox": {
+      "theo": "Te he pasado la playlist 🎧",
+      "aiko": "Esa foto va directa a mi pared",
+      "mateo": "¿Escalamos el sábado?",
+      "nora": "Tienes que probar este sitio",
+      "sam": "La ruta tenía barro, pero mereció la pena 🥾",
+      "ines": "¡He terminado el boceto!",
+      "kai": "¿Miramos las olas mañana a las 7? 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "Planéame un sábado tranquilo en Barcelona con Lucía" },
+      { "from": "nova", "text": "¡Me encanta! Aquí tienes un plan sencillo:\n\n☕️ Brunch en Gràcia sobre las 11\n🌿 Subida a los Búnkers para ver las vistas\n🌅 Atardecer en la Barceloneta\n\n¿Quieres que lo convierta en un Moment para tus amigos?" },
+      { "from": "me", "text": "¡Sí! Y escríbeme el pie de foto" },
+      { "from": "nova", "text": "«Sábado lento, buena compañía ✨». Listo para publicar cuando quieras." }
+    ],
+    "lists": {
+      "climbing": "Grupo de escalada",
+      "family": "Familia",
+      "studio": "Equipo del estudio"
+    },
+    "echo": {
+      "vibe": "Una noche de música y buena compañía"
+    }
+  },
+  "ca": {
+    "captions": {
+      "beach_sunset": "L'hora daurada a la Barceloneta mai falla 🌅",
+      "picnic": "Hem trobat el lloc perfecte per fer un pícnic. Toca la foto, n'hi ha més 👀",
+      "mountain_lake": "Aquesta la vaig somiar: muntanyes a l'alba ✨",
+      "rooftop_dinner": "Sopar al terrat amb qui m'entén",
+      "latte": "Gasolina de dilluns ☕️",
+      "concert": "Primera fila. Sense paraules. 🎶",
+      "night_market": "Primer els dumplings, després les preguntes 🥟",
+      "dog_park": "La Galeta ha fet tres amics nous avui 🐶",
+      "road_trip": "Finestretes avall i la playlist a tot drap 🚗",
+      "ski": "Primera baixada de la temporada ❄️",
+      "birthday": "26 i molt agraïda 🎂",
+      "lisbon_tram": "Lisboa en groc 💛",
+      "festival": "Ahir a la nit va ser increïble ✨"
+    },
+    "comments": [
+      "Què bonic 😍",
+      "La pròxima em guardes lloc!",
+      "Bé, aquestes vistes són una passada",
+      "Espera, on és això?? 👀"
+    ],
+    "hiddenLayers": {
+      "note": "el lloc que vam trobar sense voler ☀️",
+      "imageCaption": "el dia abans",
+      "audioCaption": "escolta 🎧"
+    },
+    "story": {
+      "frameCaption": "Lisboa ☀️",
+      "pollQuestion": "Sortida o posta de sol?",
+      "pollOptionA": "Sortida 🌅",
+      "pollOptionB": "Posta 🌇",
+      "question": "Què cuino aquesta nit?"
+    },
+    "chat": [
+      { "from": "them", "text": "Encara vens aquesta nit? 🎉" },
+      { "from": "me", "text": "No m'ho perdo! A quina hora?" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "Aquestes són les vistes des de la terrassa 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "Jaja sí! Ens veiem a les 9 💜" },
+      { "from": "me", "text": "Jo porto les postres 🍰" }
+    ],
+    "inbox": {
+      "theo": "T'he passat la playlist 🎧",
+      "aiko": "Aquesta foto va directa a la meva paret",
+      "mateo": "Escalem dissabte?",
+      "nora": "Has de provar aquest lloc",
+      "sam": "La ruta tenia fang, però va valer la pena 🥾",
+      "ines": "He acabat l'esbós!",
+      "kai": "Mirem les onades demà a les 7? 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "Planeja'm un dissabte tranquil a Barcelona amb la Lucía" },
+      { "from": "nova", "text": "M'encanta! Aquí tens un pla senzill:\n\n☕️ Brunch a Gràcia cap a les 11\n🌿 Pujada als Búnquers per veure les vistes\n🌅 Posta de sol a la Barceloneta\n\nVols que el converteixi en un Moment per als teus amics?" },
+      { "from": "me", "text": "Sí! I escriu-me el peu de foto" },
+      { "from": "nova", "text": "«Dissabte lent, bona companyia ✨». A punt per publicar quan vulguis." }
+    ],
+    "lists": {
+      "climbing": "Colla d'escalada",
+      "family": "Família",
+      "studio": "Equip de l'estudi"
+    },
+    "echo": {
+      "vibe": "Una nit de música i bona companyia"
+    }
+  },
+  "de": {
+    "captions": {
+      "beach_sunset": "Golden Hour an der Barceloneta enttäuscht nie 🌅",
+      "picnic": "Den perfekten Picknickplatz gefunden. Tipp aufs Foto, da ist noch mehr 👀",
+      "mountain_lake": "Das hab ich mir erträumt: Berge bei Sonnenaufgang ✨",
+      "rooftop_dinner": "Dinner auf der Dachterrasse mit Leuten, die mich verstehen",
+      "latte": "Sprit für den Montag ☕️",
+      "concert": "Erste Reihe. Sprachlos. 🎶",
+      "night_market": "Erst Dumplings, dann Fragen 🥟",
+      "dog_park": "Keks hat heute drei neue Freunde gefunden 🐶",
+      "road_trip": "Fenster runter, Playlist laut 🚗",
+      "ski": "Erste Abfahrt der Saison ❄️",
+      "birthday": "26 und einfach dankbar 🎂",
+      "lisbon_tram": "Lissabon in Gelb 💛",
+      "festival": "Gestern Abend war der Wahnsinn ✨"
+    },
+    "comments": [
+      "Wie schön 😍",
+      "Nächstes Mal hältst du mir einen Platz frei!",
+      "Okay, diese Aussicht ist unfassbar",
+      "Warte, wo ist das?? 👀"
+    ],
+    "hiddenLayers": {
+      "note": "der Ort, den wir zufällig gefunden haben ☀️",
+      "imageCaption": "der Tag davor",
+      "audioCaption": "hör mal 🎧"
+    },
+    "story": {
+      "frameCaption": "Lissabon ☀️",
+      "pollQuestion": "Sonnenaufgang oder -untergang?",
+      "pollOptionA": "Sonnenaufgang 🌅",
+      "pollOptionB": "Sonnenuntergang 🌇",
+      "question": "Was koch ich heute Abend?"
+    },
+    "chat": [
+      { "from": "them", "text": "Kommst du heute Abend noch? 🎉" },
+      { "from": "me", "text": "Auf jeden Fall! Um wie viel Uhr?" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "Das ist der Blick von der Terrasse 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "Haha ja! Bis um 9 💜" },
+      { "from": "me", "text": "Ich bring den Nachtisch mit 🍰" }
+    ],
+    "inbox": {
+      "theo": "Hab dir die Playlist geschickt 🎧",
+      "aiko": "Das Foto kommt direkt an meine Wand",
+      "mateo": "Samstag klettern?",
+      "nora": "Da musst du unbedingt mal hin",
+      "sam": "Der Weg war matschig, hat sich aber gelohnt 🥾",
+      "ines": "Ich hab die Skizze fertig!",
+      "kai": "Morgen um 7 Wellen checken? 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "Plan mir einen entspannten Samstag in Barcelona mit Lucía" },
+      { "from": "nova", "text": "Gerne! Hier ist ein entspannter Plan:\n\n☕️ Brunch in Gràcia gegen 11\n🌿 Hoch zu den Bunkers für die Aussicht\n🌅 Sonnenuntergang an der Barceloneta\n\nSoll ich daraus einen Moment für deine Freunde machen?" },
+      { "from": "me", "text": "Ja! Und schreib mir eine Bildunterschrift" },
+      { "from": "nova", "text": "„Langsamer Samstag, gute Gesellschaft ✨“ – bereit zum Posten, wann immer du willst." }
+    ],
+    "lists": {
+      "climbing": "Kletter-Crew",
+      "family": "Familie",
+      "studio": "Studio-Team"
+    },
+    "echo": {
+      "vibe": "Ein Abend voller Musik und guter Gesellschaft"
+    }
+  },
+  "fr": {
+    "captions": {
+      "beach_sunset": "La golden hour à la Barceloneta ne déçoit jamais 🌅",
+      "picnic": "On a trouvé le spot parfait pour pique-niquer. Touche la photo, y'a la suite 👀",
+      "mountain_lake": "Celle-là, je l'ai rêvée : montagnes au lever du soleil ✨",
+      "rooftop_dinner": "Dîner sur le rooftop avec ceux qui me comprennent",
+      "latte": "Le carburant du lundi ☕️",
+      "concert": "Premier rang. Sans voix. 🎶",
+      "night_market": "D'abord les dumplings, les questions après 🥟",
+      "dog_park": "Biscuit s'est fait trois nouveaux copains aujourd'hui 🐶",
+      "road_trip": "Vitres baissées, playlist à fond 🚗",
+      "ski": "Première descente de la saison ❄️",
+      "birthday": "26 ans et tellement reconnaissante 🎂",
+      "lisbon_tram": "Lisbonne en jaune 💛",
+      "festival": "Hier soir, c'était dingue ✨"
+    },
+    "comments": [
+      "Trop beau 😍",
+      "Garde-moi une place la prochaine fois !",
+      "Ok, cette vue est complètement folle",
+      "Attends, c'est où ça ?? 👀"
+    ],
+    "hiddenLayers": {
+      "note": "le coin trouvé par hasard ☀️",
+      "imageCaption": "la veille",
+      "audioCaption": "écoute 🎧"
+    },
+    "story": {
+      "frameCaption": "Lisbonne ☀️",
+      "pollQuestion": "Lever ou coucher de soleil ?",
+      "pollOptionA": "Lever 🌅",
+      "pollOptionB": "Coucher 🌇",
+      "question": "Je cuisine quoi ce soir ?"
+    },
+    "chat": [
+      { "from": "them", "text": "Tu viens toujours ce soir ? 🎉" },
+      { "from": "me", "text": "Je rate pas ça ! À quelle heure ?" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "Voilà la vue depuis la terrasse 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "Haha oui ! Rendez-vous à 21 h 💜" },
+      { "from": "me", "text": "J'apporte le dessert 🍰" }
+    ],
+    "inbox": {
+      "theo": "Je t'ai envoyé la playlist 🎧",
+      "aiko": "Cette photo va direct sur mon mur",
+      "mateo": "Escalade samedi ?",
+      "nora": "Faut absolument que tu testes cet endroit",
+      "sam": "Le sentier était boueux, mais ça valait le coup 🥾",
+      "ines": "J'ai fini le croquis !",
+      "kai": "On check les vagues demain à 7 h ? 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "Organise-moi un samedi tranquille à Barcelone avec Lucía" },
+      { "from": "nova", "text": "Avec plaisir ! Voici un plan tout simple :\n\n☕️ Brunch à Gràcia vers 11 h\n🌿 Montée aux Bunkers pour la vue\n🌅 Coucher de soleil à la Barceloneta\n\nTu veux que j'en fasse un Moment pour tes amis ?" },
+      { "from": "me", "text": "Oui ! Et écris-moi une légende" },
+      { "from": "nova", "text": "« Samedi tranquille, bonne compagnie ✨ ». Prêt à publier quand tu veux." }
+    ],
+    "lists": {
+      "climbing": "Team escalade",
+      "family": "Famille",
+      "studio": "Équipe du studio"
+    },
+    "echo": {
+      "vibe": "Une soirée de musique et de bonne compagnie"
+    }
+  },
+  "it": {
+    "captions": {
+      "beach_sunset": "La golden hour alla Barceloneta non delude mai 🌅",
+      "picnic": "Trovato il posto perfetto per un picnic. Tocca la foto, c'è dell'altro 👀",
+      "mountain_lake": "Questa l'ho sognata: montagne all'alba ✨",
+      "rooftop_dinner": "Cena in terrazza con chi mi capisce",
+      "latte": "Benzina del lunedì ☕️",
+      "concert": "Prima fila. Senza parole. 🎶",
+      "night_market": "Prima i dumpling, poi le domande 🥟",
+      "dog_park": "Biscotto oggi si è fatto tre nuovi amici 🐶",
+      "road_trip": "Finestrini giù e playlist a palla 🚗",
+      "ski": "Prima discesa della stagione ❄️",
+      "birthday": "26 anni e tanta gratitudine 🎂",
+      "lisbon_tram": "Lisbona in giallo 💛",
+      "festival": "Ieri sera è stato pazzesco ✨"
+    },
+    "comments": [
+      "Che bello 😍",
+      "La prossima volta tienimi un posto!",
+      "Ok, questa vista è assurda",
+      "Aspetta, ma dov'è?? 👀"
+    ],
+    "hiddenLayers": {
+      "note": "il posto che abbiamo trovato per caso ☀️",
+      "imageCaption": "il giorno prima",
+      "audioCaption": "ascolta 🎧"
+    },
+    "story": {
+      "frameCaption": "Lisbona ☀️",
+      "pollQuestion": "Alba o tramonto?",
+      "pollOptionA": "Alba 🌅",
+      "pollOptionB": "Tramonto 🌇",
+      "question": "Cosa cucino stasera?"
+    },
+    "chat": [
+      { "from": "them", "text": "Stasera ci sei ancora? 🎉" },
+      { "from": "me", "text": "Non me lo perdo! A che ora?" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "Questa è la vista dalla terrazza 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "Ahah sì! Ci vediamo alle 9 💜" },
+      { "from": "me", "text": "Il dolce lo porto io 🍰" }
+    ],
+    "inbox": {
+      "theo": "Ti ho mandato la playlist 🎧",
+      "aiko": "Quella foto finisce dritta sul mio muro",
+      "mateo": "Arrampicata sabato?",
+      "nora": "Devi assolutamente provare questo posto",
+      "sam": "Il sentiero era pieno di fango, ma ne valeva la pena 🥾",
+      "ines": "Ho finito lo schizzo!",
+      "kai": "Domani alle 7 andiamo a vedere le onde? 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "Organizzami un sabato tranquillo a Barcellona con Lucía" },
+      { "from": "nova", "text": "Che bello! Ecco un piano semplice:\n\n☕️ Brunch a Gràcia verso le 11\n🌿 Salita ai Bunker per il panorama\n🌅 Tramonto alla Barceloneta\n\nVuoi che lo trasformi in un Momento per i tuoi amici?" },
+      { "from": "me", "text": "Sì! E scrivimi la didascalia" },
+      { "from": "nova", "text": "«Sabato lento, buona compagnia ✨». Pronto da pubblicare quando vuoi." }
+    ],
+    "lists": {
+      "climbing": "Gruppo arrampicata",
+      "family": "Famiglia",
+      "studio": "Team dello studio"
+    },
+    "echo": {
+      "vibe": "Una serata di musica e buona compagnia"
+    }
+  },
+  "pt-BR": {
+    "captions": {
+      "beach_sunset": "A golden hour na Barceloneta nunca decepciona 🌅",
+      "picnic": "Achamos o lugar perfeito pra um piquenique. Toca na foto, tem mais 👀",
+      "mountain_lake": "Essa eu sonhei: montanhas ao amanhecer ✨",
+      "rooftop_dinner": "Jantar no terraço com quem me entende",
+      "latte": "Combustível de segunda ☕️",
+      "concert": "Primeira fila. Sem palavras. 🎶",
+      "night_market": "Primeiro os dumplings, depois as perguntas 🥟",
+      "dog_park": "O Biscoito fez três amigos novos hoje 🐶",
+      "road_trip": "Vidro aberto e playlist no último volume 🚗",
+      "ski": "Primeira descida da temporada ❄️",
+      "birthday": "26 e muito grata 🎂",
+      "lisbon_tram": "Lisboa em amarelo 💛",
+      "festival": "Ontem à noite foi surreal ✨"
+    },
+    "comments": [
+      "Que lindo 😍",
+      "Da próxima vez guarda um lugar pra mim!",
+      "Gente, essa vista é absurda",
+      "Pera, onde é isso?? 👀"
+    ],
+    "hiddenLayers": {
+      "note": "o lugar que a gente achou sem querer ☀️",
+      "imageCaption": "um dia antes",
+      "audioCaption": "escuta 🎧"
+    },
+    "story": {
+      "frameCaption": "Lisboa ☀️",
+      "pollQuestion": "Nascer ou pôr do sol?",
+      "pollOptionA": "Nascer do sol 🌅",
+      "pollOptionB": "Pôr do sol 🌇",
+      "question": "O que eu faço pro jantar hoje?"
+    },
+    "chat": [
+      { "from": "them", "text": "Ainda vem hoje à noite? 🎉" },
+      { "from": "me", "text": "Não perco por nada! Que horas?" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "Essa é a vista do terraço 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "Kkkk sim! Te vejo às 9 💜" },
+      { "from": "me", "text": "Eu levo a sobremesa 🍰" }
+    ],
+    "inbox": {
+      "theo": "Te mandei a playlist 🎧",
+      "aiko": "Essa foto vai direto pra minha parede",
+      "mateo": "Escalada no sábado?",
+      "nora": "Você precisa conhecer esse lugar",
+      "sam": "A trilha tava cheia de lama, mas valeu a pena 🥾",
+      "ines": "Terminei o esboço!",
+      "kai": "Bora ver as ondas amanhã às 7? 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "Planeja um sábado tranquilo em Barcelona pra mim e a Lucía" },
+      { "from": "nova", "text": "Adorei! Aqui vai um plano simples:\n\n☕️ Brunch em Gràcia lá pelas 11\n🌿 Subida aos Bunkers pra ver a vista\n🌅 Pôr do sol na Barceloneta\n\nQuer que eu transforme isso em um Momento pros seus amigos?" },
+      { "from": "me", "text": "Sim! E escreve a legenda" },
+      { "from": "nova", "text": "“Sábado sem pressa, boa companhia ✨”. Pronto pra postar quando você quiser." }
+    ],
+    "lists": {
+      "climbing": "Galera da escalada",
+      "family": "Família",
+      "studio": "Equipe do estúdio"
+    },
+    "echo": {
+      "vibe": "Uma noite de música e boa companhia"
+    }
+  },
+  "pt-PT": {
+    "captions": {
+      "beach_sunset": "A golden hour na Barceloneta nunca falha 🌅",
+      "picnic": "Encontrámos o sítio perfeito para um piquenique. Toca na foto, há mais 👀",
+      "mountain_lake": "Esta saiu de um sonho: montanhas ao amanhecer ✨",
+      "rooftop_dinner": "Jantar no terraço com quem me percebe",
+      "latte": "Combustível de segunda ☕️",
+      "concert": "Primeira fila. Sem palavras. 🎶",
+      "night_market": "Primeiro os dumplings, depois as perguntas 🥟",
+      "dog_park": "A Bolacha fez três amigos novos hoje 🐶",
+      "road_trip": "Janelas abertas e a playlist no máximo 🚗",
+      "ski": "Primeira descida da temporada ❄️",
+      "birthday": "26 e muito grata 🎂",
+      "lisbon_tram": "Lisboa em amarelo 💛",
+      "festival": "Ontem à noite foi incrível ✨"
+    },
+    "comments": [
+      "Que lindo 😍",
+      "Da próxima guarda-me um lugar!",
+      "Ok, esta vista é uma loucura",
+      "Espera, onde é isto?? 👀"
+    ],
+    "hiddenLayers": {
+      "note": "o sítio que encontrámos sem querer ☀️",
+      "imageCaption": "na véspera",
+      "audioCaption": "ouve 🎧"
+    },
+    "story": {
+      "frameCaption": "Lisboa ☀️",
+      "pollQuestion": "Nascer ou pôr do sol?",
+      "pollOptionA": "Nascer do sol 🌅",
+      "pollOptionB": "Pôr do sol 🌇",
+      "question": "O que é que faço para o jantar?"
+    },
+    "chat": [
+      { "from": "them", "text": "Ainda vens hoje à noite? 🎉" },
+      { "from": "me", "text": "Não perco por nada! A que horas?" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "Esta é a vista do terraço 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "Ahah sim! Vemo-nos às 9 💜" },
+      { "from": "me", "text": "Eu levo a sobremesa 🍰" }
+    ],
+    "inbox": {
+      "theo": "Mandei-te a playlist 🎧",
+      "aiko": "Essa foto vai direta para a minha parede",
+      "mateo": "Escalada no sábado?",
+      "nora": "Tens mesmo de experimentar este sítio",
+      "sam": "O trilho tinha lama, mas valeu a pena 🥾",
+      "ines": "Acabei o esboço!",
+      "kai": "Vamos ver as ondas amanhã às 7? 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "Planeia-me um sábado tranquilo em Barcelona com a Lucía" },
+      { "from": "nova", "text": "Adoro! Aqui tens um plano simples:\n\n☕️ Brunch em Gràcia por volta das 11\n🌿 Subida aos Bunkers para ver a vista\n🌅 Pôr do sol na Barceloneta\n\nQueres que o transforme num Momento para os teus amigos?" },
+      { "from": "me", "text": "Sim! E escreve-me a legenda" },
+      { "from": "nova", "text": "«Sábado lento, boa companhia ✨». Pronto a publicar quando quiseres." }
+    ],
+    "lists": {
+      "climbing": "Malta da escalada",
+      "family": "Família",
+      "studio": "Equipa do estúdio"
+    },
+    "echo": {
+      "vibe": "Uma noite de música e boa companhia"
+    }
+  },
+  "hi": {
+    "captions": {
+      "beach_sunset": "बार्सिलोनेटा की गोल्डन आवर कभी निराश नहीं करती 🌅",
+      "picnic": "पिकनिक के लिए परफ़ेक्ट जगह मिल गई। फ़ोटो पर टैप करो, और भी है 👀",
+      "mountain_lake": "ये तो सपने में देखा था: सुबह-सुबह पहाड़ ✨",
+      "rooftop_dinner": "छत पर डिनर, उनके साथ जो मुझे समझते हैं",
+      "latte": "सोमवार का फ़्यूल ☕️",
+      "concert": "फ़्रंट रो। बोलती बंद। 🎶",
+      "night_market": "पहले मोमोज़, सवाल बाद में 🥟",
+      "dog_park": "बिस्किट ने आज तीन नए दोस्त बनाए 🐶",
+      "road_trip": "खिड़कियाँ नीचे, प्लेलिस्ट फ़ुल वॉल्यूम पर 🚗",
+      "ski": "सीज़न की पहली स्कीइंग ❄️",
+      "birthday": "26 की हो गई, दिल से शुक्रगुज़ार 🎂",
+      "lisbon_tram": "पीले रंग में लिस्बन 💛",
+      "festival": "कल रात तो कमाल हो गया ✨"
+    },
+    "comments": [
+      "कितना सुंदर है 😍",
+      "अगली बार मेरे लिए भी जगह रखना!",
+      "यार, ये व्यू तो पागलपन है",
+      "रुको, ये कहाँ है?? 👀"
+    ],
+    "hiddenLayers": {
+      "note": "वो जगह जो हमें अचानक मिल गई ☀️",
+      "imageCaption": "एक दिन पहले",
+      "audioCaption": "सुनो 🎧"
+    },
+    "story": {
+      "frameCaption": "लिस्बन ☀️",
+      "pollQuestion": "सूर्योदय या सूर्यास्त?",
+      "pollOptionA": "सूर्योदय 🌅",
+      "pollOptionB": "सूर्यास्त 🌇",
+      "question": "आज रात क्या बनाऊँ?"
+    },
+    "chat": [
+      { "from": "them", "text": "आज रात आ रहे हो ना? 🎉" },
+      { "from": "me", "text": "बिल्कुल! कितने बजे?" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "ये टैरेस से व्यू है 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "हाहा हाँ! 9 बजे मिलते हैं 💜" },
+      { "from": "me", "text": "डेज़र्ट मेरी तरफ़ से 🍰" }
+    ],
+    "inbox": {
+      "theo": "प्लेलिस्ट भेज दी है 🎧",
+      "aiko": "ये फ़ोटो सीधा मेरी दीवार पर लगेगी",
+      "mateo": "शनिवार को क्लाइंबिंग?",
+      "nora": "तुम्हें ये जगह ज़रूर ट्राई करनी चाहिए",
+      "sam": "रास्ते में कीचड़ था, पर पूरा वसूल 🥾",
+      "ines": "स्केच पूरा हो गया!",
+      "kai": "कल सुबह 7 बजे लहरें देखने चलें? 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "Lucía के साथ बार्सिलोना में एक आरामदायक शनिवार प्लान कर दो" },
+      { "from": "nova", "text": "बढ़िया! यह रहा एक आसान प्लान:\n\n☕️ 11 बजे के आसपास ग्रासिया में ब्रंच\n🌿 नज़ारों के लिए बंकर्स तक चढ़ाई\n🌅 बार्सिलोनेटा पर सूर्यास्त\n\nक्या मैं इसे आपके दोस्तों के लिए एक Moment बना दूँ?" },
+      { "from": "me", "text": "हाँ! और एक कैप्शन भी लिख दो" },
+      { "from": "nova", "text": "“धीमा शनिवार, अच्छी कंपनी ✨” — जब भी आप चाहें, पोस्ट करने के लिए तैयार है।" }
+    ],
+    "lists": {
+      "climbing": "क्लाइंबिंग ग्रुप",
+      "family": "परिवार",
+      "studio": "स्टूडियो टीम"
+    },
+    "echo": {
+      "vibe": "संगीत और अच्छे दोस्तों के साथ एक रात"
+    }
+  },
+  "id": {
+    "captions": {
+      "beach_sunset": "Golden hour di Barceloneta nggak pernah gagal 🌅",
+      "picnic": "Nemu spot piknik yang pas banget. Tap fotonya, masih ada lagi 👀",
+      "mountain_lake": "Yang ini hasil mimpiku: pegunungan saat fajar ✨",
+      "rooftop_dinner": "Makan malam di rooftop bareng orang-orang yang ngerti aku",
+      "latte": "Bahan bakar hari Senin ☕️",
+      "concert": "Baris paling depan. Speechless. 🎶",
+      "night_market": "Dumpling dulu, pertanyaan belakangan 🥟",
+      "dog_park": "Biskuit dapat tiga teman baru hari ini 🐶",
+      "road_trip": "Kaca diturunin, playlist kenceng 🚗",
+      "ski": "Luncuran pertama musim ini ❄️",
+      "birthday": "26 dan bersyukur banget 🎂",
+      "lisbon_tram": "Lisbon serba kuning 💛",
+      "festival": "Semalam seru parah ✨"
+    },
+    "comments": [
+      "Cantik banget 😍",
+      "Lain kali sisain tempat buat aku ya!",
+      "Oke, pemandangannya gila sih",
+      "Bentar, ini di mana?? 👀"
+    ],
+    "hiddenLayers": {
+      "note": "tempat yang kita temuin nggak sengaja ☀️",
+      "imageCaption": "sehari sebelumnya",
+      "audioCaption": "dengerin 🎧"
+    },
+    "story": {
+      "frameCaption": "Lisbon ☀️",
+      "pollQuestion": "Sunrise atau sunset?",
+      "pollOptionA": "Sunrise 🌅",
+      "pollOptionB": "Sunset 🌇",
+      "question": "Malam ini enaknya masak apa?"
+    },
+    "chat": [
+      { "from": "them", "text": "Jadi dateng nanti malam? 🎉" },
+      { "from": "me", "text": "Pasti dong! Jam berapa?" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "Ini pemandangan dari teras 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "Wkwk iya! Sampai ketemu jam 9 💜" },
+      { "from": "me", "text": "Aku bawa dessert 🍰" }
+    ],
+    "inbox": {
+      "theo": "Udah aku kirim playlist-nya 🎧",
+      "aiko": "Foto itu bakal aku pajang di dinding",
+      "mateo": "Manjat hari Sabtu?",
+      "nora": "Kamu harus coba tempat ini",
+      "sam": "Jalurnya becek, tapi worth it 🥾",
+      "ines": "Sketsanya udah selesai!",
+      "kai": "Cek ombak besok jam 7? 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "Bikinin rencana Sabtu santai di Barcelona buat aku sama Lucía" },
+      { "from": "nova", "text": "Seru banget! Ini rencana simpelnya:\n\n☕️ Brunch di Gràcia sekitar jam 11\n🌿 Naik ke Bunkers buat lihat pemandangan\n🌅 Sunset di Barceloneta\n\nMau aku jadikan Moment buat teman-temanmu?" },
+      { "from": "me", "text": "Mau! Sekalian tulisin caption-nya" },
+      { "from": "nova", "text": "“Sabtu santai, teman yang pas ✨” — siap di-posting kapan pun kamu mau." }
+    ],
+    "lists": {
+      "climbing": "Geng panjat tebing",
+      "family": "Keluarga",
+      "studio": "Tim studio"
+    },
+    "echo": {
+      "vibe": "Malam penuh musik dan teman yang asyik"
+    }
+  },
+  "ja": {
+    "captions": {
+      "beach_sunset": "バルセロネータのゴールデンアワーは裏切らない 🌅",
+      "picnic": "最高のピクニックスポット見つけた。写真タップしてみて、まだあるよ 👀",
+      "mountain_lake": "夢で見た景色：朝焼けの山 ✨",
+      "rooftop_dinner": "わかってくれる人たちと屋上ディナー",
+      "latte": "月曜の燃料 ☕️",
+      "concert": "最前列。言葉にならない。🎶",
+      "night_market": "まずは餃子、話はそれから 🥟",
+      "dog_park": "ビスケット、今日だけで友だちが3匹できた 🐶",
+      "road_trip": "窓全開でプレイリスト爆音 🚗",
+      "ski": "今シーズン初滑り ❄️",
+      "birthday": "26歳、感謝しかない 🎂",
+      "lisbon_tram": "黄色に染まるリスボン 💛",
+      "festival": "昨日の夜、最高すぎた ✨"
+    },
+    "comments": [
+      "めっちゃきれい 😍",
+      "次は私の分も席とっといて！",
+      "いや、この景色やばすぎ",
+      "待って、ここどこ？？ 👀"
+    ],
+    "hiddenLayers": {
+      "note": "偶然見つけた場所 ☀️",
+      "imageCaption": "前の日",
+      "audioCaption": "聴いてみて 🎧"
+    },
+    "story": {
+      "frameCaption": "リスボン ☀️",
+      "pollQuestion": "朝日派？夕日派？",
+      "pollOptionA": "朝日 🌅",
+      "pollOptionB": "夕日 🌇",
+      "question": "今夜なに作ろう？"
+    },
+    "chat": [
+      { "from": "them", "text": "今夜やっぱり来れる？ 🎉" },
+      { "from": "me", "text": "絶対行く！何時？" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "テラスからの景色だよ 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "笑 うん！9時にね 💜" },
+      { "from": "me", "text": "デザート持ってくね 🍰" }
+    ],
+    "inbox": {
+      "theo": "プレイリスト送ったよ 🎧",
+      "aiko": "あの写真、部屋に飾るわ",
+      "mateo": "土曜クライミング行く？",
+      "nora": "ここ絶対行ってみて",
+      "sam": "道ぬかるんでたけど行ってよかった 🥾",
+      "ines": "スケッチ終わった！",
+      "kai": "明日7時に波チェックする？ 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "Lucíaとバルセロナでのんびり過ごす土曜のプランを考えて" },
+      { "from": "nova", "text": "いいですね！シンプルなプランはこちらです：\n\n☕️ 11時ごろグラシアでブランチ\n🌿 バンカーズまで登って絶景を\n🌅 バルセロネータで夕日\n\nお友だち向けのMomentにしましょうか？" },
+      { "from": "me", "text": "うん！キャプションも書いて" },
+      { "from": "nova", "text": "「のんびり土曜日、いい仲間と ✨」いつでも投稿できますよ。" }
+    ],
+    "lists": {
+      "climbing": "クライミング仲間",
+      "family": "家族",
+      "studio": "スタジオチーム"
+    },
+    "echo": {
+      "vibe": "音楽といい仲間と過ごす夜"
+    }
+  },
+  "ko": {
+    "captions": {
+      "beach_sunset": "바르셀로네타의 골든아워는 실패가 없지 🌅",
+      "picnic": "피크닉 명당 찾았다. 사진 눌러봐, 더 있어 👀",
+      "mountain_lake": "꿈에서 본 풍경: 해 뜨는 산 ✨",
+      "rooftop_dinner": "나를 알아주는 사람들과 루프탑 디너",
+      "latte": "월요일 연료 충전 ☕️",
+      "concert": "맨 앞줄. 말이 필요 없음. 🎶",
+      "night_market": "만두 먼저, 질문은 나중에 🥟",
+      "dog_park": "비스킷, 오늘 친구 세 마리나 사귐 🐶",
+      "road_trip": "창문 내리고 플레이리스트 크게 🚗",
+      "ski": "이번 시즌 첫 런 ❄️",
+      "birthday": "26살, 감사한 마음뿐 🎂",
+      "lisbon_tram": "노란빛 리스본 💛",
+      "festival": "어젯밤 진짜 미쳤다 ✨"
+    },
+    "comments": [
+      "너무 예쁘다 😍",
+      "다음엔 내 자리도 맡아줘!",
+      "와, 이 뷰 실화야?",
+      "잠깐, 여기 어디야?? 👀"
+    ],
+    "hiddenLayers": {
+      "note": "우연히 찾은 그곳 ☀️",
+      "imageCaption": "그 전날",
+      "audioCaption": "들어봐 🎧"
+    },
+    "story": {
+      "frameCaption": "리스본 ☀️",
+      "pollQuestion": "일출 vs 일몰?",
+      "pollOptionA": "일출 🌅",
+      "pollOptionB": "일몰 🌇",
+      "question": "오늘 저녁 뭐 해 먹지?"
+    },
+    "chat": [
+      { "from": "them", "text": "오늘 밤 오는 거 맞지? 🎉" },
+      { "from": "me", "text": "당연하지! 몇 시야?" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "테라스에서 본 뷰야 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "ㅋㅋ 응! 9시에 봐 💜" },
+      { "from": "me", "text": "디저트는 내가 가져갈게 🍰" }
+    ],
+    "inbox": {
+      "theo": "플레이리스트 보냈어 🎧",
+      "aiko": "그 사진 바로 내 방 벽에 건다",
+      "mateo": "토요일에 클라이밍 갈래?",
+      "nora": "여기 꼭 가봐",
+      "sam": "길이 질척했는데 그래도 갈 만했어 🥾",
+      "ines": "스케치 다 끝냈어!",
+      "kai": "내일 7시에 파도 보러 갈래? 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "Lucía랑 바르셀로나에서 보낼 여유로운 토요일 계획 좀 짜줘" },
+      { "from": "nova", "text": "좋아요! 간단한 플랜이에요:\n\n☕️ 11시쯤 그라시아에서 브런치\n🌿 벙커까지 올라가서 전망 감상\n🌅 바르셀로네타에서 일몰\n\n친구들을 위한 모먼트로 만들어 드릴까요?" },
+      { "from": "me", "text": "응! 캡션도 써줘" },
+      { "from": "nova", "text": "“느긋한 토요일, 좋은 사람들 ✨” 언제든 바로 올릴 수 있어요." }
+    ],
+    "lists": {
+      "climbing": "클라이밍 크루",
+      "family": "가족",
+      "studio": "스튜디오 팀"
+    },
+    "echo": {
+      "vibe": "음악과 좋은 사람들과 함께한 밤"
+    }
+  },
+  "nl": {
+    "captions": {
+      "beach_sunset": "Golden hour aan de Barceloneta stelt nooit teleur 🌅",
+      "picnic": "Dé perfecte picknickplek gevonden. Tik op de foto, er is meer 👀",
+      "mountain_lake": "Deze heb ik gedroomd: bergen bij zonsopgang ✨",
+      "rooftop_dinner": "Diner op het dakterras met mensen die me snappen",
+      "latte": "Brandstof voor maandag ☕️",
+      "concert": "Eerste rij. Sprakeloos. 🎶",
+      "night_market": "Eerst dumplings, vragen komen later 🥟",
+      "dog_park": "Koekje heeft vandaag drie nieuwe vriendjes gemaakt 🐶",
+      "road_trip": "Ramen open, playlist keihard 🚗",
+      "ski": "Eerste afdaling van het seizoen ❄️",
+      "birthday": "26 en heel dankbaar 🎂",
+      "lisbon_tram": "Lissabon in het geel 💛",
+      "festival": "Gisteravond was echt onwerkelijk ✨"
+    },
+    "comments": [
+      "Wat mooi 😍",
+      "Hou volgende keer een plekje voor me vrij!",
+      "Oké, dit uitzicht is echt bizar",
+      "Wacht, waar is dit?? 👀"
+    ],
+    "hiddenLayers": {
+      "note": "het plekje dat we per toeval vonden ☀️",
+      "imageCaption": "de dag ervoor",
+      "audioCaption": "luister 🎧"
+    },
+    "story": {
+      "frameCaption": "Lissabon ☀️",
+      "pollQuestion": "Zonsopgang of zonsondergang?",
+      "pollOptionA": "Zonsopgang 🌅",
+      "pollOptionB": "Zonsondergang 🌇",
+      "question": "Wat zal ik vanavond koken?"
+    },
+    "chat": [
+      { "from": "them", "text": "Kom je vanavond nog? 🎉" },
+      { "from": "me", "text": "Voor geen goud missen! Hoe laat?" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "Dit is het uitzicht vanaf het terras 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "Haha ja! Zie je om 9 uur 💜" },
+      { "from": "me", "text": "Ik neem het toetje mee 🍰" }
+    ],
+    "inbox": {
+      "theo": "Heb je de playlist gestuurd 🎧",
+      "aiko": "Die foto komt zo aan mijn muur",
+      "mateo": "Zaterdag klimmen?",
+      "nora": "Deze plek moet je echt proberen",
+      "sam": "Het pad was modderig, maar het was het waard 🥾",
+      "ines": "Ik heb de schets af!",
+      "kai": "Morgen om 7 de golven checken? 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "Plan een chille zaterdag in Barcelona voor mij en Lucía" },
+      { "from": "nova", "text": "Leuk! Hier is een makkelijk plan:\n\n☕️ Brunch in Gràcia rond 11 uur\n🌿 Omhoog naar de Bunkers voor het uitzicht\n🌅 Zonsondergang bij de Barceloneta\n\nZal ik er een Moment van maken voor je vrienden?" },
+      { "from": "me", "text": "Ja! En schrijf er een bijschrift bij" },
+      { "from": "nova", "text": "“Rustige zaterdag, goed gezelschap ✨” – klaar om te posten wanneer jij wilt." }
+    ],
+    "lists": {
+      "climbing": "Klimcrew",
+      "family": "Familie",
+      "studio": "Studioteam"
+    },
+    "echo": {
+      "vibe": "Een avond vol muziek en goed gezelschap"
+    }
+  },
+  "pl": {
+    "captions": {
+      "beach_sunset": "Złota godzina na Barcelonecie nigdy nie zawodzi 🌅",
+      "picnic": "Znaleźliśmy idealne miejsce na piknik. Kliknij w zdjęcie, jest więcej 👀",
+      "mountain_lake": "Ten widok mi się przyśnił: góry o wschodzie słońca ✨",
+      "rooftop_dinner": "Kolacja na dachu z ludźmi, którzy mnie rozumieją",
+      "latte": "Paliwo na poniedziałek ☕️",
+      "concert": "Pierwszy rząd. Brak słów. 🎶",
+      "night_market": "Najpierw pierożki, pytania później 🥟",
+      "dog_park": "Biszkopt poznał dziś trzech nowych kumpli 🐶",
+      "road_trip": "Szyby w dół, playlista na full 🚗",
+      "ski": "Pierwszy zjazd w sezonie ❄️",
+      "birthday": "26 lat i ogromna wdzięczność 🎂",
+      "lisbon_tram": "Lizbona na żółto 💛",
+      "festival": "Wczorajsza noc była nierealna ✨"
+    },
+    "comments": [
+      "Ale pięknie 😍",
+      "Następnym razem zajmij mi miejsce!",
+      "Dobra, ten widok to jakiś kosmos",
+      "Czekaj, gdzie to jest?? 👀"
+    ],
+    "hiddenLayers": {
+      "note": "miejsce, które znaleźliśmy przypadkiem ☀️",
+      "imageCaption": "dzień wcześniej",
+      "audioCaption": "posłuchaj 🎧"
+    },
+    "story": {
+      "frameCaption": "Lizbona ☀️",
+      "pollQuestion": "Wschód czy zachód słońca?",
+      "pollOptionA": "Wschód 🌅",
+      "pollOptionB": "Zachód 🌇",
+      "question": "Co dziś ugotować na kolację?"
+    },
+    "chat": [
+      { "from": "them", "text": "Nadal wpadasz dziś wieczorem? 🎉" },
+      { "from": "me", "text": "Nie odpuszczę! O której?" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "Taki widok z tarasu 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "Haha tak! Widzimy się o 9 💜" },
+      { "from": "me", "text": "Ja przynoszę deser 🍰" }
+    ],
+    "inbox": {
+      "theo": "Wysłałem ci playlistę 🎧",
+      "aiko": "To zdjęcie ląduje prosto na mojej ścianie",
+      "mateo": "Wspinaczka w sobotę?",
+      "nora": "Musisz koniecznie tu wpaść",
+      "sam": "Szlak był błotnisty, ale było warto 🥾",
+      "ines": "Skończyłam szkic!",
+      "kai": "Jutro o 7 sprawdzamy fale? 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "Zaplanuj mi luźną sobotę w Barcelonie z Lucíą" },
+      { "from": "nova", "text": "Super! Oto prosty plan:\n\n☕️ Brunch w Gràcii około 11\n🌿 Wejście na Bunkry dla widoków\n🌅 Zachód słońca na Barcelonecie\n\nZrobić z tego Moment dla Twoich znajomych?" },
+      { "from": "me", "text": "Tak! I napisz mi podpis" },
+      { "from": "nova", "text": "„Leniwa sobota, dobre towarzystwo ✨”. Gotowe do publikacji, kiedy zechcesz." }
+    ],
+    "lists": {
+      "climbing": "Ekipa wspinaczkowa",
+      "family": "Rodzina",
+      "studio": "Zespół studia"
+    },
+    "echo": {
+      "vibe": "Wieczór pełen muzyki i dobrego towarzystwa"
+    }
+  },
+  "tr": {
+    "captions": {
+      "beach_sunset": "Barceloneta'da altın saat asla yanıltmaz 🌅",
+      "picnic": "Piknik için mükemmel yeri bulduk. Fotoğrafa dokun, devamı var 👀",
+      "mountain_lake": "Bunu rüyamda gördüm: gün doğumunda dağlar ✨",
+      "rooftop_dinner": "Beni anlayanlarla çatıda akşam yemeği",
+      "latte": "Pazartesi yakıtı ☕️",
+      "concert": "En ön sıra. Söze gerek yok. 🎶",
+      "night_market": "Önce dumpling, sorular sonra 🥟",
+      "dog_park": "Bisküvi bugün üç yeni arkadaş edindi 🐶",
+      "road_trip": "Camlar açık, playlist sonuna kadar 🚗",
+      "ski": "Sezonun ilk kayışı ❄️",
+      "birthday": "26 ve çok minnettarım 🎂",
+      "lisbon_tram": "Sarıya bürünmüş Lizbon 💛",
+      "festival": "Dün gece inanılmazdı ✨"
+    },
+    "comments": [
+      "Çok güzel 😍",
+      "Bir dahakine bana da yer ayır!",
+      "Tamam, bu manzara çılgınlık",
+      "Dur, burası neresi?? 👀"
+    ],
+    "hiddenLayers": {
+      "note": "tesadüfen bulduğumuz yer ☀️",
+      "imageCaption": "bir gün önce",
+      "audioCaption": "dinle 🎧"
+    },
+    "story": {
+      "frameCaption": "Lizbon ☀️",
+      "pollQuestion": "Gün doğumu mu, batımı mı?",
+      "pollOptionA": "Gün doğumu 🌅",
+      "pollOptionB": "Gün batımı 🌇",
+      "question": "Bu akşam ne pişireyim?"
+    },
+    "chat": [
+      { "from": "them", "text": "Bu akşam hâlâ geliyor musun? 🎉" },
+      { "from": "me", "text": "Kaçırır mıyım hiç! Saat kaçta?" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "Terastan manzara bu 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "Haha evet! 9'da görüşürüz 💜" },
+      { "from": "me", "text": "Tatlıyı ben getiriyorum 🍰" }
+    ],
+    "inbox": {
+      "theo": "Playlist'i sana attım 🎧",
+      "aiko": "O fotoğraf direkt duvarıma",
+      "mateo": "Cumartesi tırmanışa var mısın?",
+      "nora": "Burayı mutlaka denemelisin",
+      "sam": "Patika çamurluydu ama değdi 🥾",
+      "ines": "Eskizi bitirdim!",
+      "kai": "Yarın 7'de dalgalara bakalım mı? 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "Lucía'yla Barselona'da sakin bir cumartesi planla" },
+      { "from": "nova", "text": "Harika! İşte basit bir plan:\n\n☕️ 11 gibi Gràcia'da brunch\n🌿 Manzara için Bunkers'a tırmanış\n🌅 Barceloneta'da gün batımı\n\nBunu arkadaşların için bir Moment'e çevireyim mi?" },
+      { "from": "me", "text": "Evet! Bir de açıklama yaz" },
+      { "from": "nova", "text": "“Ağır akan cumartesi, güzel dostlar ✨” Ne zaman istersen paylaşmaya hazır." }
+    ],
+    "lists": {
+      "climbing": "Tırmanış ekibi",
+      "family": "Aile",
+      "studio": "Stüdyo ekibi"
+    },
+    "echo": {
+      "vibe": "Müzik ve güzel dostlarla dolu bir gece"
+    }
+  },
+  "zh-Hant": {
+    "captions": {
+      "beach_sunset": "巴塞隆內塔的魔幻時刻從不讓人失望 🌅",
+      "picnic": "找到超完美的野餐地點。點一下照片，還有更多 👀",
+      "mountain_lake": "這是我夢到的：日出時的群山 ✨",
+      "rooftop_dinner": "跟懂我的人在頂樓吃晚餐",
+      "latte": "週一的燃料 ☕️",
+      "concert": "第一排。說不出話。🎶",
+      "night_market": "先吃水餃，其他晚點再說 🥟",
+      "dog_park": "餅乾今天交了三個新朋友 🐶",
+      "road_trip": "車窗搖下，歌單開到最大聲 🚗",
+      "ski": "這季的第一趟滑雪 ❄️",
+      "birthday": "26 歲，滿滿感恩 🎂",
+      "lisbon_tram": "黃色的里斯本 💛",
+      "festival": "昨晚真的太扯了 ✨"
+    },
+    "comments": [
+      "好美 😍",
+      "下次幫我留個位子！",
+      "好啦，這景色也太誇張",
+      "等等，這是哪裡？？ 👀"
+    ],
+    "hiddenLayers": {
+      "note": "我們無意間發現的地方 ☀️",
+      "imageCaption": "前一天",
+      "audioCaption": "聽聽看 🎧"
+    },
+    "story": {
+      "frameCaption": "里斯本 ☀️",
+      "pollQuestion": "日出還是日落？",
+      "pollOptionA": "日出 🌅",
+      "pollOptionB": "日落 🌇",
+      "question": "今晚要煮什麼？"
+    },
+    "chat": [
+      { "from": "them", "text": "今晚還會來嗎？ 🎉" },
+      { "from": "me", "text": "當然不會錯過！幾點？" },
+      { "from": "them", "type": "image" },
+      { "from": "them", "text": "這是從露台看出去的景色 😍" },
+      { "from": "me", "type": "audio" },
+      { "from": "them", "text": "哈哈對！9 點見 💜" },
+      { "from": "me", "text": "我帶甜點過去 🍰" }
+    ],
+    "inbox": {
+      "theo": "歌單傳給你了 🎧",
+      "aiko": "那張照片我要掛在牆上",
+      "mateo": "週六要去攀岩嗎？",
+      "nora": "你一定要來試試這家",
+      "sam": "步道很泥濘，但很值得 🥾",
+      "ines": "我把草稿畫完了！",
+      "kai": "明天 7 點去看浪？ 🏄"
+    },
+    "nova": [
+      { "from": "me", "text": "幫我規劃一個跟 Lucía 在巴塞隆納悠閒度過的週六" },
+      { "from": "nova", "text": "好主意！這是一個簡單的計畫：\n\n☕️ 11 點左右在格拉西亞吃早午餐\n🌿 爬上碉堡看風景\n🌅 在巴塞隆內塔看日落\n\n要我幫你做成一則 Moment 分享給朋友嗎？" },
+      { "from": "me", "text": "好！順便幫我寫個文案" },
+      { "from": "nova", "text": "「慢活週六，好友相伴 ✨」已經準備好，隨時都能發佈。" }
+    ],
+    "lists": {
+      "climbing": "攀岩小隊",
+      "family": "家人",
+      "studio": "工作室團隊"
+    },
+    "echo": {
+      "vibe": "充滿音樂與好友的夜晚"
+    }
+  }
+}

@@ -62,6 +62,13 @@ extension FirestoreService {
         momentId: String,
         completion: @escaping (Result<[MomentHiddenLayer], Error>) -> Void
     ) {
+        #if DEBUG
+        // Modo captura: capas de demostración.
+        if ScreenshotMode.isActive {
+            completion(.success(ScreenshotFixtures.hiddenLayers(for: momentId)))
+            return
+        }
+        #endif
         db.collection("users")
             .document(userId)
             .collection("moments")

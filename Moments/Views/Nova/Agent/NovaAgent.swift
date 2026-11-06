@@ -61,6 +61,17 @@ final class NovaAgent: ObservableObject {
     // MARK: - Lifecycle
 
     func fetchUserData() {
+        #if DEBUG
+        // Modo captura: conversación de demostración, sin llamadas al modelo.
+        if ScreenshotMode.isActive {
+            userData = ScreenshotFixtures.me
+            conversationHistory = ScreenshotFixtures.novaMessages
+            showSuggestedOptions = false
+            hasMemoryLoaded = true
+            isLoading = false
+            return
+        }
+        #endif
         guard let userId = Auth.auth().currentUser?.uid else { return }
         isLoading = true
         installMemoryObserver(for: userId)

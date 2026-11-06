@@ -200,6 +200,14 @@ struct AsyncProfileImageView: View {
     }
 
     private func loadUserProfileImage() {
+        #if DEBUG
+        // Modo captura: avatar de demostración (sin sesión, el id vacío es el propio).
+        if ScreenshotMode.isActive {
+            profileImagePath = ScreenshotFixtures.avatarURL(for: userId.isEmpty ? ScreenshotMode.meId : userId)
+            isLoading = false
+            return
+        }
+        #endif
         guard !userId.isEmpty else {
             isLoading = false
             return

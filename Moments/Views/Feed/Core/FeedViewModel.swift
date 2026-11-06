@@ -54,6 +54,19 @@ class FeedViewModel {
     // ✅ NUEVO: Queue para sincronización segura de arrays
     private let momentsQueue = DispatchQueue(label: "moments.sync", attributes: .concurrent)
 
+    #if DEBUG
+    init() {
+        // Modo captura: feed de demostración (sin sesión no se recarga).
+        if ScreenshotMode.isActive {
+            let fixtures = ScreenshotFixtures.feedMoments
+            moments = fixtures
+            followingMoments = fixtures
+            forYouMoments = fixtures
+            isLoading = false
+        }
+    }
+    #endif
+
     @MainActor
     func refreshMoments(userId: String) async {
         lastDocument = nil

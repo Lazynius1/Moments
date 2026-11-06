@@ -925,6 +925,14 @@ struct GlassmorphicAudioMessage: View {
     }
     
     private func checkAudioAvailability() {
+        #if DEBUG
+        // Modo captura: la nota de voz se muestra con su onda, sin descargar el audio.
+        if ScreenshotMode.isActive {
+            isAudioAvailable = true
+            isCheckingAvailability = false
+            return
+        }
+        #endif
         if isSending {
             isAudioAvailable = true
             isCheckingAvailability = false

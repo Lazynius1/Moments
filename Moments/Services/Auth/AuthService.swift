@@ -271,6 +271,15 @@ class AuthService: ObservableObject {
     }
 
     init() {
+        #if DEBUG
+        // Modo captura: sesión ficticia fija, sin listener de Auth (nunca cambia).
+        if ScreenshotMode.isActive {
+            currentUser = ScreenshotFixtures.me
+            isLoggedIn = true
+            authState = .authenticated
+            return
+        }
+        #endif
         cleanupExpiredOnboardingDraft()
 
         cleanupHolder.authHandle = Auth.auth().addStateDidChangeListener { [weak self] auth, user in

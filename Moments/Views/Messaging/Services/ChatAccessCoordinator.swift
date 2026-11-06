@@ -16,6 +16,13 @@ final class ChatAccessCoordinator: ObservableObject {
 
     /// Devuelve el estado cacheado o lo resuelve si aún no se ha hecho en esta sesión.
     func ensureAccess() async -> ChatAccessState {
+        #if DEBUG
+        // Modo captura: chat siempre disponible, sin claves.
+        if ScreenshotMode.isActive {
+            accessState = .available
+            return .available
+        }
+        #endif
         guard let userId = Auth.auth().currentUser?.uid else {
             invalidateAll()
             return .unavailable(NSLocalizedString("chatRecovery.unavailable.title", comment: "Chat unavailable"))
@@ -78,6 +85,12 @@ final class ChatAccessCoordinator: ObservableObject {
     }
 
     func invalidateAll() {
+        #if DEBUG
+        if ScreenshotMode.isActive {
+            accessState = .available
+            return
+        }
+        #endif
         resolveTask?.cancel()
         resolveTask = nil
         accessState = nil

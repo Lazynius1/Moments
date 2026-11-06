@@ -105,11 +105,18 @@ final class FollowStateStore {
     }
 
     func state(for userId: String) -> FollowButtonState? {
+        #if DEBUG
+        // Modo captura: los amigos de prueba son mutuos (sin botón «Seguir»).
+        if ScreenshotMode.isActive { return .mutuals }
+        #endif
         guard let viewerId = Auth.auth().currentUser?.uid else { return nil }
         return state(viewerId: viewerId, targetUserId: userId)
     }
 
     func state(viewerId: String, targetUserId: String) -> FollowButtonState? {
+        #if DEBUG
+        if ScreenshotMode.isActive { return .mutuals }
+        #endif
         if let memoryState = memoryState(viewerId: viewerId, targetUserId: targetUserId) {
             return memoryState
         }

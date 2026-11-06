@@ -31,6 +31,14 @@ class OnlineStatusService: ObservableObject {
     // private var previousOnlineStatus: OnlineStatus?
     
     init() {
+        #if DEBUG
+        // Modo captura: siempre en línea, sin latidos ni escrituras.
+        if ScreenshotMode.isActive {
+            currentUserStatus = .online
+            isOnline = true
+            return
+        }
+        #endif
         setupOnlineStatusTracking()
         // ✅ NUEVO: Sincronizar estado local con Firestore
         syncStatusWithFirestore()

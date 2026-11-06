@@ -25,6 +25,16 @@ final class FeedStoryRingCoordinator: ObservableObject {
     private var cachedStoriesTimestamp = Date()
     private var widgetReloadWorkItem: DispatchWorkItem?
 
+    #if DEBUG
+    init() {
+        // Modo captura: anillo de historias de demostración.
+        if ScreenshotMode.isActive {
+            storyUsers = ScreenshotFixtures.storyRing
+            isLoadingStories = false
+        }
+    }
+    #endif
+
     func clearCacheIfNeeded() {
         let cacheAge = Date().timeIntervalSince(cachedStoriesTimestamp)
         if cacheAge > 600 {

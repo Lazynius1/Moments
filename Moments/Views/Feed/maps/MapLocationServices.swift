@@ -61,6 +61,13 @@ class LocationSearchService {
         followingOnly: Bool = false,
         completion: @escaping (MapDiscoverPayload) -> Void
     ) {
+        #if DEBUG
+        // Modo captura: contenido de demostración en Barcelona.
+        if ScreenshotMode.isActive {
+            DispatchQueue.main.async { completion(ScreenshotFixtures.mapPayload) }
+            return
+        }
+        #endif
         guard Auth.auth().currentUser != nil else {
             completion(
                 MapDiscoverPayload(
@@ -140,6 +147,13 @@ class LocationSearchService {
         loadStories: Bool = true,
         completion: @escaping (MapDiscoverPayload) -> Void
     ) {
+        #if DEBUG
+        // Modo captura: contenido de demostración en Barcelona.
+        if ScreenshotMode.isActive {
+            DispatchQueue.main.async { completion(ScreenshotFixtures.mapPayload) }
+            return
+        }
+        #endif
         let mode: MapQueryMode
         if let locationName { mode = .location(locationName) }
         else if let region { mode = .region(region) }

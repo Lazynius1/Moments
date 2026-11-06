@@ -264,6 +264,13 @@ class EchoViewModel: ObservableObject {
             }
             return
         }
+        #if DEBUG
+        // Modo captura: momento de demostración.
+        if ScreenshotMode.isActive {
+            applyLoadedMoment(ScreenshotFixtures.echoMoment(id: post.momentId), fallbackPost: post)
+            return
+        }
+        #endif
         db.collection("users").document(post.authorId)
             .collection("moments").document(post.momentId)
             .getDocument { [weak self] snapshot, _ in

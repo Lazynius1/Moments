@@ -12,6 +12,10 @@ enum FeedAdPlacement {
         minGap: Int,
         maxGap: Int
     ) -> Set<Int> {
+        #if DEBUG
+        // Modo captura: feed sin anuncios.
+        if ScreenshotMode.isActive { return [] }
+        #endif
         let minG = max(1, minGap)
         let maxG = max(minG, maxGap)
         let lastEligible = momentIds.count - 2

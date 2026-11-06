@@ -93,6 +93,10 @@ struct EchoViewerUI: View {
         .environment(\.profileDetailDirectVideoPlayback, true)
         .onAppear {
             showIncompleteDecision = viewModel.isHistoricalIncomplete
+            #if DEBUG
+            // Modo captura: el Echo inicial ya viene completo, sin listener.
+            if ScreenshotMode.isActive { return }
+            #endif
             viewModel.loadEcho()
         }
         .onChange(of: viewModel.isHistoricalIncomplete) { _, isIncomplete in

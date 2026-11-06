@@ -97,6 +97,15 @@ struct AppIconSection: View {
     }
 }
 
+#if DEBUG
+/// Acceso al selector privado para el modo captura.
+struct ScreenshotAppIconPickerHost: View {
+    var body: some View {
+        AppIconPicker()
+    }
+}
+#endif
+
 /// Carrusel de iconos: el del centro se elige; los de los lados giran, se encogen y se desenfocan.
 private struct AppIconPicker: View {
     @Environment(\.dismiss) private var dismiss
