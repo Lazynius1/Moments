@@ -54,6 +54,9 @@ wait_for() {
 # Idioma de la app antes de empezar (vacío = el del sistema).
 ORIGINAL_LOCALES="$("${ADB[@]}" shell cmd locale get-app-locales "$PKG" | sed -E 's/.*\[(.*)\].*/\1/' | tr -d ' \r')"
 
+# No molestar al terminar como estaba (0 = desactivado): sin notificaciones encima de las capturas.
+ORIGINAL_ZEN="$("${ADB[@]}" shell settings get global zen_mode | tr -d '\r')"
+
 demo_mode() {
   "${ADB[@]}" shell am broadcast -a com.android.systemui.demo -e command "$@" >/dev/null
 }
@@ -63,6 +66,7 @@ restore() {
   # Vacío = idioma del sistema (hay que pasar las comillas literales).
   "${ADB[@]}" shell cmd locale set-app-locales "$PKG" --locales "${ORIGINAL_LOCALES:-\"\"}" || true
   "${ADB[@]}" shell svc power stayon false || true
+  if [[ "$ORIGINAL_ZEN" == "0" ]]; then "${ADB[@]}" shell cmd notification set_dnd off >/dev/null || true; fi
   demo_mode exit || true
   "${ADB[@]}" shell settings put global sysui_demo_allowed 0 >/dev/null || true
 }
@@ -71,6 +75,7 @@ trap restore EXIT
 # Pantalla siempre encendida mientras captura (si se apaga, las capturas salen en negro).
 "${ADB[@]}" shell svc power stayon usb
 "${ADB[@]}" shell input keyevent KEYCODE_WAKEUP
+"${ADB[@]}" shell cmd notification set_dnd on >/dev/null
 
 # Barra de estado limpia: 09:41, wifi y cobertura llenas, batería al 100 %, sin notificaciones.
 "${ADB[@]}" shell settings put global sysui_demo_allowed 1 >/dev/null
