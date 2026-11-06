@@ -230,7 +230,7 @@
     },
     "story": {
       "frameCaption": "Lissabon ☀️",
-      "pollQuestion": "Sonnenaufgang oder -untergang?",
+      "pollQuestion": "Morgens oder abends?",
       "pollOptionA": "Sonnenaufgang 🌅",
       "pollOptionB": "Sonnenuntergang 🌇",
       "question": "Was koch ich heute Abend?"
@@ -833,7 +833,7 @@
     },
     "story": {
       "frameCaption": "Lissabon ☀️",
-      "pollQuestion": "Zonsopgang of zonsondergang?",
+      "pollQuestion": "Ochtend of avond?",
       "pollOptionA": "Zonsopgang 🌅",
       "pollOptionB": "Zonsondergang 🌇",
       "question": "Wat zal ik vanavond koken?"
