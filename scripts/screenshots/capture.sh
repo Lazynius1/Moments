@@ -96,7 +96,8 @@ xcrun simctl location "$UDID" set 41.3874,2.1686
 
 # Arranque de calentamiento: el primer arranque tras instalar enseña la animación del logo
 # y aún no tiene las fotos en caché; se descarta.
-for warm in feed storyViewer; do
+# También la primera pantalla a capturar (p. ej. el chat solo).
+for warm in feed storyViewer ${SCREENS%% *}; do
   xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID" \
     -MomentsScreenshotMode "$warm" -MomentsScreenshotStoryIndex "$STORY_INDEX" >/dev/null
   sleep 12
