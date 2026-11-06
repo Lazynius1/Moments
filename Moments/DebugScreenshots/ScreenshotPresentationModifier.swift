@@ -119,10 +119,13 @@ struct ScreenshotStoryHost: View {
     @StateObject private var storyViewModel = StoryViewModel()
     @State private var showingReportSheet = false
     @State private var showingBlockConfirmation = false
+    // El visor lee los márgenes de la ventana activa al dibujarse; al arrancar aún no lo está.
+    @State private var isSceneReady = false
 
     var body: some View {
         ZStack {
-            if let story = currentStory {
+            Color.black.ignoresSafeArea()
+            if isSceneReady, let story = currentStory {
                 StoryViewerScreen(
                     story: story,
                     storyCount: stories.count,
@@ -149,6 +152,10 @@ struct ScreenshotStoryHost: View {
             if let authorId = stories.first?.authorId {
                 storyViewModel.stories[authorId] = stories
             }
+        }
+        .task {
+            try? await Task.sleep(for: .milliseconds(800))
+            isSceneReady = true
         }
     }
 
