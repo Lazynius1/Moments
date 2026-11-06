@@ -1,0 +1,164 @@
+{
+  "_comment": "Titulares de las capturas de tienda por idioma (carpetas de capture.sh). \\n = salto de línea forzado.",
+  "_screens": ["feed", "storyViewer", "hiddenLayers", "chat", "map", "privacy", "appIcons", "nova"],
+  "es": {
+    "feed": "Tu gente.\nSin ruido.",
+    "storyViewer": "Historias con encuestas y stickers",
+    "hiddenLayers": "Fotos con secretos escondidos",
+    "chat": "Chats, fotos y notas de voz",
+    "map": "Tus momentos, en el mapa",
+    "privacy": "Tú decides quién lo ve",
+    "appIcons": "Elige tu icono, también de Navidad",
+    "nova": "Nova te ayuda a planear y escribir"
+  },
+  "en": {
+    "feed": "Your people.\nNo noise.",
+    "storyViewer": "Stories with polls and stickers",
+    "hiddenLayers": "Photos with hidden secrets",
+    "chat": "Chats, photos and voice notes",
+    "map": "Your moments, on the map",
+    "privacy": "You choose who sees it",
+    "appIcons": "Pick your icon, even festive ones",
+    "nova": "Nova helps you plan and write"
+  },
+  "ca": {
+    "feed": "La teva gent.\nSense soroll.",
+    "storyViewer": "Històries amb enquestes i adhesius",
+    "hiddenLayers": "Fotos amb secrets amagats",
+    "chat": "Xats, fotos i notes de veu",
+    "map": "Els teus moments, al mapa",
+    "privacy": "Tu decideixes qui ho veu",
+    "appIcons": "Tria la teva icona, també de Nadal",
+    "nova": "Nova t'ajuda a planificar i escriure"
+  },
+  "de": {
+    "feed": "Deine Leute.\nKein Lärm.",
+    "storyViewer": "Storys mit Umfragen und Stickern",
+    "hiddenLayers": "Fotos mit versteckten Geheimnissen",
+    "chat": "Chats, Fotos und Sprachnachrichten",
+    "map": "Deine Momente auf der Karte",
+    "privacy": "Du entscheidest, wer es sieht",
+    "appIcons": "Wähle dein Icon – auch weihnachtlich",
+    "nova": "Nova hilft dir beim Planen und Schreiben"
+  },
+  "fr": {
+    "feed": "Tes proches.\nSans le bruit.",
+    "storyViewer": "Des stories avec sondages et stickers",
+    "hiddenLayers": "Des photos aux secrets cachés",
+    "chat": "Chats, photos et messages vocaux",
+    "map": "Tes moments sur la carte",
+    "privacy": "Tu choisis qui le voit",
+    "appIcons": "Choisis ton icône, même de Noël",
+    "nova": "Nova t'aide à planifier et à écrire"
+  },
+  "it": {
+    "feed": "La tua gente.\nSenza rumore.",
+    "storyViewer": "Storie con sondaggi e sticker",
+    "hiddenLayers": "Foto con segreti nascosti",
+    "chat": "Chat, foto e note vocali",
+    "map": "I tuoi momenti sulla mappa",
+    "privacy": "Decidi tu chi lo vede",
+    "appIcons": "Scegli la tua icona, anche natalizia",
+    "nova": "Nova ti aiuta a pianificare e scrivere"
+  },
+  "pt-BR": {
+    "feed": "Sua galera.\nSem barulho.",
+    "storyViewer": "Stories com enquetes e figurinhas",
+    "hiddenLayers": "Fotos com segredos escondidos",
+    "chat": "Chats, fotos e áudios",
+    "map": "Seus momentos no mapa",
+    "privacy": "Você decide quem vê",
+    "appIcons": "Escolha seu ícone, até de Natal",
+    "nova": "A Nova ajuda você a planejar e escrever"
+  },
+  "pt-PT": {
+    "feed": "A tua malta.\nSem ruído.",
+    "storyViewer": "Stories com sondagens e autocolantes",
+    "hiddenLayers": "Fotos com segredos escondidos",
+    "chat": "Chats, fotos e notas de voz",
+    "map": "Os teus momentos no mapa",
+    "privacy": "Tu decides quem vê",
+    "appIcons": "Escolhe o teu ícone, até de Natal",
+    "nova": "A Nova ajuda-te a planear e escrever"
+  },
+  "hi": {
+    "feed": "आपके अपने लोग।\nबिना शोर।",
+    "storyViewer": "पोल और स्टिकर वाली स्टोरीज़",
+    "hiddenLayers": "छिपे राज़ वाली फ़ोटो",
+    "chat": "चैट, फ़ोटो और वॉइस नोट्स",
+    "map": "आपके पल, मैप पर",
+    "privacy": "कौन देखे, आप तय करें",
+    "appIcons": "अपना आइकन चुनें, क्रिसमस वाले भी",
+    "nova": "Nova प्लान करने और लिखने में मदद करता है"
+  },
+  "id": {
+    "feed": "Orang-orangmu.\nTanpa kebisingan.",
+    "storyViewer": "Story dengan polling dan stiker",
+    "hiddenLayers": "Foto dengan rahasia tersembunyi",
+    "chat": "Chat, foto, dan pesan suara",
+    "map": "Momenmu di peta",
+    "privacy": "Kamu yang tentukan siapa yang melihat",
+    "appIcons": "Pilih ikonmu, termasuk edisi Natal",
+    "nova": "Nova membantumu merencanakan dan menulis"
+  },
+  "ja": {
+    "feed": "大切な人と、\n静かにつながる。",
+    "storyViewer": "ストーリーに\nアンケートやステッカーを",
+    "hiddenLayers": "写真に秘密を隠そう",
+    "chat": "チャット、\n写真、ボイスメモ",
+    "map": "思い出をマップで",
+    "privacy": "誰に見せるかは、\nあなたが決める",
+    "appIcons": "アイコンを選ぼう。\nクリスマス版も",
+    "nova": "Novaがプランも\n文章もお手伝い"
+  },
+  "ko": {
+    "feed": "소중한 사람들과,\n조용하게.",
+    "storyViewer": "투표와 스티커로 꾸미는 스토리",
+    "hiddenLayers": "숨겨진 비밀이 있는 사진",
+    "chat": "채팅, 사진, 음성 메모",
+    "map": "지도 위의 나의 순간들",
+    "privacy": "누가 볼지는 내가 정해요",
+    "appIcons": "아이콘을 골라보세요,\n크리스마스 버전도",
+    "nova": "Nova가 계획과 글쓰기를 도와줘요"
+  },
+  "nl": {
+    "feed": "Jouw mensen.\nGeen ruis.",
+    "storyViewer": "Verhalen met polls en stickers",
+    "hiddenLayers": "Foto's met verborgen geheimen",
+    "chat": "Chats, foto's en spraakberichten",
+    "map": "Jouw momenten op de kaart",
+    "privacy": "Jij bepaalt wie het ziet",
+    "appIcons": "Kies je icoon, ook in kerstsfeer",
+    "nova": "Nova helpt je plannen en schrijven"
+  },
+  "pl": {
+    "feed": "Twoi ludzie.\nBez szumu.",
+    "storyViewer": "Relacje z ankietami i naklejkami",
+    "hiddenLayers": "Zdjęcia z ukrytymi sekretami",
+    "chat": "Czaty, zdjęcia i notatki głosowe",
+    "map": "Twoje chwile na mapie",
+    "privacy": "Ty decydujesz, kto to zobaczy",
+    "appIcons": "Wybierz ikonę, także świąteczną",
+    "nova": "Nova pomaga planować i pisać"
+  },
+  "tr": {
+    "feed": "Senin insanların.\nGürültü yok.",
+    "storyViewer": "Anketli ve çıkartmalı hikâyeler",
+    "hiddenLayers": "Gizli sırları olan fotoğraflar",
+    "chat": "Sohbetler, fotoğraflar ve sesli notlar",
+    "map": "Anların haritada",
+    "privacy": "Kimin göreceğine sen karar ver",
+    "appIcons": "Simgeni seç, yılbaşı temalılar da var",
+    "nova": "Nova plan yapmana ve yazmana yardım eder"
+  },
+  "zh-Hant": {
+    "feed": "你在乎的人，\n不被打擾。",
+    "storyViewer": "加上投票與貼圖的\n限時動態",
+    "hiddenLayers": "藏著小秘密的照片",
+    "chat": "聊天、照片與語音訊息",
+    "map": "把你的時刻放上地圖",
+    "privacy": "誰能看見，由你決定",
+    "appIcons": "選擇你的圖示，\n還有聖誕款",
+    "nova": "Nova 幫你規劃、\n幫你寫"
+  }
+}
