@@ -16,6 +16,7 @@ struct Layout {
     let corner: CGFloat
     let sideMargin: CGFloat
     var cropTop: CGFloat = 0       // píxeles de barra de estado que se recortan de la captura
+    var cropBottom: CGFloat = 0    // píxeles de barra de navegación del sistema que se recortan
 }
 
 let layouts: [String: Layout] = [
@@ -24,7 +25,7 @@ let layouts: [String: Layout] = [
                      fontSize: 112, shotScale: 0.86, corner: 100, sideMargin: 90),
     // Google Play, teléfono 9:16: 1080 × 1920 (capturas de Android a 1080 × 2400)
     "play": Layout(canvas: CGSize(width: 1080, height: 1920), headlineTop: 60, headlineHeight: 300,
-                   fontSize: 88, shotScale: 0.74, corner: 64, sideMargin: 70, cropTop: 104),
+                   fontSize: 88, shotScale: 0.74, corner: 64, sideMargin: 70, cropTop: 104, cropBottom: 130),
     // iPhone Duo abierto (horizontal): 2853 × 2007
     "duo": Layout(canvas: CGSize(width: 2853, height: 2007), headlineTop: 70, headlineHeight: 310,
                   fontSize: 112, shotScale: 0.76, corner: 56, sideMargin: 200),
@@ -70,11 +71,12 @@ func headlineFont(size: CGFloat, lang: String) -> NSFont {
 func render(shotURL: URL, headline: String, screen: String, lang: String, layout: L, out: URL) throws {
     guard let shot = NSImage(contentsOf: shotURL),
           let shotRep = shot.representations.first else { throw NSError(domain: "compose", code: 1) }
-    let shotPixels = CGSize(width: CGFloat(shotRep.pixelsWide), height: CGFloat(shotRep.pixelsHigh) - layout.cropTop)
-    // Parte visible de la captura en las coordenadas de NSImage (origen abajo): sin la barra de estado.
+    let shotPixels = CGSize(width: CGFloat(shotRep.pixelsWide),
+                            height: CGFloat(shotRep.pixelsHigh) - layout.cropTop - layout.cropBottom)
+    // Parte visible de la captura en las coordenadas de NSImage (origen abajo): sin barras del sistema.
     let pointsPerPixel = shot.size.height / CGFloat(shotRep.pixelsHigh)
-    let sourceRect = NSRect(x: 0, y: 0, width: shot.size.width,
-                            height: shot.size.height - layout.cropTop * pointsPerPixel)
+    let sourceRect = NSRect(x: 0, y: layout.cropBottom * pointsPerPixel, width: shot.size.width,
+                            height: shot.size.height - (layout.cropTop + layout.cropBottom) * pointsPerPixel)
     let canvas = layout.canvas
     // Lienzo sRGB sin canal alfa (App Store rechaza PNG con alfa)
     let cg = CGContext(data: nil, width: Int(canvas.width), height: Int(canvas.height), bitsPerComponent: 8,

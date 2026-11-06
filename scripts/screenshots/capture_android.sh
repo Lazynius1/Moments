@@ -60,11 +60,17 @@ demo_mode() {
 
 restore() {
   "${ADB[@]}" shell am force-stop "$PKG" || true
-  "${ADB[@]}" shell cmd locale set-app-locales "$PKG" --locales "$ORIGINAL_LOCALES" || true
+  # Vacío = idioma del sistema (hay que pasar las comillas literales).
+  "${ADB[@]}" shell cmd locale set-app-locales "$PKG" --locales "${ORIGINAL_LOCALES:-\"\"}" || true
+  "${ADB[@]}" shell svc power stayon false || true
   demo_mode exit || true
   "${ADB[@]}" shell settings put global sysui_demo_allowed 0 >/dev/null || true
 }
 trap restore EXIT
+
+# Pantalla siempre encendida mientras captura (si se apaga, las capturas salen en negro).
+"${ADB[@]}" shell svc power stayon usb
+"${ADB[@]}" shell input keyevent KEYCODE_WAKEUP
 
 # Barra de estado limpia: 09:41, wifi y cobertura llenas, batería al 100 %, sin notificaciones.
 "${ADB[@]}" shell settings put global sysui_demo_allowed 1 >/dev/null
@@ -82,12 +88,17 @@ for lang in $LANGS; do
   for screen in $SCREENS; do
     nn="$(index_of "$screen")"
     echo "→ $lang / $screen"
-    "${ADB[@]}" shell am force-stop "$PKG"
-    "${ADB[@]}" shell am start -W -n "$PKG/$ACTIVITY" \
+    # -S detiene la app antes; -f nueva tarea limpia (si no, la pantalla puede no cambiar).
+    "${ADB[@]}" shell am start -S -W -f 0x10008000 -n "$PKG/$ACTIVITY" \
       --es MomentsScreenshotMode "$screen" \
-      --ei MomentsScreenshotStoryIndex "$STORY_INDEX" >/dev/null
+      --es MomentsScreenshotStoryIndex "$STORY_INDEX" >/dev/null
     sleep "$(wait_for "$screen")"
     "${ADB[@]}" exec-out screencap -p > "$dest/${nn}_${screen}.png"
+    # Una captura casi vacía significa pantalla apagada o bloqueada: mejor parar.
+    if [[ $(wc -c < "$dest/${nn}_${screen}.png") -lt 100000 ]]; then
+      echo "Captura vacía en $lang / $screen: ¿pantalla apagada o bloqueada?" >&2
+      exit 1
+    fi
   done
 done
 
