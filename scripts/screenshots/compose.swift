@@ -23,9 +23,9 @@ let layouts: [String: Layout] = [
     // iPhone 6,9": 1320 × 2868
     "iphone": Layout(canvas: CGSize(width: 1320, height: 2868), headlineTop: 150, headlineHeight: 400,
                      fontSize: 112, shotScale: 0.86, corner: 100, sideMargin: 90),
-    // Google Play, teléfono 9:16: 1080 × 1920 (capturas de Android a 1080 × 2400)
+    // Google Play, teléfono 9:16: 1080 × 1920 (capturas de Android pasadas por prepare_android.py)
     "play": Layout(canvas: CGSize(width: 1080, height: 1920), headlineTop: 60, headlineHeight: 300,
-                   fontSize: 88, shotScale: 0.74, corner: 64, sideMargin: 70, cropTop: 104, cropBottom: 130),
+                   fontSize: 88, shotScale: 0.74, corner: 64, sideMargin: 70),
     // iPhone Duo abierto (horizontal): 2853 × 2007
     "duo": Layout(canvas: CGSize(width: 2853, height: 2007), headlineTop: 70, headlineHeight: 310,
                   fontSize: 112, shotScale: 0.76, corner: 56, sideMargin: 200),
