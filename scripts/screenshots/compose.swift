@@ -2,7 +2,7 @@
 // Usa CoreText (fuentes del sistema), así el hindi, japonés, coreano y chino se dibujan bien.
 //
 // Uso:
-//   swift scripts/screenshots/compose.swift <capturas>/<dispositivo> <salida> <iphone|duo> [idiomas...]
+//   swift scripts/screenshots/compose.swift <capturas>/<dispositivo> <salida> <iphone|duo|play> [idiomas...]
 // Lee headlines.json junto a este script (o el fichero de la variable HEADLINES). Resultado: <salida>/<idioma>/<NN>_<pantalla>.png
 import AppKit
 import Foundation
@@ -15,12 +15,16 @@ struct Layout {
     let shotScale: CGFloat         // escala de la captura respecto al lienzo
     let corner: CGFloat
     let sideMargin: CGFloat
+    var cropTop: CGFloat = 0       // píxeles de barra de estado que se recortan de la captura
 }
 
 let layouts: [String: Layout] = [
     // iPhone 6,9": 1320 × 2868
     "iphone": Layout(canvas: CGSize(width: 1320, height: 2868), headlineTop: 150, headlineHeight: 400,
                      fontSize: 112, shotScale: 0.86, corner: 100, sideMargin: 90),
+    // Google Play, teléfono 9:16: 1080 × 1920 (capturas de Android a 1080 × 2400)
+    "play": Layout(canvas: CGSize(width: 1080, height: 1920), headlineTop: 60, headlineHeight: 300,
+                   fontSize: 88, shotScale: 0.74, corner: 64, sideMargin: 70, cropTop: 104),
     // iPhone Duo abierto (horizontal): 2853 × 2007
     "duo": Layout(canvas: CGSize(width: 2853, height: 2007), headlineTop: 70, headlineHeight: 310,
                   fontSize: 112, shotScale: 0.76, corner: 56, sideMargin: 200),
@@ -66,7 +70,11 @@ func headlineFont(size: CGFloat, lang: String) -> NSFont {
 func render(shotURL: URL, headline: String, screen: String, lang: String, layout: L, out: URL) throws {
     guard let shot = NSImage(contentsOf: shotURL),
           let shotRep = shot.representations.first else { throw NSError(domain: "compose", code: 1) }
-    let shotPixels = CGSize(width: shotRep.pixelsWide, height: shotRep.pixelsHigh)
+    let shotPixels = CGSize(width: CGFloat(shotRep.pixelsWide), height: CGFloat(shotRep.pixelsHigh) - layout.cropTop)
+    // Parte visible de la captura en las coordenadas de NSImage (origen abajo): sin la barra de estado.
+    let pointsPerPixel = shot.size.height / CGFloat(shotRep.pixelsHigh)
+    let sourceRect = NSRect(x: 0, y: 0, width: shot.size.width,
+                            height: shot.size.height - layout.cropTop * pointsPerPixel)
     let canvas = layout.canvas
     // Lienzo sRGB sin canal alfa (App Store rechaza PNG con alfa)
     let cg = CGContext(data: nil, width: Int(canvas.width), height: Int(canvas.height), bitsPerComponent: 8,
@@ -124,7 +132,7 @@ func render(shotURL: URL, headline: String, screen: String, lang: String, layout
     NSGraphicsContext.restoreGraphicsState()
     NSGraphicsContext.saveGraphicsState()
     clip.addClip()
-    shot.draw(in: shotRect, from: .zero, operation: .sourceOver, fraction: 1)
+    shot.draw(in: shotRect, from: sourceRect, operation: .sourceOver, fraction: 1)
     NSGraphicsContext.restoreGraphicsState()
 
     try NSBitmapImageRep(cgImage: cg.makeImage()!).representation(using: .png, properties: [:])!.write(to: out)
@@ -133,7 +141,7 @@ typealias L = Layout
 
 let args = CommandLine.arguments
 guard args.count >= 4, let layout = layouts[args[3]] else {
-    print("Uso: swift compose.swift <capturas>/<dispositivo> <salida> <iphone|duo> [idiomas...]")
+    print("Uso: swift compose.swift <capturas>/<dispositivo> <salida> <iphone|duo|play> [idiomas...]")
     exit(1)
 }
 let source = URL(fileURLWithPath: args[1])
