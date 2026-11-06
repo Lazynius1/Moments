@@ -87,6 +87,8 @@ xcrun simctl status_bar "$UDID" override \
   --batteryState charged \
   --batteryLevel 100
 
+# Instalación limpia: la caché de imágenes de una ejecución anterior taparía las fotos nuevas.
+xcrun simctl uninstall "$UDID" "$BUNDLE_ID" 2>/dev/null || true
 xcrun simctl install "$UDID" "$APP_PATH"
 xcrun simctl privacy "$UDID" grant location "$BUNDLE_ID" || true
 xcrun simctl privacy "$UDID" grant location-always "$BUNDLE_ID" || true
