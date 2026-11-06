@@ -7,6 +7,7 @@
 # Variables opcionales:
 #   LANGS="es en"            idiomas a capturar (por defecto los 16)
 #   SCREENS="feed chat"      pantallas a capturar (por defecto todas)
+#   SCREEN_DISPLAY=<uuid>    pantalla concreta (Duo: interior abierto o exterior)
 #   STORY_INDEX=1            historia que abre el visor (0, 1 o 2)
 #
 # Resultado: <salida>/<dispositivo>/<idioma>/<NN>_<pantalla>.png
@@ -104,7 +105,8 @@ for lang in $LANGS; do
       -AppleLanguages "($lang)" \
       -AppleLocale "$locale" >/dev/null
     sleep "$(wait_for "$screen")"
-    xcrun simctl io "$UDID" screenshot "$dest/${nn}_${screen}.png" >/dev/null
+    # SCREEN_DISPLAY: pantalla a capturar en dispositivos con varias (p. ej. el Duo abierto).
+    xcrun simctl io "$UDID" screenshot ${SCREEN_DISPLAY:+--display="$SCREEN_DISPLAY"} "$dest/${nn}_${screen}.png" >/dev/null
   done
 done
 
