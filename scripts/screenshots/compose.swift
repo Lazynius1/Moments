@@ -3,7 +3,7 @@
 //
 // Uso:
 //   swift scripts/screenshots/compose.swift <capturas>/<dispositivo> <salida> <iphone|duo> [idiomas...]
-// Lee headlines.json junto a este script. Resultado: <salida>/<idioma>/<NN>_<pantalla>.png
+// Lee headlines.json junto a este script (o el fichero de la variable HEADLINES). Resultado: <salida>/<idioma>/<NN>_<pantalla>.png
 import AppKit
 import Foundation
 
@@ -20,7 +20,7 @@ struct Layout {
 let layouts: [String: Layout] = [
     // iPhone 6,9": 1320 × 2868
     "iphone": Layout(canvas: CGSize(width: 1320, height: 2868), headlineTop: 150, headlineHeight: 400,
-                     fontSize: 104, shotScale: 0.78, corner: 96, sideMargin: 110),
+                     fontSize: 112, shotScale: 0.86, corner: 100, sideMargin: 90),
     // iPhone Duo abierto (horizontal): 2853 × 2007
     "duo": Layout(canvas: CGSize(width: 2853, height: 2007), headlineTop: 70, headlineHeight: 310,
                   fontSize: 112, shotScale: 0.76, corner: 56, sideMargin: 200),
@@ -28,14 +28,14 @@ let layouts: [String: Layout] = [
 
 // Degradado por pantalla (arriba → abajo).
 let palettes: [String: (String, String)] = [
-    "feed": ("#FF9A62", "#FF5E8A"),
-    "storyViewer": ("#8E6CFF", "#4F7DFF"),
-    "hiddenLayers": ("#FFB25B", "#FF6F61"),
-    "chat": ("#B07CFF", "#6C4BFF"),
-    "map": ("#2FD3B0", "#2B8CFF"),
-    "privacy": ("#2E3846", "#0F141B"),
-    "appIcons": ("#E5486A", "#7A2BD6"),
-    "nova": ("#6E5BFF", "#C04BFF"),
+    "feed": ("#FF8A3D", "#FF2E7E"),
+    "storyViewer": ("#7A3CFF", "#FF3DA5"),
+    "hiddenLayers": ("#FFC23D", "#FF5B3D"),
+    "chat": ("#9B4DFF", "#4D5BFF"),
+    "map": ("#00D4A0", "#0091FF"),
+    "privacy": ("#1B1F3B", "#5B2BD6"),
+    "appIcons": ("#FF3D6E", "#8A2BFF"),
+    "nova": ("#5B3DFF", "#E03DFF"),
 ]
 let order = ["feed", "storyViewer", "hiddenLayers", "chat", "map", "privacy", "appIcons", "nova"]
 let fileIndex: [String: String] = [
@@ -51,7 +51,8 @@ func color(_ hex: String) -> NSColor {
 }
 
 func headlineFont(size: CGFloat, lang: String) -> NSFont {
-    let base = NSFont.systemFont(ofSize: size, weight: .bold)
+    let heavy = NSFont.systemFont(ofSize: size, weight: .heavy)
+    let base = heavy.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: size) } ?? heavy
     // La fuente del sistema elige sola la tipografía CJK según el idioma del texto; para el chino
     // tradicional y el japonés se fuerza la familia correcta para no mezclar glifos.
     let cjk: [String: String] = ["ja": "Hiragino Sans", "zh-Hant": "PingFang TC", "ko": "Apple SD Gothic Neo"]
@@ -139,7 +140,8 @@ let source = URL(fileURLWithPath: args[1])
 let output = URL(fileURLWithPath: args[2])
 let scriptDir = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
 let headlines = try JSONSerialization.jsonObject(
-    with: Data(contentsOf: scriptDir.appendingPathComponent("headlines.json"))) as! [String: Any]
+    with: Data(contentsOf: ProcessInfo.processInfo.environment["HEADLINES"].map { URL(fileURLWithPath: $0) }
+        ?? scriptDir.appendingPathComponent("headlines.json"))) as! [String: Any]
 let langs = args.count > 4 ? Array(args[4...])
     : (try FileManager.default.contentsOfDirectory(atPath: source.path)).filter { !$0.hasPrefix(".") }.sorted()
 
