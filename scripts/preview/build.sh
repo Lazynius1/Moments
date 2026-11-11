@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Monta el vídeo de previsualización de la App Store (886 × 1920, 30 fps, ≤ 30 s).
-# Uso: scripts/preview/build.sh <tomas_raw> <overlays> <salida.mp4>
+# Uso: REVEAL_START=<s> scripts/preview/build.sh <tomas_raw> <overlays> <salida.mp4>
+# REVEAL_START: segundo de la toma s8_reveal en que empieza a rascar (menos ~0,6 s).
 # Las tomas se graban del simulador en modo capturas (s8_reveal, s2_feed … s7_privacy).
 set -euo pipefail
 RAW="$1"; OV="$2"; OUT="$3"
@@ -25,7 +26,7 @@ card() {
   ffmpeg -v error -y -framerate 30 -i "$OV/$2/%04d.png" -vf "format=yuv420p,setsar=1" "${ENC[@]}" "$TMP/$1.mp4"
 }
 
-clip 01 s8_reveal 21.0 135 t1_people 2
+clip 01 s8_reveal "${REVEAL_START:-21.0}" 135 t1_people 2
 card 02 c2_pressure
 clip 03 s2_feed    0.8 90 t3_feed
 card 04 c4_tea
