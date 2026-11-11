@@ -4,11 +4,11 @@
     {
       "name": "t1_people",
       "kind": "pill",
-      "text": "Your people.",
+      "text": "Stories with secrets 💜",
       "frames": 135,
-      "typeFrames": 14,
+      "typeFrames": 18,
       "y": 0.8,
-      "fontSize": 72,
+      "fontSize": 60,
       "colors": [
         "#7A3CFF",
         "#FF3DA5"
@@ -18,9 +18,9 @@
     {
       "name": "c2_pressure",
       "kind": "card",
-      "text": "Zero pressure ✌️",
+      "text": "Your people.\nZero pressure ✌️",
       "frames": 60,
-      "typeFrames": 18,
+      "typeFrames": 22,
       "y": 0.5,
       "colors": [
         "#FF8A3D",
@@ -57,7 +57,7 @@
     {
       "name": "t6_secrets",
       "kind": "pill",
-      "text": "Hide secrets in your pics 🤫",
+      "text": "Every pic has a hidden side 👀",
       "frames": 96,
       "typeFrames": 22,
       "y": 0.8,
