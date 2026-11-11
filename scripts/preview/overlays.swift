@@ -3,7 +3,8 @@
 //
 // spec.json: { "logo": "<png>", "items": [ { "name", "kind": "pill" | "card" | "logo", "text",
 //   "frames", "typeFrames", "y" (0-1, centro del texto), "colors": ["#hex", "#hex"] } ] }
-// - pill: texto escrito letra a letra sobre una píldora de color, fondo transparente (va encima del vídeo).
+// - pill: texto escrito letra a letra sobre una píldora de color, fondo transparente (va encima del vídeo);
+//   `delayFrames` retrasa el inicio de la escritura.
 // - card: degradado a pantalla completa con el texto escrito letra a letra.
 // - logo: degradado con el logotipo que aparece con un fundido.
 import AppKit
@@ -20,6 +21,7 @@ struct Item: Decodable {
     let y: Double?
     let colors: [String]?
     let fontSize: Double?
+    let delayFrames: Int?
 }
 
 struct Spec: Decodable {
@@ -91,6 +93,7 @@ for item in spec.items {
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     let text = item.text ?? ""
     let typeFrames = item.typeFrames ?? 18
+    let delay = item.delayFrames ?? 0   // fotogramas sin texto antes de empezar a escribir
     // Coordenadas de AppKit: origen abajo; `y` del spec se mide desde arriba.
     let centerY = size.height * (1 - CGFloat(item.y ?? 0.5))
 
@@ -112,7 +115,8 @@ for item in spec.items {
                               from: .zero, operation: .sourceOver, fraction: alpha)
                 }
             default: // pill
-                let shown = typed(text, frame: frame, typeFrames: typeFrames)
+                guard frame >= delay else { return }
+                let shown = typed(text, frame: frame - delay, typeFrames: typeFrames)
                 guard !shown.isEmpty else { return }
                 let string = attributed(shown, size: CGFloat(item.fontSize ?? 64))
                 let bounds = string.boundingRect(with: NSSize(width: maxWidth - 60, height: 2000),

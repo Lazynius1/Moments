@@ -5,14 +5,15 @@
       "name": "t1_people",
       "kind": "pill",
       "text": "Your people.",
-      "frames": 90,
-      "typeFrames": 16,
-      "y": 0.3,
+      "frames": 135,
+      "typeFrames": 14,
+      "y": 0.8,
       "fontSize": 72,
       "colors": [
         "#7A3CFF",
         "#FF3DA5"
-      ]
+      ],
+      "delayFrames": 96
     },
     {
       "name": "c2_pressure",
@@ -83,7 +84,7 @@
       "name": "t9_map",
       "kind": "pill",
       "text": "See where it's happening 📍",
-      "frames": 84,
+      "frames": 72,
       "typeFrames": 22,
       "y": 0.3,
       "fontSize": 48,
@@ -96,7 +97,7 @@
       "name": "t10_privacy",
       "kind": "pill",
       "text": "You pick who sees it. 🔒",
-      "frames": 84,
+      "frames": 72,
       "typeFrames": 20,
       "y": 0.84,
       "fontSize": 56,
