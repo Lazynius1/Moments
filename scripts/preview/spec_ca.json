@@ -1,0 +1,120 @@
+{
+  "logo": "/Users/lazynius/Desktop/MacMini/LOGOS FINALES/PNG/500ppi/logotipo blanco con degradado.png",
+  "items": [
+    {
+      "name": "t1_people",
+      "kind": "pill",
+      "text": "Històries amb secrets 💜",
+      "frames": 135,
+      "typeFrames": 18,
+      "y": 0.8,
+      "fontSize": 50,
+      "colors": [
+        "#7A3CFF",
+        "#FF3DA5"
+      ],
+      "delayFrames": 96
+    },
+    {
+      "name": "c2_pressure",
+      "kind": "card",
+      "text": "La teva gent.\nZero postureig ✌️",
+      "frames": 60,
+      "typeFrames": 22,
+      "y": 0.5,
+      "colors": [
+        "#FF8A3D",
+        "#FF2E7E"
+      ],
+      "fontSize": 92
+    },
+    {
+      "name": "t3_feed",
+      "kind": "pill",
+      "text": "Amics de debò. Moments de debò.",
+      "frames": 90,
+      "typeFrames": 22,
+      "y": 0.62,
+      "fontSize": 48,
+      "colors": [
+        "#FF8A3D",
+        "#FF2E7E"
+      ]
+    },
+    {
+      "name": "c4_tea",
+      "kind": "card",
+      "text": "Enquestes, adhesius\ni molt de salseig 👀",
+      "frames": 54,
+      "typeFrames": 22,
+      "y": 0.5,
+      "fontSize": 70,
+      "colors": [
+        "#7A3CFF",
+        "#FF3DA5"
+      ]
+    },
+    {
+      "name": "t6_secrets",
+      "kind": "pill",
+      "text": "Cada foto té el seu costat ocult 👀",
+      "frames": 96,
+      "typeFrames": 22,
+      "y": 0.8,
+      "fontSize": 46,
+      "colors": [
+        "#FFB23D",
+        "#FF5B3D"
+      ]
+    },
+    {
+      "name": "c7_chat",
+      "kind": "card",
+      "text": "Àudios, fotos\ni planassos 💬",
+      "frames": 54,
+      "typeFrames": 22,
+      "y": 0.5,
+      "fontSize": 96,
+      "colors": [
+        "#9B4DFF",
+        "#4D5BFF"
+      ]
+    },
+    {
+      "name": "t9_map",
+      "kind": "pill",
+      "text": "Mira on es lia 📍",
+      "frames": 72,
+      "typeFrames": 22,
+      "y": 0.3,
+      "fontSize": 48,
+      "colors": [
+        "#00C49A",
+        "#0091FF"
+      ]
+    },
+    {
+      "name": "t10_privacy",
+      "kind": "pill",
+      "text": "Tu tries qui ho veu. 🔒",
+      "frames": 72,
+      "typeFrames": 20,
+      "y": 0.84,
+      "fontSize": 56,
+      "colors": [
+        "#2B2F5B",
+        "#7A3CFF"
+      ]
+    },
+    {
+      "name": "c11_logo",
+      "kind": "logo",
+      "frames": 66,
+      "y": 0.5,
+      "colors": [
+        "#2A1060",
+        "#7A3CFF"
+      ]
+    }
+  ]
+}
